@@ -12,13 +12,18 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
     "import-pharow": "tsx scripts/import-pharow.ts",
     "deploy-client": "tsx scripts/deploy-client.ts"
+  },
+  "dependencies": {
+    "@dmh/config": "workspace:*"
   },
   "devDependencies": {
     "supabase": "^2.109.1",
     "tsx": "^4.19.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
