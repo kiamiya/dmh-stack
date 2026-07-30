@@ -13,6 +13,7 @@ Dernière mise à jour : 2026-07-30
 |---|---|
 | Infra de tests unitaires (vitest, wiring turbo `test`) | ✅ fait |
 | `packages/config` — validation typée des variables d'environnement | ✅ fait (tests unitaires verts) |
+| `packages/pappers` — client + mapper Pappers (logique pure, testée) | ✅ fait (13 tests unitaires verts) — mapping à valider contre l'API réelle, voir `TESTING.md` |
 | `PROGRESS.md` (ce fichier) | ✅ fait |
 | `TESTING.md` (process de test fonctionnel) | 🔄 v1 en attente de validation |
 
@@ -24,8 +25,8 @@ Dernière mise à jour : 2026-07-30
 | S1 | Infrastructure | Définir et implémenter le schéma complet des tables | ✅ fait (`supabase/migrations/001_initial_schema.sql`) |
 | S1 | Infrastructure | Souscrire aux outils (Smartlead, Pharow, Dropcontact, Lemlist) | ⬜ à faire — voir checklist ci-dessous |
 | S1 | Infrastructure | Configurer les variables d'environnement | ✅ toutes les clés bloquantes réunies (Anthropic, Pappers, Dropcontact, Smartlead, Lemlist) ; il ne manque que `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du webhook S4) |
-| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | ⬜ à faire |
-| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire |
+| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | 🔄 code écrit + testé unitairement, **pas encore validé contre l'API réelle** (voir `TESTING.md`) |
+| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — dépend de la validation ci-dessus |
 | S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ⬜ à faire |
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ⬜ à faire |
 | S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ⬜ à faire |
@@ -75,6 +76,11 @@ Rappel action William (brief S1, hors périmètre dev) : dès que le compte Smar
 
 - **2026-07-30 — Lemlist remplace Waalaxy** pour l'automatisation LinkedIn/cold outreach (le brief §1.2.4 documente Waalaxy en détail, ce n'est plus l'outil retenu). Impact code : variable d'environnement `LEMLIST_API_KEY` (ex-`WAALAXY_API_KEY`), colonne `prospects.lemlist_contact_id` (migration `002_rename_waalaxy_to_lemlist.sql`, pas encore appliquée sur Supabase).
 
+## Incertitudes techniques à lever
+
+- **Champs de réponse de l'API Pappers** : la documentation officielle (`pappers.fr/api/documentation`) a renvoyé une erreur 403 à la récupération automatique. Le mapping dans `packages/pappers/src/mapper.ts` est basé sur des sources tierces convergentes (SDK communautaires, wrappers open source) mais **n'a pas été vérifié contre un vrai appel API**. Le JSON brut est toujours conservé intégralement dans `companies.pappers_data`, donc aucune perte de données même si le mapping est imparfait — mais les colonnes dédiées (`naf_code`, `revenue`, etc.) peuvent rester vides tant que ce n'est pas corrigé. Voir `TESTING.md` pour le test à effectuer dès que possible.
+- **Déclenchement automatique de l'Edge Function** : le brief prévoit un déclenchement automatique à la création d'un prospect en statut `to_enrich` (webhook DB Supabase). Ce n'est pas encore câblé — l'Edge Function `enrich-pappers` s'invoque pour l'instant manuellement via HTTP POST `{ prospect_id }`. Câblage du trigger DB → webhook à faire dans une itération suivante.
+
 ## Journal des sessions
 
 ### 2026-07-29
@@ -92,3 +98,6 @@ Rappel action William (brief S1, hors périmètre dev) : dès que le compte Smar
 - Décision : remplacement de Waalaxy par Lemlist dans toute la stack (voir section "Écarts assumés par rapport au brief" ci-dessus). Loïc a fourni la clé Lemlist. Renommage effectué dans `@dmh/config`, `@dmh/types`, `.env.example`/`.env.local`, nouvelle migration `002_rename_waalaxy_to_lemlist.sql` (pas encore appliquée sur Supabase).
 - Clarification importante : le document brief source (`.docx`) ne doit **jamais** être modifié, même quand une décision s'en écarte — uniquement le code et la documentation du repo.
 - **Point de reprise** : toutes les clés API bloquantes sont réunies → l'Edge Function `enrich-pappers` (S2) peut démarrer à la prochaine itération.
+- Créé `packages/pappers` (`@dmh/pappers`) : client Pappers (siren + recherche par nom) et mapper vers les champs `companies`, tous deux purs et testés (13 tests unitaires verts, typecheck OK). Documentation officielle Pappers inaccessible (403) au moment de coder — mapping basé sur des sources tierces, à valider contre un vrai appel (voir "Incertitudes techniques" ci-dessus et `TESTING.md`).
+- Écrit `supabase/functions/enrich-pappers/index.ts` (Deno) : lit `prospect_id`, appelle Pappers, met à jour `companies` + fait passer `prospects.status` à `enriched_pappers`. Glue non testée unitairement (runtime Deno hors du pipeline vitest/tsc du monorepo), pas encore exécutée localement (ni Docker ni Deno CLI disponibles dans cet environnement) — **à valider fonctionnellement avant de considérer S2 terminé**.
+- **Point de reprise** : prochaine étape = exécuter le test fonctionnel décrit dans `TESTING.md` (appel réel à Pappers + vérification du mapping), puis câbler le déclenchement automatique (webhook DB sur statut `to_enrich`) et le script d'import CSV Pharow.

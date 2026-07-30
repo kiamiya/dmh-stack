@@ -13,43 +13,79 @@
 
 ## Fonctionnalité concernée
 
-Module `@dmh/config` — validation des variables d'environnement
-(`loadServerEnv` / `loadPublicEnv`).
+Edge Function `supabase/functions/enrich-pappers` — enrichissement d'un
+prospect via l'API Pappers (S2 du brief).
 
 ## Pourquoi un test fonctionnel ici (en plus des tests unitaires) ?
 
-Les tests unitaires (`pnpm --filter @dmh/config test`, 7/7 verts) couvrent la
-logique de validation avec des valeurs factices. Ils ne prouvent pas que le
-comportement est correct **avec le vrai `.env.local`** de la machine. Ce test
-manuel, rapide, vérifie ça une fois avant de considérer la brique livrée.
+Les 13 tests unitaires de `@dmh/pappers` (`pnpm --filter @dmh/pappers test`)
+couvrent la construction de l'URL, la gestion d'erreur HTTP et le mapping —
+mais avec des **réponses simulées**, pas la vraie réponse de l'API Pappers.
+
+Point important : la documentation officielle de l'API
+(`pappers.fr/api/documentation`) a renvoyé une erreur 403 lors de la
+récupération automatique pendant que j'écrivais le mapper. Les noms de
+champs utilisés (`nom_entreprise`, `siege.ville`, `tranche_effectif`,
+`chiffre_affaires`, etc.) viennent de sources tierces (SDK communautaires,
+wrappers open source), pas de la doc officielle vérifiée directement. Ils
+peuvent donc être imprécis ou incomplets par rapport à la vraie réponse.
+
+Ce test sert à confirmer (ou corriger) ce mapping avant de considérer S2
+terminé. Aucun risque de perte de données en attendant : la réponse brute
+est toujours stockée intégralement dans `companies.pappers_data`, mapping
+correct ou non.
+
+Autre limite de cet environnement : ni Docker ni le CLI Deno ne sont
+disponibles ici, donc je n'ai pas pu exécuter `supabase functions serve`
+moi-même pour vérifier que le fichier `index.ts` tourne réellement — il a
+seulement été relu, pas exécuté.
 
 ## Pré-requis
 
-- Rien de spécial : ce test n'appelle aucune API externe, aucune clé réelle
-  n'est nécessaire pour l'instant.
+- Une entreprise française réelle avec un SIREN connu (n'importe laquelle,
+  ex. une entreprise publique dont le SIREN est facile à trouver), pour
+  tester l'appel avec `siren`.
+- Docker installé (nécessaire à `supabase functions serve` pour lancer les
+  Edge Functions en local) — ou possibilité de tester `@dmh/pappers`
+  directement en Node sans passer par Deno (voir étape 1 ci-dessous, ne
+  nécessite pas Docker).
 
 ## Étapes à exécuter
 
-1. Dans `H:\FilumByDMH`, lancer :
+1. **Test rapide sans Docker** (valide juste le mapping, pas la Edge
+   Function complète) : depuis `H:\FilumByDMH`, lancer un script one-off
+   avec `tsx` qui appelle `fetchCompanyFromPappers` avec un vrai SIREN et la
+   vraie clé (`PAPPERS_API_KEY` de `.env.local`), puis affiche le JSON brut
+   et le résultat de `mapPappersCompany`. Dis-moi si tu veux que je
+   l'ajoute comme script réutilisable (`pnpm run check-pappers <siren>`
+   par exemple) plutôt qu'une commande ponctuelle.
+2. **Test complet avec Docker** (si tu as Docker) :
    ```
-   pnpm run check-env
+   pnpm exec supabase functions serve enrich-pappers --env-file .env.local
    ```
-   (script `scripts/check-env.ts`, charge `.env.local` et appelle
-   `loadServerEnv(process.env)`.)
-2. Constater le message affiché.
+   puis, dans un autre terminal :
+   ```
+   curl -X POST http://localhost:54321/functions/v1/enrich-pappers \
+     -H "Content-Type: application/json" \
+     -d '{"prospect_id": "<uuid d'\''un prospect existant en statut to_enrich>"}'
+   ```
+   (nécessite un prospect de test réel dans Supabase, en statut `to_enrich`,
+   avec une `company` liée ayant un `siren` ou un `name`.)
 
 ## Résultat attendu vs résultat à constater
 
-- **Attendu maintenant** : toutes les clés bloquantes sont dans `.env.local`
-  sauf `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du
-  webhook S4) — le script doit donc lister uniquement cette variable comme
-  manquante, pas un crash silencieux ni un message vague.
-- **Attendu plus tard**, une fois `SMARTLEAD_WEBHOOK_SECRET` renseigné :
-  `OK: environnement complet`.
+- Le JSON brut retourné par Pappers doit correspondre à ce qui est décrit
+  dans le brief §1.3.1 (dénomination, forme juridique, NAF, adresse,
+  effectif, dirigeants...).
+- `mapPappersCompany(raw, new Date())` doit remplir `name`, `nafCode`,
+  `legalForm`, `city`, etc. avec des valeurs cohérentes — pas tout à `null`
+  (signe que les noms de champs supposés sont faux et qu'il faut corriger
+  `packages/pappers/src/mapper.ts`).
+- Avec le test complet (étape 2) : `companies` mis à jour, `prospects.status`
+  passé à `enriched_pappers`, réponse HTTP `200 { ok: true, ... }`.
 
 ## Validation
 
-- [ ] Format de ce document validé par Loïc (process à conserver tel quel
-      pour les prochains tests fonctionnels : Pappers, Dropcontact, Claude,
-      Smartlead webhooks...)
-- [ ] Résultat du test ci-dessus constaté et conforme
+- [ ] Mapping confirmé correct (ou corrections identifiées) contre un vrai
+      appel Pappers.
+- [ ] Format de ce document toujours adapté pour toi.
