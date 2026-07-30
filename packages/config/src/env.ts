@@ -66,12 +66,21 @@ const generateMessagesFunctionEnvSchema = z.object({
   ANTHROPIC_API_KEY: anthropicApiKey,
 });
 
+// Ce dont l'Edge Function webhook-smartlead a réellement besoin (pas
+// SMARTLEAD_API_KEY : recevoir un webhook n'appelle pas l'API Smartlead).
+const webhookSmartleadFunctionEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  SMARTLEAD_WEBHOOK_SECRET: smartleadWebhookSecret,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
 export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
 export type DropcontactFunctionEnv = z.infer<typeof dropcontactFunctionEnvSchema>;
 export type GenerateMessagesFunctionEnv = z.infer<typeof generateMessagesFunctionEnvSchema>;
+export type WebhookSmartleadFunctionEnv = z.infer<typeof webhookSmartleadFunctionEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -151,4 +160,14 @@ export function loadGenerateMessagesFunctionEnv(
   source: EnvSource,
 ): GenerateMessagesFunctionEnv {
   return parseOrThrow(generateMessagesFunctionEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour l'Edge Function `webhook-smartlead` : Supabase +
+ * le secret de vérification de signature uniquement.
+ */
+export function loadWebhookSmartleadFunctionEnv(
+  source: EnvSource,
+): WebhookSmartleadFunctionEnv {
+  return parseOrThrow(webhookSmartleadFunctionEnvSchema, source);
 }

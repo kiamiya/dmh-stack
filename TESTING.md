@@ -11,75 +11,78 @@
 
 ## Statut : ✅ test exécuté par mes soins — en attente de ta relecture
 
-Test fonctionnel de l'interface CRM (`apps/crm`, S4 — premier item) exécuté
-le 2026-07-30, dans un navigateur headless (Chromium via Playwright, piloté
-par un script jetable — aucun outil de ce type n'existait dans le repo,
-rien n'a été ajouté au projet).
+Test fonctionnel du webhook Smartlead (`webhook-smartlead`, S4 — 2e et
+dernier item), exécuté le 2026-07-30. Comme pour Pappers/Dropcontact, la
+fonction a été lancée en local via Deno CLI, contre le **vrai** projet
+Supabase (pas d'émulation locale).
 
 ### Pré-requis mis en place avant le test
 
-- **Migration `005_add_staff_members.sql` appliquée** sur le vrai projet
-  Supabase (confirmation donnée explicitement par toi) : table
-  `staff_members` + policy `staff_full_access` additive sur les 7 tables
-  scopées `client_id`.
-- **Compte de test** : ton compte réel `lrd@dmhassocies.com` (mot de passe
-  que tu as fourni) créé dans `auth.users` (n'existait pas encore) et lié
-  à `staff_members`. Script jetable, clé `service_role`, supprimé après
-  usage — pas conservé dans le repo.
+- **Migration `006_add_email_bounced_interaction_type.sql` appliquée**
+  (confirmation explicite donnée par toi) : ajoute la valeur `email_bounced`
+  à l'enum `interaction_type`, absente jusque-là.
+- **`SMARTLEAD_WEBHOOK_SECRET`** : la vraie valeur n'existe pas encore (se
+  génère au moment de configurer le vrai webhook côté Smartlead, cf.
+  `CLAUDE.md` — pas un compte à créer). J'ai mis une valeur de test locale
+  (`local-test-placeholder-not-a-real-smartlead-secret`) dans `.env.local`
+  uniquement pour pouvoir exécuter le test ci-dessous ; à remplacer par la
+  vraie valeur quand le webhook sera réellement configuré côté Smartlead.
+- **Email de test sur le contact existant** : le contact du prospect de
+  test `1a646013-c0a2-48e9-b402-45332023f873` avait `email = null`
+  (résultat `not_found` du test Dropcontact) — je lui ai mis un email
+  fictif (`webhook-test-claude@example.com`) pour que le rattachement par
+  email fonctionne pendant le test. Donnée de test, pas un vrai email.
 
-### Étapes exécutées et résultat
+### Ce que je n'ai pas pu tester (pas de compte/campagne Smartlead réels)
 
-1. **`pnpm --filter @dmh/crm dev`** — démarre sans erreur (Vite, port 5173).
-2. **Page `/login` non authentifiée** : rendu correct (carte "DMH CRM",
-   champs Email/Mot de passe, bouton "Se connecter"), aucune erreur
-   console. La route protégée `/` redirige bien vers `/login` quand il n'y
-   a pas de session.
-3. **Connexion avec `lrd@dmhassocies.com`** : réussie, redirection vers `/`.
-4. **Liste des prospects** : les 4 prospects de test s'affichent (PM
-   MECANIQUE INDUSTRIE, ACME Fictive SAS ×2, Autre Entreprise Test), avec
-   entreprise/contact/client DMH/statut (badge coloré). **Point important** :
-   je n'ai qu'un seul client de test dans la base actuellement (`[TEST
-   Claude] Client de test`) — je ne peux donc pas prouver littéralement un
-   accès *inter-clients*. Ce que j'ai vérifié à la place : ton compte
-   (`lrd@...`) est un utilisateur `auth` générique, sans lien direct avec
-   ce `client_id` — s'il voyait 0 ligne, ce serait la preuve que seule la
-   policy `client_isolation` s'applique ; comme il voit les 4 lignes, ça
-   démontre que `staff_full_access` fonctionne bien (accès accordé via
-   `staff_members`, indépendamment de tout `client_id`). La preuve
-   "plusieurs clients différents visibles" restera à refaire dès qu'un
-   deuxième vrai client existera.
-5. **Détail du prospect `1a646013-c0a2-48e9-b402-45332023f873`** (PM
-   MECANIQUE INDUSTRIE) : entreprise/contact enrichis affichés
-   correctement (forme juridique, secteur, effectif, ville, CA ; nom du
-   contact, email "— (not_found)" cohérent avec le résultat Dropcontact du
-   test S3), et le **vrai message généré par Claude** (email, LinkedIn,
-   relance J+7) s'affiche intégralement.
-6. **Changement de statut** : dropdown testé (`ready` → `qualified` →
-   retour à `ready`), mise à jour immédiate en base et à l'écran, aucune
-   erreur.
-7. **"Marquer prêt pour Smartlead"** : cliqué sur ce prospect (son message
-   n'était pas encore marqué `approved`) — le bouton disparaît, remplacé
-   par un badge vert "Prêt pour Smartlead — 30/07/2026", `approved=true` et
-   `injected_at` bien persistés en base.
+- L'appel réel Smartlead → notre fonction (suppose une fonction déployée
+  avec une URL HTTPS publique + un webhook configuré côté Smartlead avec
+  de vrais envois). J'ai simulé des payloads conformes au format documenté
+  (recherche sur `api.smartlead.ai`, la doc n'était pas dans le brief).
+- Le rattachement par email sur un cas réel : fonctionne dans le test avec
+  un email fictif, mais la vraie robustesse (casse, alias, doublons entre
+  clients) ne sera prouvée qu'avec de vrais webhooks.
 
-Aucune erreur console (`pageerror`/`console.error`) sur l'ensemble du
-parcours. Captures d'écran disponibles si tu veux les voir (pas commitées
-dans le repo, générées dans un dossier temporaire).
+### Étapes exécutées et résultat (11 scénarios, tous conformes)
 
-### Ce que ce test ne couvre pas (hors périmètre assumé de cette itération)
+1. **Signature invalide** → `401 { error: "Signature invalide" }`.
+2. **`event_type` inconnu** (`SOMETHING_NEW`) → `200 { ok: true, skipped: "event_type non géré: ..." }`, ignoré proprement.
+3. **Email sans contact correspondant** → `200 { ok: true, skipped: "contact introuvable pour cet email" }`.
+4. **`EMAIL_SENT` (sequence_number: 1)** → interaction `email_sent` insérée, statut prospect avancé. **Point notable** : le statut était `enriched_contact` au moment du test (pas `ready` comme attendu — probablement changé entre-temps en explorant le CRM toi-même) ; la fonction l'a fait passer directement à `in_sequence`, ce qui reste correct (elle avance toujours vers l'état suivant, peu importe le point de départ).
+5. **Rejeu du même `X-Request-Id`** → `200 { ok: true, deduplicated: true }`, **aucune nouvelle ligne insérée** (vérifié : le compte d'interactions n'a pas bougé).
+6. **`EMAIL_OPEN`** → interaction `email_opened` journalisée, statut inchangé.
+7. **`EMAIL_LINK_CLICK`** → interaction `email_clicked` journalisée (URL cliquée dans `content`), statut inchangé.
+8. **`EMAIL_BOUNCE`** → interaction `email_bounced` journalisée — **confirme que la migration 006 fonctionne réellement** (nouvelle valeur d'enum utilisable en conditions réelles).
+9. **`EMAIL_REPLY`** → interaction `email_replied` journalisée (corps de la réponse dans `content`), statut avancé `in_sequence` → `replied`.
+10. **`LEAD_CATEGORY_UPDATED`** ("Interested" → "Meeting Booked") → interaction `note` journalisée (résumé du changement de catégorie), statut avancé `replied` → `meeting_booked`.
+11. **`LEAD_UNSUBSCRIBED`** → interaction `email_unsubscribed` journalisée, statut inchangé (décision volontairement conservatrice, voir plan).
 
-- Accès **réellement** inter-clients (un seul client de test existe).
-- L'Edge Function `webhook-smartlead` (explicitement reportée à une
-  itération séparée, cf. plan validé).
-- Tests avec un deuxième compte staff (William, le SDR) — seul ton compte
-  a été mis en place ; pour les autres, même procédure (créer l'utilisateur
-  `auth`, ajouter une ligne `staff_members`) le moment venu.
+Vérifications complémentaires en base après coup : les 7 interactions
+attendues sont bien présentes avec les bons champs (`metadata` contient le
+payload brut + `x_request_id`, cohérent avec le commentaire du schéma
+initial "données brutes webhook Smartlead/Waalaxy"). Le trigger existant
+`update_prospect_activity` (déjà dans `001_initial_schema.sql`, jamais
+modifié) s'est bien déclenché : `first_contact_at`/`last_activity_at` sont
+renseignés automatiquement, sans code ajouté de notre côté pour ça.
 
-**Point à valider par toi** : peux-tu te connecter toi-même à
-`http://localhost:5173` (ou en déployant plus tard) avec ton compte pour
-juger du rendu et de l'ergonomie ? Je considère la brique technique S4
-"CRM basique" fonctionnelle sur la base du test ci-dessus, mais le jugement
-sur l'UX/le contenu reste le tien.
+### Ce qui reste hors périmètre de cette itération (à documenter, pas à faire)
+
+- **Déployer** la fonction sur le vrai Supabase (`supabase functions
+  deploy`) et **configurer réellement le webhook côté Smartlead**
+  (dashboard/API, vraie URL HTTPS, vrai secret) : actions sur un système
+  tiers, à faire une fois qu'un compte Smartlead + une campagne pilote
+  existent. Pas bloquant pour considérer la brique **code** de S4 comme
+  terminée.
+- Validation du mapping catégorie de lead → statut sur un vrai webhook
+  (les catégories Smartlead sont configurables par compte — la liste
+  utilisée est une hypothèse documentée dans `PROGRESS.md`).
+
+**Point à valider par toi si tu veux** : le comportement te semble-t-il
+cohérent (notamment les 3 cas où le statut avance automatiquement — email
+envoyé, réponse reçue, changement de catégorie) ? Si tu préfères une
+approche plus prudente (par exemple : ne jamais avancer le statut
+automatiquement, tout passer par une validation manuelle dans le CRM), dis-le
+et j'ajuste avant qu'un vrai webhook soit branché.
 
 ## Outillage disponible pour les prochains tests
 
@@ -95,8 +98,10 @@ sur l'UX/le contenu reste le tien.
 - **`pnpm exec supabase db push`** pour appliquer les migrations en attente sur la vraie base (toujours demander confirmation avant, cf. `CLAUDE.md`).
 - **`pnpm --filter @dmh/crm dev`** pour lancer le CRM en local (port 5173).
 - **Compte de test CRM** : `lrd@dmhassocies.com` (ton compte réel), lié à `staff_members` — accès à tous les clients depuis le CRM.
+- **`webhook-smartlead`** : lancée en local (port 8000, cf. commande Deno ci-dessus), signature HMAC calculable avec `crypto.createHmac("sha256", secret).update(body).digest("hex")` préfixé de `sha256=`.
 - **Données de test dans Supabase** (conservées, voir `PROGRESS.md`) :
   client de test `test-claude-enrich-pappers` (avec `offer_description`
-  configurée), 4 prospects couvrant tous les statuts intermédiaires, dont
-  `1a646013-...` désormais `ready` **et** `approved=true` (marqué prêt pour
-  Smartlead pendant ce test).
+  configurée), 4 prospects couvrant tous les statuts intermédiaires. Le
+  prospect `1a646013-...` a maintenant : un contact avec un email de test
+  (`webhook-test-claude@example.com`), 7 interactions Smartlead simulées,
+  et un statut `meeting_booked` (progressé pendant ce test).

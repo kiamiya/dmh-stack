@@ -101,6 +101,7 @@ export type InteractionType =
   | "email_clicked"
   | "email_replied"
   | "email_unsubscribed"
+  | "email_bounced"
   | "linkedin_request_sent"
   | "linkedin_connected"
   | "linkedin_message_sent"

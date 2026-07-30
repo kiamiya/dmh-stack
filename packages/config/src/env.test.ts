@@ -7,6 +7,7 @@ import {
   loadPharowImportEnv,
   loadPublicEnv,
   loadServerEnv,
+  loadWebhookSmartleadFunctionEnv,
 } from "./env.js";
 
 const validSource = {
@@ -202,6 +203,37 @@ describe("loadGenerateMessagesFunctionEnv", () => {
   it("lève EnvValidationError si ANTHROPIC_API_KEY manque", () => {
     expect(() =>
       loadGenerateMessagesFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      }),
+    ).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadWebhookSmartleadFunctionEnv", () => {
+  it("ne requiert que Supabase + SMARTLEAD_WEBHOOK_SECRET", () => {
+    const env = loadWebhookSmartleadFunctionEnv({
+      SUPABASE_URL: validSource.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      SMARTLEAD_WEBHOOK_SECRET: validSource.SMARTLEAD_WEBHOOK_SECRET,
+    });
+
+    expect(env.SMARTLEAD_WEBHOOK_SECRET).toBe("fake-smartlead-webhook-secret");
+  });
+
+  it("n'est pas bloqué par l'absence de SMARTLEAD_API_KEY (pas besoin d'appeler l'API pour recevoir un webhook)", () => {
+    expect(() =>
+      loadWebhookSmartleadFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+        SMARTLEAD_WEBHOOK_SECRET: validSource.SMARTLEAD_WEBHOOK_SECRET,
+      }),
+    ).not.toThrow();
+  });
+
+  it("lève EnvValidationError si SMARTLEAD_WEBHOOK_SECRET manque", () => {
+    expect(() =>
+      loadWebhookSmartleadFunctionEnv({
         SUPABASE_URL: validSource.SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
       }),
