@@ -11,16 +11,20 @@
 
 ## Statut : ✅ rien en attente actuellement
 
-Le dernier test fonctionnel (Edge Function `enrich-pappers`, S2) a été validé
-end-to-end le 2026-07-30 : client + mapper Pappers contre l'API réelle,
-Edge Function exécutée avec Deno CLI contre le vrai projet Supabase,
-prospect enrichi de bout en bout (voir le Journal des sessions dans
-`PROGRESS.md` pour le détail complet — deux bugs trouvés et corrigés au
-passage, un problème de projet Supabase en pause résolu par Loïc).
+Le dernier test fonctionnel (script d'import CSV Pharow, fin de S2) a été
+validé end-to-end le 2026-07-30 : CSV fictif de test importé pour de vrai
+contre Supabase, déduplication d'entreprise confirmée en base (voir le
+Journal des sessions dans `PROGRESS.md`).
+
+**Point d'attention pour la suite** : les noms de colonnes du CSV Pharow
+utilisés par `packages/pharow/src/csv.ts` sont des suppositions (aucun compte
+Pharow réel n'existe encore) — à revalider avec un vrai export dès qu'un
+compte Pharow existe. Ce sera un candidat naturel pour le prochain test
+fonctionnel de ce type.
 
 Ce fichier sera réécrit avec la prochaine fonctionnalité nécessitant une
-validation humaine (prochain candidat : Dropcontact + Claude API, S3, ou le
-script d'import CSV Pharow).
+validation humaine (prochain candidat dans l'ordre du brief : S3,
+intégration Dropcontact + génération de messages Claude API).
 
 ## Outillage disponible pour les prochains tests
 
@@ -32,9 +36,9 @@ script d'import CSV Pharow).
   deno run --allow-net --allow-env --env-file=../../../.env.local index.ts
   ```
 - **`pnpm run check-pappers -- <siren>`** pour tester rapidement le mapper Pappers sur une nouvelle entreprise.
+- **`pnpm run import-pharow -- --client-id <uuid> <fichier.csv>`** pour importer un CSV Pharow (ou un CSV de test).
 - **Données de test dans Supabase** (conservées, voir `PROGRESS.md`) :
-  un `dmh_clients`/`companies`/`contacts`/`prospects` de test déjà en place
-  (prospect id `1a646013-c0a2-48e9-b402-45332023f873`, déjà en statut
-  `enriched_pappers`) — réutilisable pour tester les prochaines étapes du
-  pipeline (Dropcontact, scoring, génération de message...) sans tout
-  recréer.
+  client de test `test-claude-enrich-pappers`, avec plusieurs prospects déjà
+  créés à différents stades (`enriched_pappers`, `to_enrich`) — réutilisable
+  pour tester les prochaines étapes du pipeline (Dropcontact, scoring,
+  génération de message...) sans tout recréer.

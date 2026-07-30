@@ -14,6 +14,8 @@ Dernière mise à jour : 2026-07-30
 | Infra de tests unitaires (vitest, wiring turbo `test`) | ✅ fait |
 | `packages/config` — validation typée des variables d'environnement | ✅ fait (tests unitaires verts) |
 | `packages/pappers` — client + mapper Pappers (logique pure, testée) | ✅ fait (15 tests unitaires verts) — mapping validé contre l'API réelle |
+| `packages/pharow` — parsing CSV + mapping + orchestration import (logique pure, testée) | ✅ fait (13 tests unitaires verts) — validé end-to-end contre le vrai Supabase |
+| Typecheck de `scripts/` (jusque-là hors pipeline) | ✅ fait — `scripts/tsconfig.json` + `pnpm typecheck` racine le couvre désormais |
 | `PROGRESS.md` (ce fichier) | ✅ fait |
 | `TESTING.md` (process de test fonctionnel) | ✅ format validé à l'usage (3 itérations) |
 
@@ -26,8 +28,8 @@ Dernière mise à jour : 2026-07-30
 | S1 | Infrastructure | Souscrire aux outils (Smartlead, Pharow, Dropcontact, Lemlist) | ⬜ à faire — voir checklist ci-dessous |
 | S1 | Infrastructure | Configurer les variables d'environnement | ✅ toutes les clés bloquantes réunies (Anthropic, Pappers, Dropcontact, Smartlead, Lemlist) ; il ne manque que `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du webhook S4) |
 | S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | ✅ fait — validée end-to-end le 2026-07-30 contre le vrai Supabase + la vraie API Pappers (voir Journal) |
-| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — 1 entreprise réelle validée (PM MECANIQUE INDUSTRIE, SIREN 481838852) ; passage à l'échelle (50) reste à faire, dépend du script d'import CSV Pharow ci-dessous |
-| S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ⬜ à faire |
+| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — 1 entreprise réelle validée (PM MECANIQUE INDUSTRIE, SIREN 481838852) ; passage à l'échelle (50) reste à faire, dépend d'un vrai export Pharow avec un vrai client |
+| S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ✅ fait — validé end-to-end le 2026-07-30 (voir Journal), y compris la déduplication d'entreprise |
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ⬜ à faire |
 | S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ⬜ à faire |
 | S3 | Email + Claude | Tester la génération de messages sur 100 prospects réels | ⬜ à faire |
@@ -78,7 +80,12 @@ Créées le 2026-07-30 pour valider `enrich-pappers` end-to-end, gardées sur de
 - `contacts` : `"Test Claude"`.
 - `prospects` : id `1a646013-c0a2-48e9-b402-45332023f873`, statut `enriched_pappers` après le test.
 
-Toutes préfixées/nommées explicitement "test" pour rester identifiables dans le dashboard/CRM une fois construits.
+Ajoutées le 2026-07-30 pour valider le script d'import CSV Pharow (même client de test) :
+- `companies` : `"ACME Fictive SAS"` (Lyon) et `"Autre Entreprise Test"` (Paris) — noms fictifs, à ne pas confondre avec de vraies entreprises.
+- `contacts` : Alice Fictive et Bob Exemple (tous deux rattachés à "ACME Fictive SAS", pour valider la déduplication), Claire Demo (rattachée à l'autre entreprise).
+- `prospects` : 3 nouveaux, tous en statut `to_enrich`.
+
+Toutes préfixées/nommées explicitement "test"/"fictive"/"exemple"/"demo" pour rester identifiables dans le dashboard/CRM une fois construits.
 
 ## Écarts assumés par rapport au brief original
 
@@ -93,6 +100,7 @@ Toutes préfixées/nommées explicitement "test" pour rester identifiables dans 
 - ~~`SUPABASE_URL` injoignable~~ **Résolu le 2026-07-30** — le projet Supabase était en pause pour inactivité, Loïc l'a réactivé.
 - **Déclenchement automatique de l'Edge Function** : le brief prévoit un déclenchement automatique à la création d'un prospect en statut `to_enrich` (webhook DB Supabase). Ce n'est pas encore câblé — l'Edge Function `enrich-pappers` s'invoque pour l'instant manuellement via HTTP POST `{ prospect_id }`. Câblage du trigger DB → webhook à faire dans une itération suivante.
 - **Payload Pappers potentiellement volumineux pour de très grandes entreprises** : un test avec La Poste (entité centenaire) a produit un JSON de 16 Mo et fait timeout la requête d'update PostgreSQL — pas un bug de notre code, juste une entreprise extrême et non représentative. Les PME industrielles ciblées par DMH (20-200 salariés, cf. brief) ont des payloads bien plus petits (~25-50 Ko sur le test réel PM MECANIQUE INDUSTRIE). À garder en tête si jamais un client DMH a un très gros groupe dans son ICP : prévoir une limite de taille ou un timeout de requête plus long pour ce cas rare.
+- **Noms de colonnes du CSV Pharow non vérifiés contre un vrai export** : aucun compte Pharow n'existe encore, donc `packages/pharow/src/csv.ts` devine les en-têtes probables (prénom/nom/entreprise/etc., plusieurs alias par champ, tolérant à la casse/aux accents) plutôt que de les avoir validés comme pour Pappers. Le test du 2026-07-30 utilisait un CSV fictif écrit à la main avec les en-têtes supposées — donc il valide la logique d'import (parsing, dédup, écriture DB), pas la compatibilité avec un vrai fichier Pharow. **À revalider dès qu'un compte Pharow existe et qu'un vrai export est disponible.**
 
 ## Journal des sessions
 
@@ -125,3 +133,11 @@ Toutes préfixées/nommées explicitement "test" pour rester identifiables dans 
 - **S2 validé end-to-end** : `POST /enrich-pappers { prospect_id }` → `200 { ok: true }`, `prospects.status` passé à `enriched_pappers`, `companies` entièrement peuplée avec les vraies données Pappers (nom, NAF, forme juridique, effectif, CA, ville, adresse, JSON brut). Vérifié directement en base après coup.
 - Données de test conservées dans Supabase (sur décision de Loïc) pour retester plus tard sans tout recréer — détail dans la section dédiée ci-dessus.
 - **Point de reprise** : S2 (Pappers) est terminé et validé. Prochaines pistes : câbler le déclenchement automatique par webhook DB (statut `to_enrich`), démarrer le script d'import CSV Pharow → Supabase (S2), ou enchaîner sur S3 (Dropcontact + Claude).
+- Loïc a corrigé mon approche : suivre l'ordre strict des tâches du brief plutôt que proposer de choisir. L'item S2 restant ("script d'import CSV Pharow") passe donc avant S3. Règle ajoutée dans `CLAUDE.md` et en mémoire.
+- Créé `packages/pharow` (`@dmh/pharow`) : parsing CSV (`csv-parse`, en-têtes tolérants avec alias — noms réels non vérifiés, voir "Incertitudes techniques"), mapping vers `companies`/`contacts`, et une orchestration d'import (`runImport`) avec dépendances DB injectées pour rester testable sans vraie base (dédup entreprise, comptage, gestion d'erreur ligne par ligne). 13 tests unitaires verts.
+- Ajouté `loadPharowImportEnv` dans `@dmh/config` (Supabase uniquement, Pharow n'a pas de clé API en Phase 1) — même principe que `loadPappersFunctionEnv`.
+- Écrit `scripts/import-pharow.ts` (Node, branché sur le vrai `@supabase/supabase-js`) + mis à jour le script racine `import-pharow` avec `--env-file=.env.local`.
+- En marge : ajouté un vrai typecheck pour `scripts/` (`scripts/tsconfig.json`, chaîné dans `pnpm typecheck`), qui n'était jusque-là jamais vérifié — a immédiatement trouvé et corrigé un vrai problème de typage dans `scripts/check-pappers.ts` (narrowing perdu à travers une closure).
+- **Test fonctionnel exécuté** (après ton accord) : CSV fictif de 3 lignes (2 partageant la même entreprise) importé pour de vrai contre Supabase. Résultat conforme : 3 prospects créés en `to_enrich`, 2 entreprises (1 créée pour Alice+Bob, réutilisée pour Bob ; 1 pour Claire) — vérifié directement en base, `company_id` identique pour Alice et Bob.
+- **S2 est maintenant intégralement terminé** (Pappers + import CSV Pharow, les deux validés end-to-end).
+- **Point de reprise** : prochaine tâche dans l'ordre du brief = S3 (Dropcontact + génération de messages Claude API).

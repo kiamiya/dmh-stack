@@ -55,6 +55,15 @@ défaut.
   migration SQL sur le vrai projet Supabase, déployer sur Vercel) — celles-là
   restent soumises à confirmation explicite au cas par cas.
 
+## 6. Ordre strict des tâches
+
+- Le tableau S1-S8 de `PROGRESS.md` (reflet du planning détaillé Phase 1,
+  brief section 1.4) définit un ordre à suivre à la lettre.
+- Ne jamais proposer à Loïc de choisir entre deux tâches quand l'une est
+  ordonnée avant l'autre — enchaîner directement sur la prochaine tâche non
+  faite dans l'ordre. Ne demander un choix que si aucun ordre n'est défini
+  entre les options, ou si une vraie dépendance bloque la suite logique.
+
 ## Contexte projet (repère rapide)
 
 - Brief complet : `C:\Users\loicr\Downloads\DMH Plan Execution Strategique Juillet Decembre 2026.docx`

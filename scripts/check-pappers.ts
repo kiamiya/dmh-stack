@@ -16,7 +16,7 @@ if (!apiKey) {
   process.exit(1);
 }
 
-async function main() {
+async function main(siren: string, apiKey: string) {
   const raw = await fetchCompanyFromPappers({ siren }, { apiKey });
 
   console.log("=== Réponse brute Pappers ===");
@@ -26,4 +26,4 @@ async function main() {
   console.log(JSON.stringify(mapPappersCompany(raw), null, 2));
 }
 
-main();
+main(siren, apiKey);

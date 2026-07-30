@@ -45,9 +45,17 @@ const pappersFunctionEnvSchema = z.object({
   PAPPERS_API_KEY: pappersApiKey,
 });
 
+// Ce dont le script d'import CSV Pharow a besoin : Supabase uniquement,
+// Pharow n'a pas d'API en Phase 1 (export CSV manuel, cf. brief §1.2.1).
+const pharowImportEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
+export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -102,4 +110,11 @@ export function loadServerEnv(source: EnvSource): ServerEnv {
  */
 export function loadPappersFunctionEnv(source: EnvSource): PappersFunctionEnv {
   return parseOrThrow(pappersFunctionEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour le script d'import CSV Pharow : Supabase uniquement.
+ */
+export function loadPharowImportEnv(source: EnvSource): PharowImportEnv {
+  return parseOrThrow(pharowImportEnvSchema, source);
 }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EnvValidationError, loadPappersFunctionEnv, loadPublicEnv, loadServerEnv } from "./env.js";
+import {
+  EnvValidationError,
+  loadPappersFunctionEnv,
+  loadPharowImportEnv,
+  loadPublicEnv,
+  loadServerEnv,
+} from "./env.js";
 
 const validSource = {
   SUPABASE_URL: "https://hkonylfpcstbvxswyxyh.supabase.co",
@@ -119,5 +125,22 @@ describe("loadPappersFunctionEnv", () => {
         SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
       }),
     ).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadPharowImportEnv", () => {
+  it("ne requiert que Supabase, pas de clé tierce (Pharow n'a pas d'API en Phase 1)", () => {
+    const env = loadPharowImportEnv({
+      SUPABASE_URL: validSource.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+    });
+
+    expect(env.SUPABASE_URL).toBe(validSource.SUPABASE_URL);
+  });
+
+  it("lève EnvValidationError si une des deux variables Supabase manque", () => {
+    expect(() => loadPharowImportEnv({ SUPABASE_URL: validSource.SUPABASE_URL })).toThrow(
+      EnvValidationError,
+    );
   });
 });
