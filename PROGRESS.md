@@ -13,20 +13,20 @@ Dernière mise à jour : 2026-07-30
 |---|---|
 | Infra de tests unitaires (vitest, wiring turbo `test`) | ✅ fait |
 | `packages/config` — validation typée des variables d'environnement | ✅ fait (tests unitaires verts) |
-| `packages/pappers` — client + mapper Pappers (logique pure, testée) | ✅ fait (13 tests unitaires verts) — mapping à valider contre l'API réelle, voir `TESTING.md` |
+| `packages/pappers` — client + mapper Pappers (logique pure, testée) | ✅ fait (15 tests unitaires verts) — mapping validé contre l'API réelle |
 | `PROGRESS.md` (ce fichier) | ✅ fait |
-| `TESTING.md` (process de test fonctionnel) | 🔄 v1 en attente de validation |
+| `TESTING.md` (process de test fonctionnel) | ✅ format validé à l'usage (3 itérations) |
 
 ## Planning détaillé Phase 1 (8 semaines) — Tâches Loïc
 
 | Sem. | Priorité | Tâche | Statut |
 |---|---|---|---|
-| S1 | Infrastructure | Créer le projet Supabase (DB, auth, RLS) | ⚠️ **à revérifier** — `SUPABASE_URL` dans `.env.local` ne résout plus en DNS (voir "Incertitudes techniques") |
+| S1 | Infrastructure | Créer le projet Supabase (DB, auth, RLS) | ✅ fait — réactivé le 2026-07-30 après une mise en pause pour inactivité |
 | S1 | Infrastructure | Définir et implémenter le schéma complet des tables | ✅ fait (`supabase/migrations/001_initial_schema.sql`) |
 | S1 | Infrastructure | Souscrire aux outils (Smartlead, Pharow, Dropcontact, Lemlist) | ⬜ à faire — voir checklist ci-dessous |
 | S1 | Infrastructure | Configurer les variables d'environnement | ✅ toutes les clés bloquantes réunies (Anthropic, Pappers, Dropcontact, Smartlead, Lemlist) ; il ne manque que `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du webhook S4) |
-| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | 🔄 client + mapper validés contre l'API réelle (15 tests verts), Edge Function exécutée réellement avec Deno — **bloquée par la connexion Supabase indisponible** (voir "Incertitudes techniques") |
-| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — bloqué tant que la connexion Supabase n'est pas rétablie |
+| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | ✅ fait — validée end-to-end le 2026-07-30 contre le vrai Supabase + la vraie API Pappers (voir Journal) |
+| S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — 1 entreprise réelle validée (PM MECANIQUE INDUSTRIE, SIREN 481838852) ; passage à l'échelle (50) reste à faire, dépend du script d'import CSV Pharow ci-dessous |
 | S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ⬜ à faire |
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ⬜ à faire |
 | S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ⬜ à faire |
@@ -70,6 +70,16 @@ Comptes créés et clés déjà dans `.env.local` (jamais commité) : Anthropic,
 
 Rappel action William (brief S1, hors périmètre dev) : dès que le compte Smartlead existe, créer les domaines email dédiés par client pilote et les connecter pour démarrer le warm-up (3-4 semaines) le plus tôt possible.
 
+## Données de test dans Supabase (conservées, à ne pas confondre avec de vrais clients)
+
+Créées le 2026-07-30 pour valider `enrich-pappers` end-to-end, gardées sur demande de Loïc pour retester rapidement plus tard (S6 attribution, S7 scoring...) :
+- `dmh_clients` : `subdomain = "test-claude-enrich-pappers"`, nom `"[TEST Claude] Client de test"`.
+- `companies` : `"PM MECANIQUE INDUSTRIE (test)"`, SIREN `481838852` (entreprise réelle, petite PME industrielle — bon exemple représentatif de l'ICP DMH).
+- `contacts` : `"Test Claude"`.
+- `prospects` : id `1a646013-c0a2-48e9-b402-45332023f873`, statut `enriched_pappers` après le test.
+
+Toutes préfixées/nommées explicitement "test" pour rester identifiables dans le dashboard/CRM une fois construits.
+
 ## Écarts assumés par rapport au brief original
 
 > Le brief (`DMH Plan Execution Strategique Juillet Decembre 2026.docx`) reste la référence historique et **n'est jamais modifié** — les décisions qui s'en écartent sont tracées ici, pas rétro-appliquées au document.
@@ -78,10 +88,11 @@ Rappel action William (brief S1, hors périmètre dev) : dès que le compte Smar
 
 ## Incertitudes techniques à lever
 
-- ~~Champs de réponse de l'API Pappers non vérifiés~~ **Validé le 2026-07-30** contre un vrai appel (SIREN 356000000, La Poste, via `pnpm run check-pappers -- <siren>`). Deux bugs de mapping trouvés et corrigés : `employeeRange` utilisait `tranche_effectif` (un code interne, ex. "53") au lieu de `siege.effectif` (le libellé humain, ex. "Entre 2 000 et 4 999 salariés") ; `revenue`/`revenueYear` cherchaient un champ racine `chiffre_affaires` inexistant — le CA vit en réalité dans un tableau `finances[]` (une entrée par exercice), on prend maintenant l'exercice le plus récent. `website` utilisait `site_web`, corrigé en `website`. Voir le commentaire en tête de `packages/pappers/src/mapper.ts` pour le détail.
+- ~~Champs de réponse de l'API Pappers non vérifiés~~ **Validé le 2026-07-30** contre deux vrais appels (La Poste puis PM MECANIQUE INDUSTRIE). Deux bugs de mapping trouvés et corrigés : `employeeRange` utilisait `tranche_effectif` (un code interne) au lieu de `siege.effectif` (le libellé humain) ; `revenue`/`revenueYear` cherchaient un champ racine `chiffre_affaires` inexistant — le CA vit dans un tableau `finances[]`, on prend l'exercice le plus récent. `website` utilisait `site_web`, corrigé en `website`. Détail dans `packages/pappers/src/mapper.ts`.
+- ~~Edge Function `index.ts` jamais exécutée réellement~~ **Exécutée et validée end-to-end le 2026-07-30** (Deno CLI en local, contre le vrai Pappers + le vrai Supabase). A révélé et corrigé un bug de couplage (`loadServerEnv` → `loadPappersFunctionEnv` scopé).
+- ~~`SUPABASE_URL` injoignable~~ **Résolu le 2026-07-30** — le projet Supabase était en pause pour inactivité, Loïc l'a réactivé.
 - **Déclenchement automatique de l'Edge Function** : le brief prévoit un déclenchement automatique à la création d'un prospect en statut `to_enrich` (webhook DB Supabase). Ce n'est pas encore câblé — l'Edge Function `enrich-pappers` s'invoque pour l'instant manuellement via HTTP POST `{ prospect_id }`. Câblage du trigger DB → webhook à faire dans une itération suivante.
-- ~~Edge Function `index.ts` jamais exécutée réellement~~ **Exécutée le 2026-07-30** avec Deno CLI installé en local (voir Journal). A révélé et corrigé un vrai bug de couplage : la fonction utilisait `loadServerEnv` (exige TOUTES les clés secrètes, y compris `SMARTLEAD_WEBHOOK_SECRET` sans rapport) au lieu d'un loader scopé à ses besoins réels. Nouveau `loadPappersFunctionEnv` (Supabase + Pappers uniquement) ajouté dans `@dmh/config`, testé (10 tests verts).
-- 🔴 **BLOQUANT — `SUPABASE_URL` ne résout plus en DNS** : `hkonylfpcstbvxswyxyh.supabase.co` (la valeur dans `.env.local`, cohérente avec `supabase/.temp/project-ref`) renvoie `NXDOMAIN` (`nslookup` : "Non-existent domain"). Ce n'est pas une faute de frappe — c'est bien la référence du projet lié, mais le nom de domaine n'existe plus publiquement. Cause probable : projet Supabase mis en pause ou supprimé (les projets gratuits Supabase se mettent en pause après une semaine d'inactivité). **Action nécessaire côté Loïc** : vérifier l'état du projet sur `supabase.com/dashboard`, le réactiver si en pause, ou recréer le projet et mettre à jour `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` dans `.env.local` si supprimé. Ce blocage empêche de tester quoi que ce soit contre la vraie base (pas seulement Pappers) tant qu'il n'est pas levé.
+- **Payload Pappers potentiellement volumineux pour de très grandes entreprises** : un test avec La Poste (entité centenaire) a produit un JSON de 16 Mo et fait timeout la requête d'update PostgreSQL — pas un bug de notre code, juste une entreprise extrême et non représentative. Les PME industrielles ciblées par DMH (20-200 salariés, cf. brief) ont des payloads bien plus petits (~25-50 Ko sur le test réel PM MECANIQUE INDUSTRIE). À garder en tête si jamais un client DMH a un très gros groupe dans son ICP : prévoir une limite de taille ou un timeout de requête plus long pour ce cas rare.
 
 ## Journal des sessions
 
@@ -109,3 +120,8 @@ Rappel action William (brief S1, hors périmètre dev) : dès que le compte Smar
 - `deno check index.ts` passe (le code Deno est valide, imports relatifs vers `@dmh/config`/`@dmh/pappers` et `deno.json` corrects). Exécution réelle (`deno run --allow-net --allow-env --env-file=.env.local`) a trouvé un vrai bug : la fonction utilisait `loadServerEnv`, bloquée par l'absence de `SMARTLEAD_WEBHOOK_SECRET` alors que ça n'a aucun rapport avec Pappers. Corrigé avec `loadPappersFunctionEnv` (scopé à Supabase + Pappers), testé (10 tests verts dans `@dmh/config`).
 - Après ce correctif, nouveau blocage trouvé : `SUPABASE_URL` (`hkonylfpcstbvxswyxyh.supabase.co`) ne résout plus du tout en DNS (`NXDOMAIN`, confirmé via `nslookup`, cohérent avec `supabase/.temp/project-ref` donc pas une faute de frappe). Projet probablement en pause ou supprimé côté Supabase.
 - **Point de reprise — bloqué sur une action Loïc** : vérifier l'état du projet Supabase sur le dashboard (probablement mis en pause pour inactivité) et le réactiver, ou recréer le projet et mettre à jour les 3 clés Supabase dans `.env.local` si supprimé. Sans ça, impossible de tester quoi que ce soit contre la vraie base — ni Pappers, ni rien d'autre.
+- **Loïc a réactivé le projet Supabase.** `SUPABASE_URL` résout de nouveau (`nslookup` confirmé). Edge Function relancée : le test "prospect introuvable" (`00000000-...`) renvoie maintenant une vraie erreur PostgREST (`Cannot coerce the result to a single JSON object`), plus une erreur réseau — connexion et auth service role confirmées OK.
+- Pour tester le chemin complet, Loïc a demandé d'insérer des données de test réelles dans Supabase (voir section dédiée ci-dessus). Premier essai avec La Poste (SIREN 356000000, la même entreprise utilisée pour valider le mapper) : **timeout** — son historique Pappers pèse 16 Mo de JSON, trop pour une seule requête d'update. Pas un bug : juste un mauvais choix de test (entité centenaire, pas représentative). Reprise avec **PM MECANIQUE INDUSTRIE** (SIREN 481838852, vraie PME de mécanique industrielle au Creusot, ~980 K€ de CA — un exemple représentatif de l'ICP DMH) : payload ~25 Ko, **succès complet**.
+- **S2 validé end-to-end** : `POST /enrich-pappers { prospect_id }` → `200 { ok: true }`, `prospects.status` passé à `enriched_pappers`, `companies` entièrement peuplée avec les vraies données Pappers (nom, NAF, forme juridique, effectif, CA, ville, adresse, JSON brut). Vérifié directement en base après coup.
+- Données de test conservées dans Supabase (sur décision de Loïc) pour retester plus tard sans tout recréer — détail dans la section dédiée ci-dessus.
+- **Point de reprise** : S2 (Pappers) est terminé et validé. Prochaines pistes : câbler le déclenchement automatique par webhook DB (statut `to_enrich`), démarrer le script d'import CSV Pharow → Supabase (S2), ou enchaîner sur S3 (Dropcontact + Claude).
