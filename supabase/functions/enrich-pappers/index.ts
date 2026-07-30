@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       { apiKey: env.PAPPERS_API_KEY },
     );
 
-    const mapped = mapPappersCompany(raw, new Date());
+    const mapped = mapPappersCompany(raw);
 
     const { error: updateCompanyError } = await supabase
       .from("companies")

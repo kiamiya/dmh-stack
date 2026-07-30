@@ -13,11 +13,13 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
+    "check-pappers": "tsx --env-file=.env.local scripts/check-pappers.ts",
     "import-pharow": "tsx scripts/import-pharow.ts",
     "deploy-client": "tsx scripts/deploy-client.ts"
   },
   "dependencies": {
-    "@dmh/config": "workspace:*"
+    "@dmh/config": "workspace:*",
+    "@dmh/pappers": "workspace:*"
   },
   "devDependencies": {
     "supabase": "^2.109.1",

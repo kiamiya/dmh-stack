@@ -5,13 +5,14 @@
  * `companies.pappers_data` — ce mapping est un confort de requêtage, pas
  * la seule source de vérité.
  *
- * ATTENTION : les noms de champs ci-dessous (`nom_entreprise`, `siege`,
- * `tranche_effectif`, etc.) sont basés sur la documentation publique et des
- * intégrations tierces de l'API Pappers v2 — la documentation officielle
- * (pappers.fr/api/documentation) a renvoyé une erreur 403 à la récupération
- * automatique au moment d'écrire ce module. Le mapping est donc défensif
- * (aucun champ requis, tout est optionnel) et DOIT être validé contre un
- * vrai appel API avant mise en production — voir TESTING.md.
+ * Validé le 2026-07-30 contre un vrai appel API (SIREN 356000000, La Poste,
+ * via `pnpm run check-pappers -- 356000000`) : `tranche_effectif` est un
+ * code interne ("53"), pas le libellé humain — le bon champ est `effectif`
+ * (sur `siege`, ex. "Entre 2 000 et 4 999 salariés"). Le chiffre d'affaires
+ * n'est pas un champ racine mais vit dans le tableau `finances` (une entrée
+ * par exercice, avec `annee` et `chiffre_affaires`) — on prend l'exercice le
+ * plus récent. Le champ site web s'appelle `website` (anglais), pas
+ * `site_web`.
  */
 export interface CompanyEnrichmentFields {
   name: string | null;
@@ -32,6 +33,12 @@ interface PappersSiege {
   adresse_ligne_1?: string;
   ville?: string;
   code_postal?: string;
+  effectif?: string;
+}
+
+interface PappersFinances {
+  annee?: number;
+  chiffre_affaires?: number;
 }
 
 export interface PappersCompanyResponse {
@@ -41,18 +48,23 @@ export interface PappersCompanyResponse {
   forme_juridique?: string;
   code_naf?: string;
   libelle_code_naf?: string;
-  tranche_effectif?: string;
+  effectif?: string;
   date_creation?: string;
-  chiffre_affaires?: number;
-  site_web?: string;
+  website?: string;
   siege?: PappersSiege;
   ville?: string;
   adresse?: string;
+  finances?: PappersFinances[];
   [key: string]: unknown;
 }
 
-function currentYear(now: Date): number {
-  return now.getUTCFullYear();
+function latestFinances(finances: PappersFinances[] | undefined): PappersFinances | null {
+  if (!Array.isArray(finances) || finances.length === 0) return null;
+  return finances.reduce((latest, entry) =>
+    typeof entry.annee === "number" && (latest.annee === undefined || entry.annee > (latest.annee ?? -Infinity))
+      ? entry
+      : latest,
+  );
 }
 
 /**
@@ -61,13 +73,11 @@ function currentYear(now: Date): number {
  * d'enrichissement sur une réponse Pappers partielle ou différente de ce
  * qui est documenté.
  */
-export function mapPappersCompany(
-  raw: unknown,
-  now: Date,
-): CompanyEnrichmentFields {
+export function mapPappersCompany(raw: unknown): CompanyEnrichmentFields {
   const data = (raw ?? {}) as PappersCompanyResponse;
 
   const siege = typeof data.siege === "object" && data.siege !== null ? data.siege : undefined;
+  const finances = latestFinances(data.finances);
 
   return {
     name: data.nom_entreprise ?? data.denomination ?? null,
@@ -75,12 +85,12 @@ export function mapPappersCompany(
     nafCode: data.code_naf ?? null,
     nafLabel: data.libelle_code_naf ?? null,
     legalForm: data.forme_juridique ?? null,
-    employeeRange: data.tranche_effectif ?? null,
-    revenue: typeof data.chiffre_affaires === "number" ? data.chiffre_affaires : null,
-    revenueYear: typeof data.chiffre_affaires === "number" ? currentYear(now) : null,
+    employeeRange: siege?.effectif ?? data.effectif ?? null,
+    revenue: typeof finances?.chiffre_affaires === "number" ? finances.chiffre_affaires : null,
+    revenueYear: typeof finances?.annee === "number" ? finances.annee : null,
     city: siege?.ville ?? data.ville ?? null,
     address: siege?.adresse_ligne_1 ?? data.adresse ?? null,
-    website: data.site_web ?? null,
+    website: data.website ?? null,
     creationDate: data.date_creation ?? null,
   };
 }

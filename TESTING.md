@@ -9,83 +9,75 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : en attente de validation
+## Statut : mapping validé le 2026-07-30 — reste la Edge Function complète (Docker requis)
 
 ## Fonctionnalité concernée
 
 Edge Function `supabase/functions/enrich-pappers` — enrichissement d'un
 prospect via l'API Pappers (S2 du brief).
 
-## Pourquoi un test fonctionnel ici (en plus des tests unitaires) ?
+## Ce qui a déjà été validé (2026-07-30)
 
-Les 13 tests unitaires de `@dmh/pappers` (`pnpm --filter @dmh/pappers test`)
-couvrent la construction de l'URL, la gestion d'erreur HTTP et le mapping —
-mais avec des **réponses simulées**, pas la vraie réponse de l'API Pappers.
+Le client (`fetchCompanyFromPappers`) et le mapper (`mapPappersCompany`) de
+`@dmh/pappers` ont été testés contre un vrai appel API, pas seulement des
+réponses simulées : `pnpm run check-pappers -- 356000000` (SIREN de La
+Poste, choisi car facile à vérifier publiquement). Deux bugs de mapping ont
+été trouvés et corrigés grâce à ce test réel :
 
-Point important : la documentation officielle de l'API
-(`pappers.fr/api/documentation`) a renvoyé une erreur 403 lors de la
-récupération automatique pendant que j'écrivais le mapper. Les noms de
-champs utilisés (`nom_entreprise`, `siege.ville`, `tranche_effectif`,
-`chiffre_affaires`, etc.) viennent de sources tierces (SDK communautaires,
-wrappers open source), pas de la doc officielle vérifiée directement. Ils
-peuvent donc être imprécis ou incomplets par rapport à la vraie réponse.
+- `employeeRange` utilisait `tranche_effectif` (un code interne, ex. "53")
+  au lieu de `siege.effectif` (le libellé humain, ex. "Entre 2 000 et 4 999
+  salariés").
+- `revenue`/`revenueYear` cherchaient un champ racine `chiffre_affaires`
+  inexistant — le chiffre d'affaires vit dans un tableau `finances[]` (une
+  entrée par exercice comptable), on prend maintenant l'exercice le plus
+  récent.
+- `website` utilisait `site_web`, corrigé en `website` (le champ existe
+  mais est souvent `null` en pratique — confirmé sur ce SIREN).
 
-Ce test sert à confirmer (ou corriger) ce mapping avant de considérer S2
-terminé. Aucun risque de perte de données en attendant : la réponse brute
-est toujours stockée intégralement dans `companies.pappers_data`, mapping
-correct ou non.
+Après correction, les 15 tests unitaires de `@dmh/pappers` passent et le
+mapping revérifié contre le même appel réel donne des valeurs cohérentes
+(`name: "LA POSTE"`, `revenue: 10260000000`, `revenueYear: 2024`,
+`employeeRange: "Entre 2 000 et 4 999 salariés"`, etc.).
 
-Autre limite de cet environnement : ni Docker ni le CLI Deno ne sont
-disponibles ici, donc je n'ai pas pu exécuter `supabase functions serve`
-moi-même pour vérifier que le fichier `index.ts` tourne réellement — il a
-seulement été relu, pas exécuté.
+## Ce qui reste à valider
+
+L'Edge Function `index.ts` (glue Deno : lecture de la requête, accès
+Supabase) n'a **pas encore été exécutée réellement** — ni Docker ni le CLI
+Deno ne sont disponibles dans cet environnement, donc `supabase functions
+serve` n'a pas pu tourner ici. Le fichier a été relu attentivement mais pas
+testé en conditions réelles.
 
 ## Pré-requis
 
-- Une entreprise française réelle avec un SIREN connu (n'importe laquelle,
-  ex. une entreprise publique dont le SIREN est facile à trouver), pour
-  tester l'appel avec `siren`.
-- Docker installé (nécessaire à `supabase functions serve` pour lancer les
-  Edge Functions en local) — ou possibilité de tester `@dmh/pappers`
-  directement en Node sans passer par Deno (voir étape 1 ci-dessous, ne
-  nécessite pas Docker).
+- Docker installé (nécessaire à `supabase functions serve`).
+- Un prospect de test réel dans Supabase, en statut `to_enrich`, avec une
+  `company` liée ayant un `siren` ou un `name`.
 
 ## Étapes à exécuter
 
-1. **Test rapide sans Docker** (valide juste le mapping, pas la Edge
-   Function complète) : depuis `H:\FilumByDMH`, lancer un script one-off
-   avec `tsx` qui appelle `fetchCompanyFromPappers` avec un vrai SIREN et la
-   vraie clé (`PAPPERS_API_KEY` de `.env.local`), puis affiche le JSON brut
-   et le résultat de `mapPappersCompany`. Dis-moi si tu veux que je
-   l'ajoute comme script réutilisable (`pnpm run check-pappers <siren>`
-   par exemple) plutôt qu'une commande ponctuelle.
-2. **Test complet avec Docker** (si tu as Docker) :
-   ```
-   pnpm exec supabase functions serve enrich-pappers --env-file .env.local
-   ```
-   puis, dans un autre terminal :
-   ```
-   curl -X POST http://localhost:54321/functions/v1/enrich-pappers \
-     -H "Content-Type: application/json" \
-     -d '{"prospect_id": "<uuid d'\''un prospect existant en statut to_enrich>"}'
-   ```
-   (nécessite un prospect de test réel dans Supabase, en statut `to_enrich`,
-   avec une `company` liée ayant un `siren` ou un `name`.)
+```
+pnpm exec supabase functions serve enrich-pappers --env-file .env.local
+```
+
+puis, dans un autre terminal :
+
+```
+curl -X POST http://localhost:54321/functions/v1/enrich-pappers \
+  -H "Content-Type: application/json" \
+  -d '{"prospect_id": "<uuid du prospect de test>"}'
+```
 
 ## Résultat attendu vs résultat à constater
 
-- Le JSON brut retourné par Pappers doit correspondre à ce qui est décrit
-  dans le brief §1.3.1 (dénomination, forme juridique, NAF, adresse,
-  effectif, dirigeants...).
-- `mapPappersCompany(raw, new Date())` doit remplir `name`, `nafCode`,
-  `legalForm`, `city`, etc. avec des valeurs cohérentes — pas tout à `null`
-  (signe que les noms de champs supposés sont faux et qu'il faut corriger
-  `packages/pappers/src/mapper.ts`).
-- Avec le test complet (étape 2) : `companies` mis à jour, `prospects.status`
-  passé à `enriched_pappers`, réponse HTTP `200 { ok: true, ... }`.
+- Réponse HTTP `200 { ok: true, prospect_id, company_id }`.
+- Dans Supabase : la ligne `companies` correspondante mise à jour (`name`,
+  `naf_code`, `revenue`, `employee_range`, `pappers_data`...), et
+  `prospects.status` passé à `enriched_pappers`.
+- En cas d'erreur (SIREN invalide, prospect pas en `to_enrich`, etc.) :
+  réponse HTTP avec code d'erreur explicite (400/404/409/502) et message
+  clair, `prospects.status` inchangé (pour permettre un nouvel essai).
 
 ## Validation
 
-- [ ] Mapping confirmé correct (ou corrections identifiées) contre un vrai
-      appel Pappers.
+- [ ] Edge Function testée en conditions réelles (Docker) et conforme.
 - [ ] Format de ce document toujours adapté pour toi.

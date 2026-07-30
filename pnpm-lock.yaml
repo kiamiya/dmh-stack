@@ -11,6 +11,9 @@ importers:
       '@dmh/config':
         specifier: workspace:*
         version: link:packages/config
+      '@dmh/pappers':
+        specifier: workspace:*
+        version: link:packages/pappers
     devDependencies:
       supabase:
         specifier: ^2.109.1
