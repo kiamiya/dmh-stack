@@ -40,13 +40,12 @@ manuel, rapide, vérifie ça une fois avant de considérer la brique livrée.
 
 ## Résultat attendu vs résultat à constater
 
-- **Attendu maintenant** (aucune des 5 clés tierces n'est encore dans
-  `.env.local`) : un message d'erreur listant clairement chacune des
-  variables manquantes (`ANTHROPIC_API_KEY`, `PAPPERS_API_KEY`,
-  `DROPCONTACT_API_KEY`, `SMARTLEAD_API_KEY`, `SMARTLEAD_WEBHOOK_SECRET`,
-  `WAALAXY_API_KEY`), pas un crash silencieux ni un message vague.
-- **Attendu plus tard**, une fois les comptes créés et les vraies clés
-  collées dans `.env.local` : `OK: environnement complet`.
+- **Attendu maintenant** : toutes les clés bloquantes sont dans `.env.local`
+  sauf `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du
+  webhook S4) — le script doit donc lister uniquement cette variable comme
+  manquante, pas un crash silencieux ni un message vague.
+- **Attendu plus tard**, une fois `SMARTLEAD_WEBHOOK_SECRET` renseigné :
+  `OK: environnement complet`.
 
 ## Validation
 

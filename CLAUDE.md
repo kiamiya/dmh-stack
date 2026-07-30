@@ -33,10 +33,35 @@ défaut.
 - **Attendre la validation explicite de Loïc** sur ce document avant
   d'enchaîner sur la suite. Ne pas supposer qu'un silence vaut validation.
 
+## 4. Blocage sur les clés API
+
+- Ne démarrer **aucune tâche de développement suivante** (ex : Edge Function
+  S2+) tant que toutes les clés API bloquantes ne sont pas dans
+  `.env.local` — pas seulement celle du composant visé. Vérifier avec
+  `pnpm run check-env`.
+- Exception : `SMARTLEAD_WEBHOOK_SECRET` n'est pas un compte à créer, c'est
+  un secret généré au moment de configurer le webhook (tâche S4) — ne
+  compte pas comme bloquant pour cette règle.
+
+## 5. Push automatique après chaque tâche terminée
+
+- Dès qu'une tâche est terminée (tests/typecheck verts), **commit et push
+  vers `origin master` automatiquement**, sans attendre une confirmation
+  explicite — les collaborateurs doivent toujours avoir le projet à jour.
+- Avant de stager : vérifier `git status`/`git diff` qu'aucun secret ne
+  s'y glisse (`.env.local` reste gitignoré, ne jamais forcer son ajout).
+- Cette règle couvre uniquement **git** (le code/la doc du repo). Elle ne
+  couvre pas les actions sur des systèmes distants tiers (ex : appliquer une
+  migration SQL sur le vrai projet Supabase, déployer sur Vercel) — celles-là
+  restent soumises à confirmation explicite au cas par cas.
+
 ## Contexte projet (repère rapide)
 
 - Brief complet : `C:\Users\loicr\Downloads\DMH Plan Execution Strategique Juillet Decembre 2026.docx`
   (stratégie 3 phases, spécifications techniques détaillées section 1).
+  **Ce document est une référence en lecture seule : ne jamais le modifier**,
+  même quand une décision s'en écarte (ex : Lemlist a remplacé Waalaxy). Les
+  écarts se documentent dans `PROGRESS.md`, jamais rétro-appliqués au brief.
 - Stack : pnpm workspaces + Turborepo, TypeScript, Supabase (Postgres + Edge
   Functions + RLS), React/Vite + Tailwind pour les apps, déploiement Vercel.
 - Avancement détaillé, checklist des comptes API à créer, critères de succès

@@ -82,7 +82,7 @@ export interface Prospect {
   company_id: string;
   status: ProspectStatus;
   smartlead_contact_id: string | null;
-  waalaxy_contact_id: string | null;
+  lemlist_contact_id: string | null;
   first_contact_at: string | null;
   last_activity_at: string | null;
   notes: string | null;

@@ -10,7 +10,7 @@ const validSource = {
   DROPCONTACT_API_KEY: "fake-dropcontact-key",
   SMARTLEAD_API_KEY: "fake-smartlead-key",
   SMARTLEAD_WEBHOOK_SECRET: "fake-smartlead-webhook-secret",
-  WAALAXY_API_KEY: "fake-waalaxy-key",
+  LEMLIST_API_KEY: "fake-lemlist-key",
   BASE_DOMAIN: "dashboard.dmh.fr",
 };
 
@@ -19,7 +19,7 @@ describe("loadServerEnv", () => {
     const env = loadServerEnv(validSource);
     expect(env.SUPABASE_URL).toBe(validSource.SUPABASE_URL);
     expect(env.ANTHROPIC_API_KEY).toBe("fake-anthropic-key");
-    expect(env.WAALAXY_API_KEY).toBe("fake-waalaxy-key");
+    expect(env.LEMLIST_API_KEY).toBe("fake-lemlist-key");
   });
 
   it("accepte VERCEL_URL absent (non fourni en local)", () => {
@@ -28,7 +28,7 @@ describe("loadServerEnv", () => {
   });
 
   it("lève EnvValidationError listant chaque variable manquante", () => {
-    const { ANTHROPIC_API_KEY, WAALAXY_API_KEY, ...incomplete } = validSource;
+    const { ANTHROPIC_API_KEY, LEMLIST_API_KEY, ...incomplete } = validSource;
 
     let caught: unknown;
     try {
@@ -40,7 +40,7 @@ describe("loadServerEnv", () => {
     expect(caught).toBeInstanceOf(EnvValidationError);
     const error = caught as EnvValidationError;
     expect(error.issues.some((issue) => issue.startsWith("ANTHROPIC_API_KEY"))).toBe(true);
-    expect(error.issues.some((issue) => issue.startsWith("WAALAXY_API_KEY"))).toBe(true);
+    expect(error.issues.some((issue) => issue.startsWith("LEMLIST_API_KEY"))).toBe(true);
     // Les deux problèmes doivent être rapportés en une seule erreur, pas fail-fast.
     expect(error.issues.length).toBeGreaterThanOrEqual(2);
   });

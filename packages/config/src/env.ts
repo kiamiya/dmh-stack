@@ -15,7 +15,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   DROPCONTACT_API_KEY: z.string().min(1, { message: "requis" }),
   SMARTLEAD_API_KEY: z.string().min(1, { message: "requis" }),
   SMARTLEAD_WEBHOOK_SECRET: z.string().min(1, { message: "requis" }),
-  WAALAXY_API_KEY: z.string().min(1, { message: "requis" }),
+  LEMLIST_API_KEY: z.string().min(1, { message: "requis" }),
   // Injecté automatiquement par Vercel en production, absent en local.
   VERCEL_URL: z.string().optional(),
 });
