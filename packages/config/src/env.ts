@@ -52,10 +52,18 @@ const pharowImportEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
 });
 
+// Ce dont l'Edge Function enrich-dropcontact a réellement besoin.
+const dropcontactFunctionEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  DROPCONTACT_API_KEY: dropcontactApiKey,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
 export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
+export type DropcontactFunctionEnv = z.infer<typeof dropcontactFunctionEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -117,4 +125,12 @@ export function loadPappersFunctionEnv(source: EnvSource): PappersFunctionEnv {
  */
 export function loadPharowImportEnv(source: EnvSource): PharowImportEnv {
   return parseOrThrow(pharowImportEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour l'Edge Function `enrich-dropcontact` : Supabase +
+ * Dropcontact uniquement.
+ */
+export function loadDropcontactFunctionEnv(source: EnvSource): DropcontactFunctionEnv {
+  return parseOrThrow(dropcontactFunctionEnvSchema, source);
 }

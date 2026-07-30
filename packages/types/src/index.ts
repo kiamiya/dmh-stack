@@ -58,6 +58,8 @@ export interface Contact {
   appointment_date: string | null;
   months_in_role: number | null;
   data_source: ContactDataSource | null;
+  /** request_id Dropcontact en cours de traitement (API asynchrone), null une fois résolu. */
+  dropcontact_request_id: string | null;
   created_at: string;
 }
 

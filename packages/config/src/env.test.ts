@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EnvValidationError,
+  loadDropcontactFunctionEnv,
   loadPappersFunctionEnv,
   loadPharowImportEnv,
   loadPublicEnv,
@@ -142,5 +143,36 @@ describe("loadPharowImportEnv", () => {
     expect(() => loadPharowImportEnv({ SUPABASE_URL: validSource.SUPABASE_URL })).toThrow(
       EnvValidationError,
     );
+  });
+});
+
+describe("loadDropcontactFunctionEnv", () => {
+  it("ne requiert que Supabase + DROPCONTACT_API_KEY", () => {
+    const env = loadDropcontactFunctionEnv({
+      SUPABASE_URL: validSource.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      DROPCONTACT_API_KEY: validSource.DROPCONTACT_API_KEY,
+    });
+
+    expect(env.DROPCONTACT_API_KEY).toBe("fake-dropcontact-key");
+  });
+
+  it("n'est pas bloqué par l'absence de clés d'autres intégrations", () => {
+    expect(() =>
+      loadDropcontactFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+        DROPCONTACT_API_KEY: validSource.DROPCONTACT_API_KEY,
+      }),
+    ).not.toThrow();
+  });
+
+  it("lève EnvValidationError si DROPCONTACT_API_KEY manque", () => {
+    expect(() =>
+      loadDropcontactFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      }),
+    ).toThrow(EnvValidationError);
   });
 });

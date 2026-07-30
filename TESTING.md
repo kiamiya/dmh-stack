@@ -11,20 +11,16 @@
 
 ## Statut : ✅ rien en attente actuellement
 
-Le dernier test fonctionnel (script d'import CSV Pharow, fin de S2) a été
-validé end-to-end le 2026-07-30 : CSV fictif de test importé pour de vrai
-contre Supabase, déduplication d'entreprise confirmée en base (voir le
-Journal des sessions dans `PROGRESS.md`).
-
-**Point d'attention pour la suite** : les noms de colonnes du CSV Pharow
-utilisés par `packages/pharow/src/csv.ts` sont des suppositions (aucun compte
-Pharow réel n'existe encore) — à revalider avec un vrai export dès qu'un
-compte Pharow existe. Ce sera un candidat naturel pour le prochain test
-fonctionnel de ce type.
+Le dernier test fonctionnel (Edge Function `enrich-dropcontact`, S3) a été
+validé end-to-end le 2026-07-30 : cycle complet soumission → en attente →
+prêt, contre la vraie API Dropcontact et le vrai Supabase (voir le Journal
+des sessions dans `PROGRESS.md` pour le détail — API asynchrone, migration
+`003` requise, et un point de vigilance sur le mapping qualification →
+confiance jamais observé avec un email réellement trouvé).
 
 Ce fichier sera réécrit avec la prochaine fonctionnalité nécessitant une
-validation humaine (prochain candidat dans l'ordre du brief : S3,
-intégration Dropcontact + génération de messages Claude API).
+validation humaine (prochain candidat dans l'ordre du brief : génération de
+messages via Claude API, dernier morceau de S3).
 
 ## Outillage disponible pour les prochains tests
 
@@ -37,8 +33,8 @@ intégration Dropcontact + génération de messages Claude API).
   ```
 - **`pnpm run check-pappers -- <siren>`** pour tester rapidement le mapper Pappers sur une nouvelle entreprise.
 - **`pnpm run import-pharow -- --client-id <uuid> <fichier.csv>`** pour importer un CSV Pharow (ou un CSV de test).
+- **`pnpm exec supabase db push`** pour appliquer les migrations en attente sur la vraie base (toujours demander confirmation avant, cf. `CLAUDE.md`).
 - **Données de test dans Supabase** (conservées, voir `PROGRESS.md`) :
-  client de test `test-claude-enrich-pappers`, avec plusieurs prospects déjà
-  créés à différents stades (`enriched_pappers`, `to_enrich`) — réutilisable
-  pour tester les prochaines étapes du pipeline (Dropcontact, scoring,
-  génération de message...) sans tout recréer.
+  client de test `test-claude-enrich-pappers`, avec un prospect au statut
+  `enriched_contact` (Pappers + Dropcontact déjà passés) — réutilisable pour
+  tester la génération de message Claude sans tout recréer.
