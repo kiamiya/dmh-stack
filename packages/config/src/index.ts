@@ -4,6 +4,7 @@ export {
   loadPappersFunctionEnv,
   loadPharowImportEnv,
   loadDropcontactFunctionEnv,
+  loadGenerateMessagesFunctionEnv,
   EnvValidationError,
 } from "./env.js";
 export type {
@@ -12,5 +13,6 @@ export type {
   PappersFunctionEnv,
   PharowImportEnv,
   DropcontactFunctionEnv,
+  GenerateMessagesFunctionEnv,
   EnvSource,
 } from "./env.js";

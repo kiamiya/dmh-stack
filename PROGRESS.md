@@ -16,6 +16,7 @@ Dernière mise à jour : 2026-07-30
 | `packages/pappers` — client + mapper Pappers (logique pure, testée) | ✅ fait (15 tests unitaires verts) — mapping validé contre l'API réelle |
 | `packages/pharow` — parsing CSV + mapping + orchestration import (logique pure, testée) | ✅ fait (13 tests unitaires verts) — validé end-to-end contre le vrai Supabase |
 | `packages/dropcontact` — client (async) + mapping de confiance email (logique pure, testée) | ✅ fait (14 tests unitaires verts) — flux asynchrone complet validé contre l'API réelle |
+| `packages/claude-messages` — prompt + client Claude (sorties structurées, logique pure, testée) | ✅ fait (9 tests unitaires verts) — message réel généré, conforme aux contraintes du brief |
 | Typecheck de `scripts/` (jusque-là hors pipeline) | ✅ fait — `scripts/tsconfig.json` + `pnpm typecheck` racine le couvre désormais |
 | `PROGRESS.md` (ce fichier) | ✅ fait |
 | `TESTING.md` (process de test fonctionnel) | ✅ format validé à l'usage (3 itérations) |
@@ -32,8 +33,8 @@ Dernière mise à jour : 2026-07-30
 | S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — 1 entreprise réelle validée (PM MECANIQUE INDUSTRIE, SIREN 481838852) ; passage à l'échelle (50) reste à faire, dépend d'un vrai export Pharow avec un vrai client |
 | S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ✅ fait — validé end-to-end le 2026-07-30 (voir Journal), y compris la déduplication d'entreprise |
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ✅ fait — validée end-to-end le 2026-07-30 (API asynchrone, voir Journal) |
-| S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ⬜ à faire |
-| S3 | Email + Claude | Tester la génération de messages sur 100 prospects réels | ⬜ à faire |
+| S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ✅ fait — **pipeline complet validé end-to-end le 2026-07-30** (to_enrich → enriched_pappers → enriched_contact → ready), voir Journal |
+| S3 | Email + Claude | Tester la génération de messages sur 100 prospects réels | ⬜ à faire — 1 message réel généré et conforme aux contraintes du brief ; passage à l'échelle dépend d'un vrai export Pharow avec un vrai client |
 | S4 | CRM v1 | Interface CRM basique (liste prospects, statut, messages, export Smartlead) | ⬜ à faire |
 | S4 | CRM v1 | Configurer les webhooks Smartlead → Supabase | ⬜ à faire |
 | S5 | Dashboard v1 | Dashboard client React (vue d'ensemble, pipeline Kanban, interactions) | ⬜ à faire |
@@ -88,11 +89,14 @@ Ajoutées le 2026-07-30 pour valider le script d'import CSV Pharow (même client
 
 Toutes préfixées/nommées explicitement "test"/"fictive"/"exemple"/"demo" pour rester identifiables dans le dashboard/CRM une fois construits.
 
+Le client de test a désormais un `offer_description` renseigné (transformation digitale PME industrielles), et le prospect `1a646013-...` a un message généré réel dans `messages_generated`, statut final `ready`.
+
 ## Écarts assumés par rapport au brief original
 
 > Le brief (`DMH Plan Execution Strategique Juillet Decembre 2026.docx`) reste la référence historique et **n'est jamais modifié** — les décisions qui s'en écartent sont tracées ici, pas rétro-appliquées au document.
 
 - **2026-07-30 — Lemlist remplace Waalaxy** pour l'automatisation LinkedIn/cold outreach (le brief §1.2.4 documente Waalaxy en détail, ce n'est plus l'outil retenu). Impact code : variable d'environnement `LEMLIST_API_KEY` (ex-`WAALAXY_API_KEY`), colonne `prospects.lemlist_contact_id` (migration `002_rename_waalaxy_to_lemlist.sql`, appliquée sur Supabase le 2026-07-30).
+- **2026-07-30 — Modèle Claude `claude-sonnet-5` au lieu de `claude-sonnet-4-6`** cité dans le brief (§1.3.1 étape 4) : cet identifiant précis n'existe plus dans l'API Claude actuelle. Le tiers Sonnet reste le bon choix (le brief le justifie par le coût à ce volume, ~0,003-0,005 €/message), seul l'identifiant exact change — même logique que Lemlist/Waalaxy. Colonne `messages_generated.model_used` mise à jour avec la vraie valeur à chaque insertion (pas de migration nécessaire, le défaut de colonne n'est qu'indicatif).
 
 ## Incertitudes techniques à lever
 
@@ -104,6 +108,8 @@ Toutes préfixées/nommées explicitement "test"/"fictive"/"exemple"/"demo" pour
 - **Nouvelle colonne `contacts.dropcontact_request_id`** (migration `003_add_dropcontact_request_id.sql`, appliquée le 2026-07-30) : nécessaire car l'API Dropcontact est asynchrone, contrairement à Pappers — pas anticipé dans le schéma initial du brief.
 - **Payload Pappers potentiellement volumineux pour de très grandes entreprises** : un test avec La Poste (entité centenaire) a produit un JSON de 16 Mo et fait timeout la requête d'update PostgreSQL — pas un bug de notre code, juste une entreprise extrême et non représentative. Les PME industrielles ciblées par DMH (20-200 salariés, cf. brief) ont des payloads bien plus petits (~25-50 Ko sur le test réel PM MECANIQUE INDUSTRIE). À garder en tête si jamais un client DMH a un très gros groupe dans son ICP : prévoir une limite de taille ou un timeout de requête plus long pour ce cas rare.
 - **Noms de colonnes du CSV Pharow non vérifiés contre un vrai export** : aucun compte Pharow n'existe encore, donc `packages/pharow/src/csv.ts` devine les en-têtes probables (prénom/nom/entreprise/etc., plusieurs alias par champ, tolérant à la casse/aux accents) plutôt que de les avoir validés comme pour Pappers. Le test du 2026-07-30 utilisait un CSV fictif écrit à la main avec les en-têtes supposées — donc il valide la logique d'import (parsing, dédup, écriture DB), pas la compatibilité avec un vrai fichier Pharow. **À revalider dès qu'un compte Pharow existe et qu'un vrai export est disponible.**
+- **`contacts.appointment_date`/`months_in_role` jamais renseignés par le pipeline actuel** : le prompt Claude sait exploiter "en poste depuis X mois" (signal important brief §1.3.5 pour le scoring aussi), mais rien ne remplit encore ce champ — Pappers renvoie bien les dirigeants (`representants`, avec `date_prise_de_poste`) mais faire correspondre un dirigeant Pappers au contact exact du prospect est une logique métier ambiguë, volontairement pas implémentée (voir décision de scope lors de S2). Pour l'instant ce champ reste toujours `null` en pratique. À trancher avant S7 (scoring).
+- **Nouvelle colonne `dmh_clients.offer_description`** (migration `004_add_dmh_clients_offer_description.sql`, appliquée le 2026-07-30) : nécessaire pour personnaliser le prompt Claude (description de l'offre du client DMH), absente du schéma initial du brief.
 
 ## Journal des sessions
 
@@ -151,4 +157,11 @@ Toutes préfixées/nommées explicitement "test"/"fictive"/"exemple"/"demo" pour
 - Avant de tester, demandé confirmation à Loïc pour appliquer les migrations 002 et 003 sur la vraie base (accordé) — `supabase db push` : les deux appliquées avec succès.
 - **Test fonctionnel exécuté** : cycle complet soumission → "pending" (message exactement conforme à la doc) → "ready" sur le prospect de test. Résultat `not_found` (contact fictif, normal). Testé aussi avec le vrai dirigeant de PM MECANIQUE INDUSTRIE (Frederic Vaysse Labonde, trouvé dans les données Pappers) : également `not_found`, probablement faute de site web connu pour cette PME — pas un bug, juste pas de chance sur les données de test disponibles. Le mapping qualification->confidence reste donc validé unitairement mais pas observé sur un cas "email trouvé" réel — à surveiller sur les premiers vrais prospects.
 - **S3 (Dropcontact) terminé et validé.** Reste dans S3 : génération de messages via Claude API (prochaine étape), et test à 100 prospects réels (dépend d'un vrai compte Pharow/client).
-- **Point de reprise** : enchaîner sur la génération de messages Claude API (dernier morceau de S3), en cours dans cette même itération.
+- Créé `packages/claude-messages` (`@dmh/claude-messages`) : construction du prompt (persona + contraintes strictes du brief §1.3.1 étape 4) et appel Claude en sorties structurées (`output_config.format`, JSON schema — pas de parsing de texte libre à la main). 9 tests unitaires verts.
+- Modèle : le brief cite `claude-sonnet-4-6`, un identifiant qui n'existe plus — utilisé `claude-sonnet-5` à la place (même tiers, coût similaire), tracé dans "Écarts assumés" ci-dessus.
+- Nouvelle migration `004_add_dmh_clients_offer_description.sql` (le prompt a besoin d'une description de l'offre du client DMH, absente du schéma initial) — appliquée après confirmation de Loïc.
+- En construisant l'Edge Function, `deno check` a trouvé deux vrais bugs avant même le test réel : un import de type interne cassé (même souci `.js`/`.ts` que d'habitude, corrigé en évitant l'import croisé) et surtout — la version de `@anthropic-ai/sdk` épinglée (`^0.32.0`) n'a pas la méthode `messages.parse()` que j'avais prévu d'utiliser. Corrigé en utilisant `messages.create()` (méthode stable présente dans toutes les versions) + parsing JSON manuel du texte retourné — plus robuste, moins dépendant d'une version précise du SDK.
+- **Test fonctionnel exécuté** : génération réelle sur le prospect de test (PM MECANIQUE INDUSTRIE / Frederic Vaysse Labonde). Message conforme à toutes les contraintes du brief : email de 4 phrases avec référence concrète (Le Creusot, CA proche du million), pas de formule de politesse générique, CTA clair et non agressif ; message LinkedIn de 159 caractères (dans la fourchette 150-200) ; relance J+7 avec un angle différent (exemple chiffré d'un cas similaire plutôt qu'une reformulation).
+- **Pipeline complet validé de bout en bout pour la première fois** : un prospect a traversé `to_enrich` → `enriched_pappers` → `enriched_contact` → `ready` via les trois Edge Functions enchaînées manuellement.
+- **S3 est maintenant intégralement terminé.**
+- **Point de reprise** : prochaine tâche dans l'ordre du brief = S4 (interface CRM basique + webhooks Smartlead → Supabase).

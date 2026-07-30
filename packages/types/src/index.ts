@@ -15,6 +15,8 @@ export interface DmhClient {
   brand_logo_url: string | null;
   brand_primary_color: string;
   brand_name: string | null;
+  /** Description 2-3 phrases de l'offre du client, injectée dans le prompt Claude (brief §1.3.1 étape 4). */
+  offer_description: string | null;
   existing_contacts: unknown[];
   created_at: string;
   updated_at: string;

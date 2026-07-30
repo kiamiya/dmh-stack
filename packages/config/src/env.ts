@@ -59,11 +59,19 @@ const dropcontactFunctionEnvSchema = z.object({
   DROPCONTACT_API_KEY: dropcontactApiKey,
 });
 
+// Ce dont l'Edge Function generate-messages a réellement besoin.
+const generateMessagesFunctionEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  ANTHROPIC_API_KEY: anthropicApiKey,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
 export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
 export type DropcontactFunctionEnv = z.infer<typeof dropcontactFunctionEnvSchema>;
+export type GenerateMessagesFunctionEnv = z.infer<typeof generateMessagesFunctionEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -133,4 +141,14 @@ export function loadPharowImportEnv(source: EnvSource): PharowImportEnv {
  */
 export function loadDropcontactFunctionEnv(source: EnvSource): DropcontactFunctionEnv {
   return parseOrThrow(dropcontactFunctionEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour l'Edge Function `generate-messages` : Supabase +
+ * Anthropic uniquement.
+ */
+export function loadGenerateMessagesFunctionEnv(
+  source: EnvSource,
+): GenerateMessagesFunctionEnv {
+  return parseOrThrow(generateMessagesFunctionEnvSchema, source);
 }
