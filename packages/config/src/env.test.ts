@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EnvValidationError, loadPublicEnv, loadServerEnv } from "./env.js";
+import { EnvValidationError, loadPappersFunctionEnv, loadPublicEnv, loadServerEnv } from "./env.js";
 
 const validSource = {
   SUPABASE_URL: "https://hkonylfpcstbvxswyxyh.supabase.co",
@@ -85,5 +85,39 @@ describe("loadPublicEnv", () => {
   it("lève une erreur si une variable publique manque, même avec tous les secrets présents", () => {
     const { BASE_DOMAIN, ...withoutBaseDomain } = validSource;
     expect(() => loadPublicEnv(withoutBaseDomain)).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadPappersFunctionEnv", () => {
+  it("ne requiert que SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY et PAPPERS_API_KEY", () => {
+    const env = loadPappersFunctionEnv({
+      SUPABASE_URL: validSource.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      PAPPERS_API_KEY: validSource.PAPPERS_API_KEY,
+    });
+
+    expect(env.PAPPERS_API_KEY).toBe("fake-pappers-key");
+  });
+
+  it("n'est jamais bloqué par l'absence de clés d'autres intégrations (ex: Smartlead)", () => {
+    // Régression : enrich-pappers utilisait auparavant loadServerEnv, qui
+    // exigeait SMARTLEAD_WEBHOOK_SECRET sans rapport avec Pappers — trouvé
+    // en testant l'Edge Function contre l'API réelle le 2026-07-30.
+    expect(() =>
+      loadPappersFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+        PAPPERS_API_KEY: validSource.PAPPERS_API_KEY,
+      }),
+    ).not.toThrow();
+  });
+
+  it("lève EnvValidationError si PAPPERS_API_KEY manque", () => {
+    expect(() =>
+      loadPappersFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      }),
+    ).toThrow(EnvValidationError);
   });
 });

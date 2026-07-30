@@ -18,7 +18,7 @@
 // `@supabase/supabase-js`) sont mappées dans deno.json.
 
 import { createClient } from "@supabase/supabase-js";
-import { loadServerEnv } from "../../../packages/config/src/env.ts";
+import { loadPappersFunctionEnv } from "../../../packages/config/src/env.ts";
 import { fetchCompanyFromPappers } from "../../../packages/pappers/src/client.ts";
 import { mapPappersCompany } from "../../../packages/pappers/src/mapper.ts";
 
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
   let env;
   try {
-    env = loadServerEnv(Deno.env.toObject());
+    env = loadPappersFunctionEnv(Deno.env.toObject());
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
   }

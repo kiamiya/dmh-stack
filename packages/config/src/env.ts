@@ -1,27 +1,53 @@
 import { z } from "zod";
 
+const requiredString = z.string().min(1, { message: "requis" });
+
+const supabaseUrl = z.string().url({ message: "doit être une URL Supabase valide" });
+const supabaseAnonKey = requiredString;
+const supabaseServiceRoleKey = requiredString;
+const anthropicApiKey = requiredString;
+const pappersApiKey = requiredString;
+const dropcontactApiKey = requiredString;
+const smartleadApiKey = requiredString;
+const smartleadWebhookSecret = requiredString;
+const lemlistApiKey = requiredString;
+const baseDomain = requiredString;
+
 // Variables sûres pour un bundle frontend (dashboard client) : jamais de secret ici.
 const publicEnvSchema = z.object({
-  SUPABASE_URL: z.string().url({ message: "doit être une URL Supabase valide" }),
-  SUPABASE_ANON_KEY: z.string().min(1, { message: "requis" }),
-  BASE_DOMAIN: z.string().min(1, { message: "requis" }),
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_ANON_KEY: supabaseAnonKey,
+  BASE_DOMAIN: baseDomain,
 });
 
-// Toutes les clés secrètes : Edge Functions, scripts, backend uniquement.
+// Toutes les clés secrètes : utile pour un contexte qui a besoin de tout
+// (scripts d'admin, tests d'intégration globaux). Pour une Edge Function
+// qui n'a besoin que d'un sous-ensemble, préférer un loader scopé
+// (ex. `loadPappersFunctionEnv`) plutôt que celui-ci — sinon une fonction
+// sans rapport avec Smartlead se retrouve bloquée par l'absence de
+// `SMARTLEAD_WEBHOOK_SECRET` (bug trouvé en testant `enrich-pappers`).
 const serverEnvSchema = publicEnvSchema.extend({
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, { message: "requis" }),
-  ANTHROPIC_API_KEY: z.string().min(1, { message: "requis" }),
-  PAPPERS_API_KEY: z.string().min(1, { message: "requis" }),
-  DROPCONTACT_API_KEY: z.string().min(1, { message: "requis" }),
-  SMARTLEAD_API_KEY: z.string().min(1, { message: "requis" }),
-  SMARTLEAD_WEBHOOK_SECRET: z.string().min(1, { message: "requis" }),
-  LEMLIST_API_KEY: z.string().min(1, { message: "requis" }),
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  ANTHROPIC_API_KEY: anthropicApiKey,
+  PAPPERS_API_KEY: pappersApiKey,
+  DROPCONTACT_API_KEY: dropcontactApiKey,
+  SMARTLEAD_API_KEY: smartleadApiKey,
+  SMARTLEAD_WEBHOOK_SECRET: smartleadWebhookSecret,
+  LEMLIST_API_KEY: lemlistApiKey,
   // Injecté automatiquement par Vercel en production, absent en local.
   VERCEL_URL: z.string().optional(),
 });
 
+// Ce dont l'Edge Function enrich-pappers a réellement besoin, rien de plus.
+const pappersFunctionEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  PAPPERS_API_KEY: pappersApiKey,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -67,4 +93,13 @@ export function loadPublicEnv(source: EnvSource): PublicEnv {
  */
 export function loadServerEnv(source: EnvSource): ServerEnv {
   return parseOrThrow(serverEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour l'Edge Function `enrich-pappers` : ne valide que ce
+ * dont elle a besoin (Supabase + Pappers), pas les clés des autres
+ * intégrations (Smartlead, Lemlist, etc.) qui lui sont sans rapport.
+ */
+export function loadPappersFunctionEnv(source: EnvSource): PappersFunctionEnv {
+  return parseOrThrow(pappersFunctionEnvSchema, source);
 }

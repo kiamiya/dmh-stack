@@ -9,75 +9,84 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : mapping validé le 2026-07-30 — reste la Edge Function complète (Docker requis)
+## Statut : 🔴 bloqué sur une action de ta part (projet Supabase injoignable)
 
 ## Fonctionnalité concernée
 
 Edge Function `supabase/functions/enrich-pappers` — enrichissement d'un
 prospect via l'API Pappers (S2 du brief).
 
-## Ce qui a déjà été validé (2026-07-30)
+## Ce qui a été validé aujourd'hui (2026-07-30)
 
-Le client (`fetchCompanyFromPappers`) et le mapper (`mapPappersCompany`) de
-`@dmh/pappers` ont été testés contre un vrai appel API, pas seulement des
-réponses simulées : `pnpm run check-pappers -- 356000000` (SIREN de La
-Poste, choisi car facile à vérifier publiquement). Deux bugs de mapping ont
-été trouvés et corrigés grâce à ce test réel :
+1. **Client + mapper Pappers** (`@dmh/pappers`) validés contre un vrai appel
+   API (SIREN 356000000, La Poste). Deux bugs de mapping trouvés et
+   corrigés (`employeeRange`, `revenue`/`revenueYear`) — détail dans
+   `PROGRESS.md`.
+2. **Outillage installé** : Deno CLI en standalone (`winget install
+   DenoLand.Deno`), sans avoir besoin de Docker Desktop — Docker aurait
+   nécessité WSL2 (non installé), des droits administrateur et un
+   redémarrage, indisponibles dans cet environnement. Deno seul suffit pour
+   exécuter la fonction directement, puisqu'on teste contre le vrai projet
+   Supabase et pas une stack locale émulée.
+3. **Edge Function exécutée réellement** avec `deno run --allow-net
+   --allow-env --env-file=.env.local index.ts` : le code démarre, se
+   type-check (`deno check`), et se connecte bien à l'infrastructure prévue.
+   Un vrai bug de couplage a été trouvé et corrigé au passage : la fonction
+   exigeait `SMARTLEAD_WEBHOOK_SECRET` (sans rapport avec Pappers) à cause
+   d'un loader d'environnement trop large — remplacé par un loader scopé.
 
-- `employeeRange` utilisait `tranche_effectif` (un code interne, ex. "53")
-  au lieu de `siege.effectif` (le libellé humain, ex. "Entre 2 000 et 4 999
-  salariés").
-- `revenue`/`revenueYear` cherchaient un champ racine `chiffre_affaires`
-  inexistant — le chiffre d'affaires vit dans un tableau `finances[]` (une
-  entrée par exercice comptable), on prend maintenant l'exercice le plus
-  récent.
-- `website` utilisait `site_web`, corrigé en `website` (le champ existe
-  mais est souvent `null` en pratique — confirmé sur ce SIREN).
+## Ce qui bloque maintenant
 
-Après correction, les 15 tests unitaires de `@dmh/pappers` passent et le
-mapping revérifié contre le même appel réel donne des valeurs cohérentes
-(`name: "LA POSTE"`, `revenue: 10260000000`, `revenueYear: 2024`,
-`employeeRange: "Entre 2 000 et 4 999 salariés"`, etc.).
+En rejouant l'appel après ce correctif, la fonction échoue à joindre
+Supabase : **`SUPABASE_URL` (`hkonylfpcstbvxswyxyh.supabase.co`, la valeur
+actuelle de `.env.local`) ne résout plus du tout en DNS** (`nslookup` renvoie
+"Non-existent domain"). Ce n'est pas une faute de frappe — cette référence
+correspond bien au projet lié localement (`supabase/.temp/project-ref`) —
+mais le nom de domaine n'existe plus publiquement.
 
-## Ce qui reste à valider
+Cause la plus probable : le projet Supabase gratuit a été **mis en pause
+pour inactivité** (comportement standard après une semaine sans usage), ou
+il a été supprimé.
 
-L'Edge Function `index.ts` (glue Deno : lecture de la requête, accès
-Supabase) n'a **pas encore été exécutée réellement** — ni Docker ni le CLI
-Deno ne sont disponibles dans cet environnement, donc `supabase functions
-serve` n'a pas pu tourner ici. Le fichier a été relu attentivement mais pas
-testé en conditions réelles.
+## Ce dont j'ai besoin de toi pour continuer
 
-## Pré-requis
+1. Va sur [supabase.com/dashboard](https://supabase.com/dashboard) et
+   vérifie l'état du projet `FilumByDMH` (ref `hkonylfpcstbvxswyxyh`).
+2. **S'il est en pause** : réactive-le (bouton "Restore"/"Resume"), attends
+   qu'il repasse actif, puis dis-le-moi — je relance le test, aucune
+   modification de `.env.local` ne devrait être nécessaire.
+3. **S'il a été supprimé** : il faudra recréer un projet Supabase, réappliquer
+   la migration (`supabase/migrations/001_initial_schema.sql` +
+   `002_rename_waalaxy_to_lemlist.sql`), et me donner les 3 nouvelles valeurs
+   (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) pour
+   `.env.local`.
 
-- Docker installé (nécessaire à `supabase functions serve`).
-- Un prospect de test réel dans Supabase, en statut `to_enrich`, avec une
-  `company` liée ayant un `siren` ou un `name`.
+Tant que ça n'est pas résolu, aucun test contre la vraie base n'est possible
+— pas seulement pour Pappers, pour tout le reste du projet aussi (CRM,
+dashboard, etc.), donc ça vaut le coup de le régler maintenant plutôt que
+plus tard.
 
-## Étapes à exécuter
+## Étapes à exécuter une fois le projet Supabase de nouveau joignable
 
 ```
-pnpm exec supabase functions serve enrich-pappers --env-file .env.local
+export PATH="$PATH:/c/Users/loicr/AppData/Local/Microsoft/WinGet/Packages/DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe"
+cd supabase/functions/enrich-pappers
+deno run --allow-net --allow-env --env-file=../../../.env.local index.ts
 ```
 
 puis, dans un autre terminal :
 
 ```
-curl -X POST http://localhost:54321/functions/v1/enrich-pappers \
-  -H "Content-Type: application/json" \
-  -d '{"prospect_id": "<uuid du prospect de test>"}'
+curl -X POST http://localhost:8000 -H "Content-Type: application/json" -d '{"prospect_id": "<uuid d'\''un prospect de test en statut to_enrich>"}'
 ```
 
-## Résultat attendu vs résultat à constater
-
-- Réponse HTTP `200 { ok: true, prospect_id, company_id }`.
-- Dans Supabase : la ligne `companies` correspondante mise à jour (`name`,
-  `naf_code`, `revenue`, `employee_range`, `pappers_data`...), et
-  `prospects.status` passé à `enriched_pappers`.
-- En cas d'erreur (SIREN invalide, prospect pas en `to_enrich`, etc.) :
-  réponse HTTP avec code d'erreur explicite (400/404/409/502) et message
-  clair, `prospects.status` inchangé (pour permettre un nouvel essai).
+Il faudra aussi un prospect de test réel (avec une entreprise liée ayant un
+SIREN ou un nom) — je te proposerai d'en insérer un une fois la connexion
+rétablie, avec ta confirmation avant d'écrire quoi que ce soit dans la vraie
+base.
 
 ## Validation
 
-- [ ] Edge Function testée en conditions réelles (Docker) et conforme.
+- [ ] Projet Supabase réactivé/recréé et joignable.
+- [ ] Edge Function testée en conditions réelles et conforme.
 - [ ] Format de ce document toujours adapté pour toi.
