@@ -191,3 +191,10 @@ export interface StaffMember {
   email: string;
   created_at: string;
 }
+
+/** Rattachement d'un utilisateur Supabase Auth à un client (dashboard, S5) — voir migration 007_add_client_users.sql. */
+export interface ClientUser {
+  id: string;
+  client_id: string;
+  created_at: string;
+}
