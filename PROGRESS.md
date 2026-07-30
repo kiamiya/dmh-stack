@@ -19,7 +19,8 @@ Dernière mise à jour : 2026-07-30
 | `packages/claude-messages` — prompt + client Claude (sorties structurées, logique pure, testée) | ✅ fait (9 tests unitaires verts) — message réel généré, conforme aux contraintes du brief |
 | Typecheck de `scripts/` (jusque-là hors pipeline) | ✅ fait — `scripts/tsconfig.json` + `pnpm typecheck` racine le couvre désormais |
 | `PROGRESS.md` (ce fichier) | ✅ fait |
-| `TESTING.md` (process de test fonctionnel) | ✅ format validé à l'usage (3 itérations) |
+| `TESTING.md` (process de test fonctionnel) | ✅ format validé à l'usage (4 itérations) |
+| `apps/crm` — interface CRM interne (Vite+React+TS+Tailwind, hors S4 webhooks) | ✅ fait — validée end-to-end le 2026-07-30 (login, liste, détail, statut, marquage Smartlead) |
 
 ## Planning détaillé Phase 1 (8 semaines) — Tâches Loïc
 
@@ -35,8 +36,8 @@ Dernière mise à jour : 2026-07-30
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ✅ fait — validée end-to-end le 2026-07-30 (API asynchrone, voir Journal) |
 | S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ✅ fait — **pipeline complet validé end-to-end le 2026-07-30** (to_enrich → enriched_pappers → enriched_contact → ready), voir Journal |
 | S3 | Email + Claude | Tester la génération de messages sur 100 prospects réels | ⬜ à faire — 1 message réel généré et conforme aux contraintes du brief ; passage à l'échelle dépend d'un vrai export Pharow avec un vrai client |
-| S4 | CRM v1 | Interface CRM basique (liste prospects, statut, messages, export Smartlead) | ⬜ à faire |
-| S4 | CRM v1 | Configurer les webhooks Smartlead → Supabase | ⬜ à faire |
+| S4 | CRM v1 | Interface CRM basique (liste prospects, statut, messages, export Smartlead) | ✅ fait — validée end-to-end le 2026-07-30 (voir Journal), `apps/crm` |
+| S4 | CRM v1 | Configurer les webhooks Smartlead → Supabase | ⬜ à faire — reportée à une itération séparée (décision explicite, cf. plan S4) |
 | S5 | Dashboard v1 | Dashboard client React (vue d'ensemble, pipeline Kanban, interactions) | ⬜ à faire |
 | S5 | Dashboard v1 | Déployer sur Vercel avec custom domain (premier client) | ⬜ à faire |
 | S6 | Attribution | Implémenter le module d'attribution (trigger PostgreSQL) | ✅ fait en avance — trigger `calculate_attribution` déjà livré avec le schéma initial (S1) |
@@ -89,7 +90,9 @@ Ajoutées le 2026-07-30 pour valider le script d'import CSV Pharow (même client
 
 Toutes préfixées/nommées explicitement "test"/"fictive"/"exemple"/"demo" pour rester identifiables dans le dashboard/CRM une fois construits.
 
-Le client de test a désormais un `offer_description` renseigné (transformation digitale PME industrielles), et le prospect `1a646013-...` a un message généré réel dans `messages_generated`, statut final `ready`.
+Le client de test a désormais un `offer_description` renseigné (transformation digitale PME industrielles), et le prospect `1a646013-...` a un message généré réel dans `messages_generated`, statut final `ready`, **`approved = true`** (marqué "prêt pour Smartlead" depuis le CRM pendant le test S4 du 2026-07-30).
+
+Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton compte réel `lrd@dmhassocies.com` (n'existait pas encore dans `auth.users`, créé via un script jetable clé `service_role` pour ce test).
 
 ## Écarts assumés par rapport au brief original
 
@@ -110,6 +113,7 @@ Le client de test a désormais un `offer_description` renseigné (transformation
 - **Noms de colonnes du CSV Pharow non vérifiés contre un vrai export** : aucun compte Pharow n'existe encore, donc `packages/pharow/src/csv.ts` devine les en-têtes probables (prénom/nom/entreprise/etc., plusieurs alias par champ, tolérant à la casse/aux accents) plutôt que de les avoir validés comme pour Pappers. Le test du 2026-07-30 utilisait un CSV fictif écrit à la main avec les en-têtes supposées — donc il valide la logique d'import (parsing, dédup, écriture DB), pas la compatibilité avec un vrai fichier Pharow. **À revalider dès qu'un compte Pharow existe et qu'un vrai export est disponible.**
 - **`contacts.appointment_date`/`months_in_role` jamais renseignés par le pipeline actuel** : le prompt Claude sait exploiter "en poste depuis X mois" (signal important brief §1.3.5 pour le scoring aussi), mais rien ne remplit encore ce champ — Pappers renvoie bien les dirigeants (`representants`, avec `date_prise_de_poste`) mais faire correspondre un dirigeant Pappers au contact exact du prospect est une logique métier ambiguë, volontairement pas implémentée (voir décision de scope lors de S2). Pour l'instant ce champ reste toujours `null` en pratique. À trancher avant S7 (scoring).
 - **Nouvelle colonne `dmh_clients.offer_description`** (migration `004_add_dmh_clients_offer_description.sql`, appliquée le 2026-07-30) : nécessaire pour personnaliser le prompt Claude (description de l'offre du client DMH), absente du schéma initial du brief.
+- **Nouvelle table `staff_members` + policies `staff_full_access`** (migration `005_add_staff_members.sql`, appliquée le 2026-07-30) : le brief ne prévoit pas explicitement d'accès interne DMH multi-clients depuis un navigateur (les policies RLS initiales ne couvraient que `service_role` et un client scopé à son propre `client_id`, pensé pour S5). Nécessaire pour que `apps/crm` fonctionne avec la clé anonyme (jamais `service_role` côté navigateur). Voir "Test fonctionnel" S4 dans le Journal pour la limite connue (un seul client de test existe, la preuve d'accès *inter-clients* au sens strict reste à refaire avec un 2e client réel).
 
 ## Journal des sessions
 
@@ -165,3 +169,15 @@ Le client de test a désormais un `offer_description` renseigné (transformation
 - **Pipeline complet validé de bout en bout pour la première fois** : un prospect a traversé `to_enrich` → `enriched_pappers` → `enriched_contact` → `ready` via les trois Edge Functions enchaînées manuellement.
 - **S3 est maintenant intégralement terminé.**
 - **Point de reprise** : prochaine tâche dans l'ordre du brief = S4 (interface CRM basique + webhooks Smartlead → Supabase).
+- Démarré S4 (item 1, interface CRM). Écart de sécurité trouvé en explorant le schéma : aucune policy RLS ne permet à un compte interne DMH de voir tous les clients depuis un navigateur (seulement `service_role` ou un client scopé à son `client_id`). Décidé avec toi : nouvelle table `staff_members` + policy additive `staff_full_access` (migration `005_add_staff_members.sql`, écrite mais pas encore appliquée à ce stade).
+- Scaffoldé `apps/crm` (`@dmh/crm`) : Vite + React 18 + TypeScript + Tailwind, configurés à la main (même esprit que les autres packages). Composants façon shadcn/ui écrits à la main (`Button`/`Badge`/`Card`/`Table`, `class-variance-authority` + `clsx` + `tailwind-merge`) plutôt que leur CLI interactive. Client Supabase construit avec `loadPublicEnv` (`@dmh/config`, déjà testé) — jamais la clé `service_role` côté navigateur.
+- Auth : page `/login` (email/mot de passe via `supabase.auth.signInWithPassword`), `ProtectedRoute` (vérifie uniquement la session — la sécurité réelle est RLS côté serveur, pas ce garde côté client), routing `react-router-dom`.
+- Logique pure testée : `src/lib/status.ts` (12 statuts `ProspectStatus` → libellé FR + couleur de badge), 4 tests unitaires verts.
+- Deux pages : `/` (liste des prospects, filtrable par statut, colonnes entreprise/contact/client DMH/statut) et `/prospects/:id` (détail entreprise/contact enrichis, message généré par Claude affiché intégralement, dropdown de changement de statut, bouton "Marquer prêt pour Smartlead" — pas d'appel API Smartlead réel, aucun client `@dmh/smartlead` n'existe encore, ce bouton documente l'intention et prépare l'injection réelle pour plus tard).
+- `pnpm typecheck`/`pnpm test` racine restés verts sur l'ensemble des 7 packages du monorepo après ajout de `@dmh/crm`.
+- **Migration 005 appliquée** sur le vrai Supabase après ta confirmation explicite (`supabase db push`).
+- **Compte de test créé** : ton compte réel `lrd@dmhassocies.com` (mot de passe que tu as fourni) — n'existait pas encore dans `auth.users`, créé via un script jetable (clé `service_role`, supprimé après usage) et lié à `staff_members`.
+- **Test fonctionnel exécuté** dans un vrai navigateur (Chromium headless via Playwright, installé et piloté par un script jetable, aucun outil ajouté au repo — `chromium-cli` recommandé par le skill `run` n'était pas disponible dans cet environnement). Parcours complet validé : page `/login` (rendu correct, aucune erreur console), redirection non-authentifié, connexion réussie, liste des 4 prospects de test visible (accès accordé via `staff_full_access`, cf. limite notée dans "Écarts" — un seul client de test existe donc pas de preuve stricte multi-clients), détail du prospect `1a646013-...` (message Claude affiché intégralement), changement de statut (aller-retour `ready`→`qualified`→`ready`), et "Marquer prêt pour Smartlead" cliqué avec succès (`approved=true`, `injected_at` persistés). Détail complet dans `TESTING.md`.
+- Bug mineur trouvé et corrigé en cours de route (pas dans le code du repo) : le script jetable de setup du compte de test parsait mal `.env.local` à cause d'un commentaire en fin de ligne sur `SUPABASE_SERVICE_ROLE_KEY` — sans rapport avec le code applicatif, aucune correction nécessaire dans le repo.
+- **S4 (item 1, interface CRM) est maintenant terminé et validé.** Reste dans S4 : l'Edge Function `webhook-smartlead`, explicitement reportée à une itération séparée (décision prise au moment du plan, même logique "une brique à la fois" que pour Pappers/Dropcontact/Claude).
+- **Point de reprise** : prochaine tâche dans l'ordre du brief = S4 (item 2, webhooks Smartlead → Supabase), sauf si tu préfères d'abord passer en revue `TESTING.md` ci-dessus.

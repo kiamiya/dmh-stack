@@ -182,3 +182,11 @@ export interface GeneratedMessages {
   linkedin_message: string;
   followup_email: string;
 }
+
+/** Membre de l'équipe DMH (staff interne) — voir migration 005_add_staff_members.sql. */
+export interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
