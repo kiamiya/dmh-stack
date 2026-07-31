@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -119,6 +119,9 @@ export function ProspectDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
+      <Link to="/" className="text-sm text-slate-500 hover:text-slate-700">
+        ← Retour aux prospects
+      </Link>
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">{company?.name ?? "Prospect"}</h1>
         <div className="flex items-center gap-2">

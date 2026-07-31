@@ -9,83 +9,48 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ test exécuté par mes soins — en attente de ta relecture
+## Statut : ✅ correctif exécuté par mes soins — en attente de ta relecture
 
-Test fonctionnel du dashboard client (`apps/dashboard`, S5 — 1er item),
-exécuté le 2026-07-30, dans un navigateur headless (Chromium via
-Playwright, même outillage jetable que pour le CRM S4 — pas ajouté au
-repo, `chromium-cli` toujours pas disponible dans cet environnement).
+Suite à ton retour ("aucune UX/UI n'est disponible pour naviguer entre les
+pages") : le CRM (`apps/crm`) n'avait en fait **aucun header ni menu de
+navigation**, contrairement au Dashboard qui en a un depuis le début. Un
+vrai manque, pas un souci de compréhension de ta part. Corrigé le
+2026-07-31, testé dans un vrai navigateur (Playwright headless, même
+outillage jetable que les itérations précédentes).
 
-### Pré-requis mis en place avant le test
+### Ce qui a changé
 
-- **Migration `007_add_client_users.sql` appliquée** sur le vrai projet
-  Supabase (confirmée par toi) : table `client_users` + policy
-  `client_user_access` additive sur `dmh_clients` et les 6 tables scopées
-  `client_id`.
-- **Nouveau compte de test créé**, volontairement séparé du compte staff
-  utilisé pour le CRM : `client-test-claude@dmhassocies.com`, lié via
-  `client_users` au client de test existant (`[TEST Claude] Client de
-  test`). Choix délibéré de ne pas réutiliser ton compte réel cette fois :
-  je voulais un compte qui ne soit **pas** dans `staff_members`, pour
-  prouver que l'accès aux données passe bien par la nouvelle policy
-  `client_user_access` et pas par un accès staff plus large qui aurait
-  masqué le test (vérifié directement en base : ce compte n'est pas dans
-  `staff_members`). Script jetable, clé `service_role`, mot de passe
-  généré et non conservé dans ce document — dis-moi si tu veux que je te
-  le communique ou que je le régénère.
-
-### Ce que je n'ai pas pu tester (un seul client de test existe)
-
-Comme pour le test du CRM S4 : un seul client existe dans la base
-actuellement, donc je ne peux pas prouver littéralement qu'un client ne
-voit PAS les données d'un autre client — seulement que l'accès passe par
-la bonne policy (`client_user_access`) et pas par un raccourci. La preuve
-stricte "deux clients, chacun voit uniquement le sien" restera à refaire
-dès qu'un deuxième client réel (ou de test) existera.
+- **Header ajouté au CRM** (`apps/crm/src/components/Header.tsx`, même
+  structure que celui du Dashboard) : titre "DMH CRM", nav "Prospects",
+  email du membre staff connecté, bouton "Déconnexion" (qui n'existait pas
+  du tout auparavant — il n'y avait aucun moyen de se déconnecter dans le
+  CRM).
+- **Lien "← Retour aux prospects"** ajouté sur la fiche détail d'un
+  prospect — jusque-là, seul le bouton précédent du navigateur permettait
+  d'y revenir.
+- Périmètre volontairement limité au CRM lui-même (pas de lien croisé vers
+  le Dashboard) : les deux apps servent des publics différents (staff
+  interne vs. client), un lien direct entre les deux n'a pas de sens
+  produit évident et n'a pas été demandé — à revoir si besoin.
 
 ### Étapes exécutées et résultat
 
-1. **`pnpm --filter @dmh/dashboard dev`** — démarre sans erreur (port 5174,
-   5173 déjà pris par le CRM).
-2. **Page `/login` non authentifiée** : redirection automatique depuis `/`
-   confirmée (route protégée), rendu correct.
-3. **Connexion avec le compte de test client** : réussie, redirection vers `/`.
-4. **Vue d'ensemble** : les statistiques affichées sont exactes par rapport
-   à l'état réel de la base (vérifié indépendamment) : 4 prospects, 0 en
-   séquence active, taux de réponse 100 % (1 réponse pour 1 email envoyé —
-   cohérent avec les interactions créées pendant le test du webhook
-   Smartlead), 1 RDV programmé, 0 deal gagné.
-5. **Pipeline (Kanban)** : les 4 prospects apparaissent dans les bonnes
-   colonnes ("En préparation" ×3 pour les 3 prospects encore en
-   enrichissement, la colonne du statut réel du 4e), avec le branding du
-   client de test visible (nom "[TEST Claude] Client de test", couleur de
-   la marque appliquée sur l'onglet actif).
-6. **Interactions** : les 7 lignes créées pendant le test du webhook
-   Smartlead s'affichent avec les bons libellés FR et les bonnes couleurs
-   (Email envoyé, Email ouvert, Lien cliqué, Email rejeté, Réponse reçue,
-   Note, Désinscription).
-7. **Aucune erreur console** sur l'ensemble du parcours.
+1. `pnpm --filter @dmh/crm dev` (port 5173) — démarre sans erreur.
+2. Connexion avec ton compte réel (`lrd@dmhassocies.com`).
+3. Header visible sur la liste des prospects : titre, nav "Prospects" (état
+   actif), email affiché, bouton "Déconnexion".
+4. Clic sur un prospect → fiche détail → header toujours visible + lien
+   "← Retour aux prospects" en haut de page.
+5. Clic sur le lien retour → revient bien à la liste (`/`).
+6. Clic sur "Déconnexion" → redirige bien vers `/login`.
+7. Aucune erreur console sur l'ensemble du parcours.
 
-**Point à valider par toi si tu veux** : le contenu de la vue d'ensemble
-(les 5 métriques choisies : prospects, en séquence active, taux de
-réponse, RDV programmés, gagnés) te semble-t-il pertinent pour un vrai
-client, ou il en manque/il y en a trop ? Le pipeline Kanban en lecture
-seule (déjà confirmé avec toi) et le regroupement des statuts en 9
-colonnes (3 fusionnées en "En préparation", 2 fusionnées en "Perdu")
-te conviennent-ils ?
-
-### Ce qui reste hors périmètre de cette itération (à documenter, pas à faire)
-
-- **Déployer sur Vercel avec un domaine personnalisé** (2e item de S5) :
-  dépend d'un vrai client pilote (compte + sous-domaine), reporté à une
-  itération séparée — même logique que pour la configuration réelle du
-  webhook Smartlead.
-- Branding avant connexion (logo/couleur visibles dès la page de login,
-  par sous-domaine) : nécessiterait d'exposer publiquement une partie des
-  données `dmh_clients` (policy RLS anonyme ou vue dédiée), pas fait pour
-  ce MVP — le branding s'applique seulement après connexion.
-- Vue Deals : explicitement une tâche S6 séparée dans `PROGRESS.md`
-  (dépend de S5), pas dans le périmètre de cette itération.
+**Point à valider par toi** : peux-tu maintenant naviguer dans le CRM et
+tester le Dashboard comme demandé initialement (voir la précédente
+itération dans le Journal de `PROGRESS.md` pour le détail du test du
+Dashboard : vue d'ensemble, pipeline, interactions) ? Si le manque de
+navigation était le seul obstacle, dis-moi si tout te convient pour que je
+passe à S6 (attribution).
 
 ## Outillage disponible pour les prochains tests
 
