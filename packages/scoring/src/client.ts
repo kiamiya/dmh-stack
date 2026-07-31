@@ -54,7 +54,10 @@ export async function scoreCompany(
 ): Promise<ScoringResult> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
-    max_tokens: 512,
+    // Bug réel trouvé sur generate-messages (stop_reason: max_tokens avec
+    // une marge trop juste) — même précaution ici par cohérence, même si
+    // score+justification est plus court.
+    max_tokens: 1024,
     system: prompt.system,
     messages: [{ role: "user", content: prompt.user }],
     output_config: {

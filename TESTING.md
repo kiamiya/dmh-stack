@@ -9,86 +9,100 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ test exécuté par mes soins — en attente de ta relecture
+## Statut : ✅ test exécuté par mes soins — en attente de ta relecture finale
 
-Test fonctionnel du dernier item de S7 (synchro Lemlist → Supabase),
-exécuté le 2026-07-31. **S7 est maintenant intégralement terminé.**
+**S8, dernière étape de la Phase 1**, exécuté le 2026-07-31 : test
+end-to-end complet, nettoyage, durcissement RLS/performance, et
+documentation technique V1 (`README.md`).
 
-### Découverte avant de coder : ce n'est pas un webhook
+### Nettoyage avant de commencer
 
-Le brief §1.2.4 décrit explicitement une synchro **manuelle** pour
-Waalaxy/Lemlist ("le SDR ou Loïc exporte les prospects... et les importe
-dans Supabase"), contrairement à Smartlead (webhook temps réel, S4).
-Implémenté comme un script (`scripts/sync-lemlist.ts`), déclenché à la
-main — pas une Edge Function. Plutôt que de deviner un format d'export
-CSV, utilisé la vraie clé `LEMLIST_API_KEY` (déjà dans `.env.local`) pour
-appeler la vraie API Lemlist (`GET /activities`, vérifiée par recherche
-avant d'écrire le code).
+- Supprimé `supabase/functions/webhook-waalaxy/` (dossier vide, jamais
+  suivi par git, reste obsolète du scaffold initial).
+- Retiré la ligne `deploy-client` de `package.json` (script jamais
+  implémenté, échouait immédiatement) — la gestion des clients reste un
+  sujet Phase 2 (décidé avec toi le 2026-07-31).
 
-### Bug réel trouvé et corrigé pendant le test
+### Durcissement RLS/performance (`supabase db advisors`, jamais lancé jusqu'ici)
 
-`linkedinInterested`/`linkedinNotInterested` (les seuls types d'activité
-porteurs d'un changement de statut candidat) ne produisaient initialement
-**aucune interaction mappée** — le code les ignorait avant même de
-vérifier le changement de statut, rendant cette logique inatteignable en
-pratique. Corrigé en les mappant vers une interaction de type `note`
-(même principe que `LEAD_CATEGORY_UPDATED` côté Smartlead). Détecté
-uniquement grâce à un scénario de test réaliste bout en bout — les tests
-unitaires sur le mapper seul ne l'auraient pas révélé.
+Résultat détaillé dans "Incertitudes techniques" de `PROGRESS.md`. En
+résumé, 3 vraies catégories de problèmes trouvées et corrigées (migration
+`009_performance_and_security_hardening.sql`, appliquée après ta
+confirmation) :
+- 23 policies RLS qui ré-évaluaient `auth.uid()`/`auth.role()` à chaque
+  ligne au lieu d'une fois par requête (`(select auth.uid())`).
+- 13 clés étrangères sans index de couverture (`client_id`, `prospect_id`,
+  etc. — exactement les colonnes filtrées par RLS et par le CRM/dashboard).
+- 2 fonctions trigger avec un `search_path` non fixé (bonne pratique de
+  sécurité Postgres standard).
 
-### Test 1 — Connexion réelle à l'API Lemlist
+Restent en connaissance de cause (pas des bugs, des choix documentés) :
+la coexistence de 3 policies additives par table (`client_isolation`/
+`staff_full_access`/`client_user_access`, voulu) et l'activation de la
+protection "mot de passe compromis" de Supabase Auth (à faire dans le
+dashboard, pas par migration — recommandé mais pas fait ici).
 
-```
-GET https://api.lemlist.com/api/campaigns          -> []
-GET https://api.lemlist.com/api/activities?version=v2&limit=5  -> []
-```
-Auth réussie avec la vraie clé, listes vides cohérentes (aucune campagne
-réelle, pas de client pilote actif pour l'instant).
+### Test end-to-end complet (le cœur de S8)
 
-### Test 2 — Scénarios simulés (contre le vrai Supabase)
+Un seul et même prospect créé pour ce test (contact "Marie Dubois",
+entreprise PM MECANIQUE INDUSTRIE), suivi à travers **toute la chaîne
+réelle**, dans l'ordre :
 
-7 activités simulées (payloads conformes au format réel de l'API) sur le
-prospect de test (contact `webhook-test-claude@example.com`, prospect
-`1a646013-...`, statut de départ `meeting_booked`) :
-
-| Scénario | Résultat |
+| Étape | Résultat |
 |---|---|
-| `linkedinInviteDone` → interaction `linkedin_request_sent` | ✅ |
-| `linkedinInviteAccepted` → `linkedin_connected` | ✅ |
-| `linkedinSent` → `linkedin_message_sent` | ✅ |
-| `linkedinReplied` → `linkedin_replied` | ✅ |
-| `linkedinInterested` → interaction `note` + statut avancé | ✅ `meeting_booked` → `qualified` |
-| Rejeu du même `_id` (`linkedinInviteDone`) | ✅ dédupliqué, pas de doublon |
-| `emailsSent` (non-LinkedIn, couvert par Smartlead) | ✅ ignoré proprement |
+| Import CSV (`import-pharow`) | ✅ `to_enrich`, entreprise dédupliquée avec le test existant (comportement correct) |
+| `enrich-pappers` | ✅ `enriched_pappers` |
+| `score-prospect` | ✅ score 5/10 |
+| `enrich-dropcontact` | ✅ `enriched_contact` (email non trouvé, cohérent) |
+| `generate-messages` | ❌ puis ✅ — **bug bloquant trouvé** (`max_tokens`), corrigé, rejoué avec succès → `ready` |
+| CRM (liste + détail) | ✅ score, message, statut cohérents en un seul endroit |
+| "Marquer prêt pour Smartlead" | ✅ |
+| Webhook Smartlead simulé (`EMAIL_SENT`, `EMAIL_REPLY`) | ✅ `ready` → `in_sequence` → `replied` |
+| Synchro Lemlist simulée (`linkedinInterested`) | ✅ `replied` → `qualified` |
+| Dashboard (pipeline, interactions) | ✅ le prospect apparaît correctement dans la bonne colonne, avec ses interactions |
+| Déclaration d'un deal (`/deals`) | ✅ **attribution calculée sur le vrai historique** de ce test (5 interactions réelles) : `attributed_to_dmh: true`, commission `1 800 €` (9% de `20 000 €`), `months_between: 0` |
 
-Résultat final : 5 interactions synchronisées, 1 dédupliquée, 1 ignorée,
-`prospects.lemlist_contact_id` renseigné (`lea_test_1`), aucune erreur.
+### Bug bloquant trouvé et corrigé
 
-**Point à valider par toi** : le comportement te semble-t-il cohérent
-(notamment `linkedinInterested`/`linkedinNotInterested` qui avancent
-automatiquement le statut, comme pour Smartlead) ? Rien d'autre à
-vérifier visuellement ici (pas d'interface — c'est un script backend),
-mais dis-moi si tu veux revoir la sortie console d'un run réel.
+`generate-messages` a échoué en conditions réelles (`stop_reason:
+max_tokens`, réponse tronquée) — `max_tokens: 1024` était une marge trop
+juste. Corrigé à `2048` (`packages/claude-messages/src/client.ts`), même
+précaution appliquée à `packages/scoring/src/client.ts` (`512` → `1024`).
+Aucun test précédent n'avait rencontré ce cas — trouvé uniquement parce
+que ce test end-to-end a rejoué les fonctions en conditions réelles.
 
-### Hors périmètre de cette itération
+### `README.md` — documentation technique V1
 
-- Synchro réelle avec un vrai compte Lemlist actif (campagnes/prospects
-  réels) — dépend d'un client pilote, pas encore disponible.
+Nouveau fichier à la racine : architecture, cycle de vie d'un prospect
+(qui fait avancer quel statut), setup, conventions de test, tableau des
+scripts/Edge Functions, état du déploiement, modèle RLS. À relire de ton
+côté si tu veux — c'est le document qui devrait permettre à quelqu'un
+d'autre de reprendre le projet.
 
-## Outillage disponible pour les prochains tests
+**Point à valider par toi** : avec ce test, **la Phase 1 (planning
+détaillé S1-S8 du brief) est complète côté développement**. Peux-tu
+confirmer que ça correspond à ce que tu attendais, et jeter un œil à
+`README.md` ? Au-delà de cette validation, les étapes suivantes (Phase 2 :
+clients pilotes, contrats, SDR, déploiement Vercel réel) sortent
+largement du périmètre dev pur et impliquent des décisions business de
+ton côté.
 
-- **Deno CLI** installé en standalone (`winget install DenoLand.Deno`, sans admin/Docker) — pour exécuter une Edge Function directement.
-- **`pnpm run check-pappers -- <siren>`** pour tester rapidement le mapper Pappers sur une nouvelle entreprise.
-- **`pnpm run import-pharow -- --client-id <uuid> <fichier.csv>`** pour importer un CSV Pharow (ou un CSV de test).
-- **`pnpm run test-attribution`** pour rejouer les 8 scénarios du trigger d'attribution contre le vrai Supabase.
-- **`pnpm run sync-lemlist -- [--campaign-id <id>] [--since <date-ISO>]`** pour synchroniser les activités LinkedIn Lemlist (vide tant qu'aucune vraie campagne n'existe).
-- **`pnpm exec supabase db push`** pour appliquer les migrations en attente sur la vraie base (toujours demander confirmation avant, cf. `CLAUDE.md`).
-- **`pnpm --filter @dmh/crm dev`** / **`pnpm --filter @dmh/dashboard dev`** (ports 5173/5174 selon dispo) pour les deux apps.
-- **Comptes de test** :
-  - CRM (staff) : `lrd@dmhassocies.com` (ton compte réel), lié à `staff_members` — accès à tous les clients.
-  - Dashboard (client) : `client-test-claude@dmhassocies.com`, lié à `client_users` — accès au seul client de test.
-- **Données de test dans Supabase** (conservées, voir `PROGRESS.md`) :
-  client de test `test-claude-enrich-pappers`, prospect `1a646013-...`
-  désormais au statut `qualified` (avancé pendant ce test via
-  `linkedinInterested`), avec un `lemlist_contact_id` de test renseigné,
-  en plus des interactions Smartlead précédentes.
+## Outillage disponible
+
+- **`supabase db advisors --linked --type all --level info`** pour
+  relancer le contrôle sécurité/performance à tout moment.
+- **`supabase db query --linked "<SQL>"`** pour interroger directement la
+  base réelle en lecture (ex. vérifier `pg_policies`).
+- **Deno CLI** installé en standalone (`winget install DenoLand.Deno`) —
+  pour exécuter une Edge Function directement, voir `README.md`.
+- **`pnpm run check-pappers -- <siren>`**, **`import-pharow`**,
+  **`test-attribution`**, **`sync-lemlist`** — voir `README.md` pour la
+  liste complète des scripts.
+- **`pnpm --filter @dmh/crm dev`** / **`pnpm --filter @dmh/dashboard dev`**
+  (ports 5173/5174 selon dispo).
+- **Comptes de test** : `lrd@dmhassocies.com` (staff, tous les clients),
+  `client-test-claude@dmhassocies.com` (client de test uniquement).
+- **Données de test dans Supabase** (conservées) : client de test
+  `test-claude-enrich-pappers`, plusieurs prospects couvrant tous les
+  statuts du pipeline, dont le nouveau prospect "Marie Dubois" (statut
+  final `qualified`, avec un deal attribué de 20 000 €).

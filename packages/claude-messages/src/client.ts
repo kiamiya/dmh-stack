@@ -63,7 +63,11 @@ export async function generateMessages(
 ): Promise<GeneratedMessages> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
-    max_tokens: 1024,
+    // 1024 s'est révélé insuffisant en test réel (stop_reason: max_tokens,
+    // réponse tronquée et donc inexploitable) — 4 champs courts mais la
+    // marge doit rester confortable plutôt que de risquer un échec complet
+    // sur une variation de longueur du modèle.
+    max_tokens: 2048,
     system: prompt.system,
     messages: [{ role: "user", content: prompt.user }],
     output_config: {

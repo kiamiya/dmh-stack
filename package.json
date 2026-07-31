@@ -16,8 +16,7 @@
     "check-pappers": "tsx --env-file=.env.local scripts/check-pappers.ts",
     "import-pharow": "tsx --env-file=.env.local scripts/import-pharow.ts",
     "test-attribution": "tsx --env-file=.env.local scripts/test-attribution.ts",
-    "sync-lemlist": "tsx --env-file=.env.local scripts/sync-lemlist.ts",
-    "deploy-client": "tsx scripts/deploy-client.ts"
+    "sync-lemlist": "tsx --env-file=.env.local scripts/sync-lemlist.ts"
   },
   "dependencies": {
     "@dmh/config": "workspace:*",
