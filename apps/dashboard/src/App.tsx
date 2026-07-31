@@ -4,6 +4,7 @@ import { LoginPage } from "./pages/Login";
 import { OverviewPage } from "./pages/Overview";
 import { PipelinePage } from "./pages/Pipeline";
 import { InteractionsPage } from "./pages/Interactions";
+import { DealsPage } from "./pages/Deals";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 
@@ -41,6 +42,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <InteractionsPage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/deals"
+        element={
+          <ProtectedLayout>
+            <DealsPage />
           </ProtectedLayout>
         }
       />

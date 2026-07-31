@@ -9,48 +9,65 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ correctif exécuté par mes soins — en attente de ta relecture
+## Statut : ✅ test exécuté par mes soins — en attente de ta relecture
 
-Suite à ton retour ("aucune UX/UI n'est disponible pour naviguer entre les
-pages") : le CRM (`apps/crm`) n'avait en fait **aucun header ni menu de
-navigation**, contrairement au Dashboard qui en a un depuis le début. Un
-vrai manque, pas un souci de compréhension de ta part. Corrigé le
-2026-07-31, testé dans un vrai navigateur (Playwright headless, même
-outillage jetable que les itérations précédentes).
+Test fonctionnel de S6 (attribution + vue Deals), exécuté le 2026-07-31.
 
-### Ce qui a changé
+### Ce qui a été trouvé et corrigé avant même le test
 
-- **Header ajouté au CRM** (`apps/crm/src/components/Header.tsx`, même
-  structure que celui du Dashboard) : titre "DMH CRM", nav "Prospects",
-  email du membre staff connecté, bouton "Déconnexion" (qui n'existait pas
-  du tout auparavant — il n'y avait aucun moyen de se déconnecter dans le
-  CRM).
-- **Lien "← Retour aux prospects"** ajouté sur la fiche détail d'un
-  prospect — jusque-là, seul le bouton précédent du navigateur permettait
-  d'y revenir.
-- Périmètre volontairement limité au CRM lui-même (pas de lien croisé vers
-  le Dashboard) : les deux apps servent des publics différents (staff
-  interne vs. client), un lien direct entre les deux n'a pas de sens
-  produit évident et n'a pas été demandé — à revoir si besoin.
+En préparant les scénarios, deux bugs réels dans le trigger
+`calculate_attribution` (existant depuis S1, jamais testé jusqu'ici) :
 
-### Étapes exécutées et résultat
+1. Le trigger ne se déclenchait que sur `UPDATE` (`before update on
+   deals`), jamais sur un `INSERT` direct en `status: 'won'` — alors que
+   le brief décrit "dès la saisie [d'un deal signé], le module
+   d'attribution calcule automatiquement", et que le code lui-même
+   suggérait que ce cas était censé être couvert.
+2. Le champ `months_between` du rapport d'attribution (`attribution_report`,
+   documenté "pour litiges éventuels") était mal calculé pour tout écart
+   de plus d'un an entre le premier contact et la signature (bug
+   `extract(month from age(...))`, ne renvoie que 0-11). La vraie règle
+   d'éligibilité (18 mois) n'était pas affectée, seul ce champ informatif.
 
-1. `pnpm --filter @dmh/crm dev` (port 5173) — démarre sans erreur.
-2. Connexion avec ton compte réel (`lrd@dmhassocies.com`).
-3. Header visible sur la liste des prospects : titre, nav "Prospects" (état
-   actif), email affiché, bouton "Déconnexion".
-4. Clic sur un prospect → fiche détail → header toujours visible + lien
-   "← Retour aux prospects" en haut de page.
-5. Clic sur le lien retour → revient bien à la liste (`/`).
-6. Clic sur "Déconnexion" → redirige bien vers `/login`.
-7. Aucune erreur console sur l'ensemble du parcours.
+Corrigés dans `supabase/migrations/008_fix_deal_attribution_trigger.sql`,
+appliquée après ta confirmation.
 
-**Point à valider par toi** : peux-tu maintenant naviguer dans le CRM et
-tester le Dashboard comme demandé initialement (voir la précédente
-itération dans le Journal de `PROGRESS.md` pour le détail du test du
-Dashboard : vue d'ensemble, pipeline, interactions) ? Si le manque de
-navigation était le seul obstacle, dis-moi si tout te convient pour que je
-passe à S6 (attribution).
+### Test 1 — Scénarios du trigger (`scripts/test-attribution.ts`)
+
+Exécuté contre le vrai Supabase (client de test), 8/8 scénarios réussis :
+
+| Scénario | Résultat |
+|---|---|
+| INSERT direct en `won` déclenche l'attribution | ✅ `attributed_to_dmh=true`, commission = `deal_value × commission_rate` |
+| `months_between` correct pour un écart <1 mois | ✅ `0` |
+| Contact préexistant → non attribué | ✅ |
+| Aucune interaction enregistrée → non attribué | ✅ |
+| Premier contact >18 mois → non attribué | ✅ |
+| `months_between` correct pour un écart >12 mois (fix #2) | ✅ `~20` (aurait été 0-11 avant le fix) |
+| Deal sans `prospect_id` → non attribué | ✅ |
+| Mise à jour d'un deal déjà `won` → pas de recalcul du rapport | ✅ |
+
+Relance possible à tout moment : `pnpm run test-attribution`.
+
+### Test 2 — Vue Deals (`apps/dashboard`, `/deals`)
+
+Dans un vrai navigateur (Playwright headless, compte de test client) :
+
+1. Onglet "Deals" visible dans la nav, page charge sans erreur.
+2. Formulaire "Déclarer un deal signé" rempli (entreprise, montant, date)
+   et soumis → le deal apparaît immédiatement en haut de la liste, avec
+   le bon statut d'attribution (non attribué ici, aucun prospect lié —
+   cohérent).
+3. Les 6 deals créés par le script de test s'affichent avec les bons
+   montants formatés (`8 000,00 €`), badges "Oui"/"Non" et statut de
+   commission ("payée"/"à payer").
+4. Aucune erreur console.
+
+**Point à valider par toi** : le contenu du formulaire (entreprise,
+montant, date, prospect lié optionnel) et de la liste (montant, date,
+attribution, commission + statut payé/à payer) te semble suffisant pour
+déclarer un deal signé, ou il manque quelque chose d'évident ? Si tout te
+va, un "c'est bon" suffit pour enchaîner sur S7 (scoring IA).
 
 ## Outillage disponible pour les prochains tests
 
@@ -63,12 +80,15 @@ passe à S6 (attribution).
   ```
 - **`pnpm run check-pappers -- <siren>`** pour tester rapidement le mapper Pappers sur une nouvelle entreprise.
 - **`pnpm run import-pharow -- --client-id <uuid> <fichier.csv>`** pour importer un CSV Pharow (ou un CSV de test).
+- **`pnpm run test-attribution`** pour rejouer les 8 scénarios du trigger d'attribution contre le vrai Supabase.
 - **`pnpm exec supabase db push`** pour appliquer les migrations en attente sur la vraie base (toujours demander confirmation avant, cf. `CLAUDE.md`).
-- **`pnpm --filter @dmh/crm dev`** (port 5173) pour le CRM interne, **`pnpm --filter @dmh/dashboard dev`** (port 5174 si le CRM tourne déjà) pour le dashboard client.
+- **`pnpm --filter @dmh/crm dev`** (port 5173 ou 5174 selon dispo) pour le CRM interne, **`pnpm --filter @dmh/dashboard dev`** pour le dashboard client.
 - **Comptes de test** :
   - CRM (staff) : `lrd@dmhassocies.com` (ton compte réel), lié à `staff_members` — accès à tous les clients.
   - Dashboard (client) : `client-test-claude@dmhassocies.com`, lié à `client_users` — accès au seul client de test.
 - **Données de test dans Supabase** (conservées, voir `PROGRESS.md`) :
   client de test `test-claude-enrich-pappers` (avec `offer_description`
-  configurée), 4 prospects couvrant plusieurs statuts, 7 interactions
-  Smartlead simulées sur le prospect `1a646013-...` (statut `meeting_booked`).
+  configurée), 4 prospects de prospection + 6 entreprises de test créées
+  pour l'attribution (`[TEST attribution] ...`) + 1 deal créé pendant le
+  test navigateur (`[TEST UI] Nouvelle Entreprise`), 7 interactions
+  Smartlead simulées sur le prospect `1a646013-...`.

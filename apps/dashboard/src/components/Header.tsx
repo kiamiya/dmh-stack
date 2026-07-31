@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Vue d'ensemble" },
   { to: "/pipeline", label: "Pipeline" },
   { to: "/interactions", label: "Interactions" },
+  { to: "/deals", label: "Deals" },
 ];
 
 /**
