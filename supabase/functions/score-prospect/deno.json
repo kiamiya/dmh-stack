@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.32.0",
+    "zod": "npm:zod@3.24.1",
+    "@dmh/pappers": "../../../packages/pappers/src/mapper.ts",
+    "@dmh/claude-messages": "../../../packages/claude-messages/src/client.ts"
+  }
+}

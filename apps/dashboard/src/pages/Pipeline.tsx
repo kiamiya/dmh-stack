@@ -4,12 +4,13 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { groupProspectsByColumn } from "../lib/pipeline";
 import { getStatusColor, getStatusLabel } from "../lib/status";
+import { formatScore, getScoreColor } from "../lib/score";
 import type { ProspectStatus } from "@dmh/types";
 
 interface ProspectRow {
   id: string;
   status: ProspectStatus;
-  companies: { name: string } | null;
+  companies: { name: string; ai_score: number | null } | null;
   contacts: { first_name: string; last_name: string } | null;
 }
 
@@ -23,7 +24,7 @@ export function PipelinePage() {
     async function load() {
       const { data, error: fetchError } = await supabase
         .from("prospects")
-        .select("id, status, companies(name), contacts(first_name, last_name)");
+        .select("id, status, companies(name, ai_score), contacts(first_name, last_name)");
 
       if (cancelled) return;
       if (fetchError) setError(fetchError.message);
@@ -65,9 +66,12 @@ export function PipelinePage() {
                       ? `${prospect.contacts.first_name} ${prospect.contacts.last_name}`
                       : "—"}
                   </div>
-                  <Badge variant={getStatusColor(prospect.status)} className="mt-1">
-                    {getStatusLabel(prospect.status)}
-                  </Badge>
+                  <div className="mt-1 flex items-center gap-1">
+                    <Badge variant={getStatusColor(prospect.status)}>{getStatusLabel(prospect.status)}</Badge>
+                    <Badge variant={getScoreColor(prospect.companies?.ai_score ?? null)}>
+                      {formatScore(prospect.companies?.ai_score ?? null)}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </CardContent>

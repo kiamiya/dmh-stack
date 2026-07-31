@@ -4,12 +4,13 @@ import { supabase } from "../lib/supabase";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
+import { formatScore, getScoreColor } from "../lib/score";
 import type { ProspectStatus } from "@dmh/types";
 
 interface ProspectRow {
   id: string;
   status: ProspectStatus;
-  companies: { name: string } | null;
+  companies: { name: string; ai_score: number | null } | null;
   contacts: { first_name: string; last_name: string } | null;
   dmh_clients: { name: string } | null;
 }
@@ -27,7 +28,7 @@ export function ProspectsListPage() {
       setLoading(true);
       const { data, error: fetchError } = await supabase
         .from("prospects")
-        .select("id, status, companies(name), contacts(first_name, last_name), dmh_clients(name)")
+        .select("id, status, companies(name, ai_score), contacts(first_name, last_name), dmh_clients(name)")
         .order("updated_at", { ascending: false });
 
       if (cancelled) return;
@@ -78,6 +79,7 @@ export function ProspectsListPage() {
               <TableHead>Entreprise</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Client DMH</TableHead>
+              <TableHead>Score</TableHead>
               <TableHead>Statut</TableHead>
             </TableRow>
           </TableHeader>
@@ -96,13 +98,18 @@ export function ProspectsListPage() {
                 </TableCell>
                 <TableCell>{prospect.dmh_clients?.name ?? "—"}</TableCell>
                 <TableCell>
+                  <Badge variant={getScoreColor(prospect.companies?.ai_score ?? null)}>
+                    {formatScore(prospect.companies?.ai_score ?? null)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
                   <Badge variant={getStatusColor(prospect.status)}>{getStatusLabel(prospect.status)}</Badge>
                 </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-slate-500">
+                <TableCell colSpan={5} className="text-center text-slate-500">
                   Aucun prospect.
                 </TableCell>
               </TableRow>

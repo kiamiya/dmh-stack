@@ -5,6 +5,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
+import { formatScore, getScoreColor } from "../lib/score";
 import type { ProspectStatus } from "@dmh/types";
 
 interface ProspectDetailData {
@@ -17,6 +18,8 @@ interface ProspectDetailData {
     employee_range: string | null;
     city: string | null;
     revenue: number | null;
+    ai_score: number | null;
+    ai_score_reason: string | null;
   } | null;
   contacts: {
     first_name: string;
@@ -56,7 +59,7 @@ export function ProspectDetailPage() {
         supabase
           .from("prospects")
           .select(
-            "id, status, companies(name, legal_form, naf_label, employee_range, city, revenue), contacts(first_name, last_name, job_title, email, email_confidence, linkedin_url)",
+            "id, status, companies(name, legal_form, naf_label, employee_range, city, revenue, ai_score, ai_score_reason), contacts(first_name, last_name, job_title, email, email_confidence, linkedin_url)",
           )
           .eq("id", id)
           .single(),
@@ -140,6 +143,20 @@ export function ProspectDetailPage() {
           </select>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Score IA</span>
+            <Badge variant={getScoreColor(company?.ai_score ?? null)}>
+              {formatScore(company?.ai_score ?? null)}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-slate-700">
+          {company?.ai_score_reason ?? "Pas encore scoré."}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
