@@ -74,6 +74,13 @@ const webhookSmartleadFunctionEnvSchema = z.object({
   SMARTLEAD_WEBHOOK_SECRET: smartleadWebhookSecret,
 });
 
+// Ce dont le script scripts/sync-lemlist.ts a réellement besoin.
+const lemlistSyncEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  LEMLIST_API_KEY: lemlistApiKey,
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
@@ -81,6 +88,7 @@ export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
 export type DropcontactFunctionEnv = z.infer<typeof dropcontactFunctionEnvSchema>;
 export type GenerateMessagesFunctionEnv = z.infer<typeof generateMessagesFunctionEnvSchema>;
 export type WebhookSmartleadFunctionEnv = z.infer<typeof webhookSmartleadFunctionEnvSchema>;
+export type LemlistSyncEnv = z.infer<typeof lemlistSyncEnvSchema>;
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -170,4 +178,12 @@ export function loadWebhookSmartleadFunctionEnv(
   source: EnvSource,
 ): WebhookSmartleadFunctionEnv {
   return parseOrThrow(webhookSmartleadFunctionEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour `scripts/sync-lemlist.ts` : Supabase +
+ * `LEMLIST_API_KEY` uniquement.
+ */
+export function loadLemlistSyncEnv(source: EnvSource): LemlistSyncEnv {
+  return parseOrThrow(lemlistSyncEnvSchema, source);
 }

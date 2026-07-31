@@ -16,12 +16,15 @@
     "check-pappers": "tsx --env-file=.env.local scripts/check-pappers.ts",
     "import-pharow": "tsx --env-file=.env.local scripts/import-pharow.ts",
     "test-attribution": "tsx --env-file=.env.local scripts/test-attribution.ts",
+    "sync-lemlist": "tsx --env-file=.env.local scripts/sync-lemlist.ts",
     "deploy-client": "tsx scripts/deploy-client.ts"
   },
   "dependencies": {
     "@dmh/config": "workspace:*",
+    "@dmh/lemlist": "workspace:*",
     "@dmh/pappers": "workspace:*",
     "@dmh/pharow": "workspace:*",
+    "@dmh/smartlead": "workspace:*",
     "@supabase/supabase-js": "^2.111.0"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ export {
   loadPharowImportEnv,
   loadDropcontactFunctionEnv,
   loadGenerateMessagesFunctionEnv,
+  loadLemlistSyncEnv,
   EnvValidationError,
 } from "./env.js";
 export type {
@@ -14,5 +15,6 @@ export type {
   PharowImportEnv,
   DropcontactFunctionEnv,
   GenerateMessagesFunctionEnv,
+  LemlistSyncEnv,
   EnvSource,
 } from "./env.js";

@@ -8,6 +8,7 @@ import {
   loadPublicEnv,
   loadServerEnv,
   loadWebhookSmartleadFunctionEnv,
+  loadLemlistSyncEnv,
 } from "./env.js";
 
 const validSource = {
@@ -234,6 +235,37 @@ describe("loadWebhookSmartleadFunctionEnv", () => {
   it("lève EnvValidationError si SMARTLEAD_WEBHOOK_SECRET manque", () => {
     expect(() =>
       loadWebhookSmartleadFunctionEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      }),
+    ).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadLemlistSyncEnv", () => {
+  it("ne requiert que Supabase + LEMLIST_API_KEY", () => {
+    const env = loadLemlistSyncEnv({
+      SUPABASE_URL: validSource.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+      LEMLIST_API_KEY: validSource.LEMLIST_API_KEY,
+    });
+
+    expect(env.LEMLIST_API_KEY).toBe("fake-lemlist-key");
+  });
+
+  it("n'est pas bloqué par l'absence de clés d'autres intégrations", () => {
+    expect(() =>
+      loadLemlistSyncEnv({
+        SUPABASE_URL: validSource.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+        LEMLIST_API_KEY: validSource.LEMLIST_API_KEY,
+      }),
+    ).not.toThrow();
+  });
+
+  it("lève EnvValidationError si LEMLIST_API_KEY manque", () => {
+    expect(() =>
+      loadLemlistSyncEnv({
         SUPABASE_URL: validSource.SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
       }),
