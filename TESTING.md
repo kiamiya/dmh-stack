@@ -9,100 +9,62 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ test exécuté par mes soins — en attente de ta relecture finale
+## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**S8, dernière étape de la Phase 1**, exécuté le 2026-07-31 : test
-end-to-end complet, nettoyage, durcissement RLS/performance, et
-documentation technique V1 (`README.md`).
+**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 0 (fondations)**,
+branche `feat/crm-redesign`, exécuté le 2026-08-26.
 
-### Nettoyage avant de commencer
+### Contexte : le vrai projet Supabase est en pause
 
-- Supprimé `supabase/functions/webhook-waalaxy/` (dossier vide, jamais
-  suivi par git, reste obsolète du scaffold initial).
-- Retiré la ligne `deploy-client` de `package.json` (script jamais
-  implémenté, échouait immédiatement) — la gestion des clients reste un
-  sujet Phase 2 (décidé avec toi le 2026-07-31).
+`hkonylfpcstbvxswyxyh.supabase.co` ne résout plus en DNS (mis en pause pour
+inactivité, incident déjà rencontré et documenté par Loïc le 2026-07-30). En
+attendant sa réactivation, cette phase a été testée contre un **mode démo
+local** (`SUPABASE_DEMO_MODE=true` dans `.env.local`, jamais commité) : un
+faux client Supabase en mémoire (`apps/crm/src/lib/mockSupabase.ts` +
+`mockData.ts`) qui reproduit exactement l'API utilisée par le CRM
+(auth + requêtes), sur 4 prospects factices couvrant plusieurs statuts. Ce
+n'est pas un remplacement du test contre la vraie base — juste ce qui est
+possible tant que le projet reste inaccessible. **À revalider contre le vrai
+Supabase dès sa réactivation.**
 
-### Durcissement RLS/performance (`supabase db advisors`, jamais lancé jusqu'ici)
+### Ce qui a été testé
 
-Résultat détaillé dans "Incertitudes techniques" de `PROGRESS.md`. En
-résumé, 3 vraies catégories de problèmes trouvées et corrigées (migration
-`009_performance_and_security_hardening.sql`, appliquée après ta
-confirmation) :
-- 23 policies RLS qui ré-évaluaient `auth.uid()`/`auth.role()` à chaque
-  ligne au lieu d'une fois par requête (`(select auth.uid())`).
-- 13 clés étrangères sans index de couverture (`client_id`, `prospect_id`,
-  etc. — exactement les colonnes filtrées par RLS et par le CRM/dashboard).
-- 2 fonctions trigger avec un `search_path` non fixé (bonne pratique de
-  sécurité Postgres standard).
-
-Restent en connaissance de cause (pas des bugs, des choix documentés) :
-la coexistence de 3 policies additives par table (`client_isolation`/
-`staff_full_access`/`client_user_access`, voulu) et l'activation de la
-protection "mot de passe compromis" de Supabase Auth (à faire dans le
-dashboard, pas par migration — recommandé mais pas fait ici).
-
-### Test end-to-end complet (le cœur de S8)
-
-Un seul et même prospect créé pour ce test (contact "Marie Dubois",
-entreprise PM MECANIQUE INDUSTRIE), suivi à travers **toute la chaîne
-réelle**, dans l'ordre :
-
-| Étape | Résultat |
+| Élément | Résultat |
 |---|---|
-| Import CSV (`import-pharow`) | ✅ `to_enrich`, entreprise dédupliquée avec le test existant (comportement correct) |
-| `enrich-pappers` | ✅ `enriched_pappers` |
-| `score-prospect` | ✅ score 5/10 |
-| `enrich-dropcontact` | ✅ `enriched_contact` (email non trouvé, cohérent) |
-| `generate-messages` | ❌ puis ✅ — **bug bloquant trouvé** (`max_tokens`), corrigé, rejoué avec succès → `ready` |
-| CRM (liste + détail) | ✅ score, message, statut cohérents en un seul endroit |
-| "Marquer prêt pour Smartlead" | ✅ |
-| Webhook Smartlead simulé (`EMAIL_SENT`, `EMAIL_REPLY`) | ✅ `ready` → `in_sequence` → `replied` |
-| Synchro Lemlist simulée (`linkedinInterested`) | ✅ `replied` → `qualified` |
-| Dashboard (pipeline, interactions) | ✅ le prospect apparaît correctement dans la bonne colonne, avec ses interactions |
-| Déclaration d'un deal (`/deals`) | ✅ **attribution calculée sur le vrai historique** de ce test (5 interactions réelles) : `attributed_to_dmh: true`, commission `1 800 €` (9% de `20 000 €`), `months_between: 0` |
+| `pnpm --filter @dmh/crm typecheck` | ✅ vert |
+| `pnpm --filter @dmh/crm test` (23 tests : status, score, avatar, services/prospects) | ✅ vert |
+| `pnpm typecheck` racine (11 packages) | ✅ vert, aucune régression |
+| Connexion (mode démo, identifiants arbitraires) | ✅ |
+| Liste des prospects (`useProspects`, nouveau hook) | ✅ mêmes 4 prospects, mêmes colonnes/scores/statuts qu'avant le refactor |
+| Nouveaux tokens CSS (palette sobre + accent indigo) | ✅ compile sans erreur PostCSS après redémarrage du serveur Vite (le premier essai a échoué — `tailwind.config.ts` n'est pas rechargé à chaud, redémarrage nécessaire, sans rapport avec le code lui-même) |
+| Aucune erreur console au chargement | ✅ (hors WebSocket HMR, sans rapport) |
 
-### Bug bloquant trouvé et corrigé
+### Ce qui n'a **pas** encore été testé (prévu en Phase 1+)
 
-`generate-messages` a échoué en conditions réelles (`stop_reason:
-max_tokens`, réponse tronquée) — `max_tokens: 1024` était une marge trop
-juste. Corrigé à `2048` (`packages/claude-messages/src/client.ts`), même
-précaution appliquée à `packages/scoring/src/client.ts` (`512` → `1024`).
-Aucun test précédent n'avait rencontré ce cas — trouvé uniquement parce
-que ce test end-to-end a rejoué les fonctions en conditions réelles.
+- Les nouvelles primitives UI (Skeleton, Avatar, Dialog, DropdownMenu, Tabs,
+  Toast) sont écrites mais pas encore utilisées dans une page réelle — pas
+  de retour visuel à donner dessus pour l'instant, elles serviront dès la
+  Phase 1 (Kanban, fiche prospect refaite).
+- La migration `010_add_crm_activity_tracking.sql` n'a pas été appliquée
+  (attendu — voir ci-dessous).
 
-### `README.md` — documentation technique V1
+### Point à valider par toi
 
-Nouveau fichier à la racine : architecture, cycle de vie d'un prospect
-(qui fait avancer quel statut), setup, conventions de test, tableau des
-scripts/Edge Functions, état du déploiement, modèle RLS. À relire de ton
-côté si tu veux — c'est le document qui devrait permettre à quelqu'un
-d'autre de reprendre le projet.
+1. **Confirmer le go pour la migration** `supabase/migrations/010_add_crm_activity_tracking.sql`
+   (`interactions.created_by`, `prospects.assigned_to`, table
+   `prospect_status_history` + trigger de log automatique) — je ne lance
+   `supabase db push` que sur ta confirmation explicite séparée.
+2. Confirmer que le refactor de `ProspectsList`/`ProspectDetail` vers les
+   nouveaux hooks/services n'a rien changé de visible (comportement
+   identique attendu).
+3. Feu vert pour enchaîner sur la **Phase 1 (Kanban + fiche prospect
+   refaite)**.
 
-**Point à valider par toi** : avec ce test, **la Phase 1 (planning
-détaillé S1-S8 du brief) est complète côté développement**. Peux-tu
-confirmer que ça correspond à ce que tu attendais, et jeter un œil à
-`README.md` ? Au-delà de cette validation, les étapes suivantes (Phase 2 :
-clients pilotes, contrats, SDR, déploiement Vercel réel) sortent
-largement du périmètre dev pur et impliquent des décisions business de
-ton côté.
+## Outillage disponible pour ce chantier
 
-## Outillage disponible
-
-- **`supabase db advisors --linked --type all --level info`** pour
-  relancer le contrôle sécurité/performance à tout moment.
-- **`supabase db query --linked "<SQL>"`** pour interroger directement la
-  base réelle en lecture (ex. vérifier `pg_policies`).
-- **Deno CLI** installé en standalone (`winget install DenoLand.Deno`) —
-  pour exécuter une Edge Function directement, voir `README.md`.
-- **`pnpm run check-pappers -- <siren>`**, **`import-pharow`**,
-  **`test-attribution`**, **`sync-lemlist`** — voir `README.md` pour la
-  liste complète des scripts.
-- **`pnpm --filter @dmh/crm dev`** / **`pnpm --filter @dmh/dashboard dev`**
-  (ports 5173/5174 selon dispo).
-- **Comptes de test** : `lrd@dmhassocies.com` (staff, tous les clients),
-  `client-test-claude@dmhassocies.com` (client de test uniquement).
-- **Données de test dans Supabase** (conservées) : client de test
-  `test-claude-enrich-pappers`, plusieurs prospects couvrant tous les
-  statuts du pipeline, dont le nouveau prospect "Marie Dubois" (statut
-  final `qualified`, avec un deal attribué de 20 000 €).
+- Mode démo local : `SUPABASE_DEMO_MODE=true` dans `.env.local` (voir
+  `apps/crm/src/lib/mockSupabase.ts`) — connexion avec n'importe quel
+  email/mot de passe, 4 prospects factices.
+- `pnpm --filter @dmh/crm dev` (port 5173).
+- Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
+  final validé par toi.
