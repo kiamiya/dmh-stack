@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Design tokens (variables CSS) — palette professionnelle sobre : neutre
+ * slate + un accent indigo utilisé avec parcimonie (liens, focus, états
+ * actifs). Indirection par variable pour permettre un mode sombre plus
+ * tard (Phase 6 de la refonte CRM) sans retoucher les composants.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 238 75% 59%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72.2% 50.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 9%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 238 75% 59%;
+
+    --radius: 0.5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

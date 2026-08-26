@@ -1,50 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
 import { formatScore, getScoreColor } from "../lib/score";
+import { useProspects } from "../hooks/useProspects";
 import type { ProspectStatus } from "@dmh/types";
 
-interface ProspectRow {
-  id: string;
-  status: ProspectStatus;
-  companies: { name: string; ai_score: number | null } | null;
-  contacts: { first_name: string; last_name: string } | null;
-  dmh_clients: { name: string } | null;
-}
-
 export function ProspectsListPage() {
-  const [prospects, setProspects] = useState<ProspectRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { prospects, loading, error } = useProspects();
   const [statusFilter, setStatusFilter] = useState<ProspectStatus | "all">("all");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      const { data, error: fetchError } = await supabase
-        .from("prospects")
-        .select("id, status, companies(name, ai_score), contacts(first_name, last_name), dmh_clients(name)")
-        .order("updated_at", { ascending: false });
-
-      if (cancelled) return;
-      if (fetchError) {
-        setError(fetchError.message);
-      } else {
-        setProspects((data ?? []) as unknown as ProspectRow[]);
-      }
-      setLoading(false);
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filtered = useMemo(
     () => (statusFilter === "all" ? prospects : prospects.filter((p) => p.status === statusFilter)),
