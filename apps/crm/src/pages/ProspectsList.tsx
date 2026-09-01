@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
+import { isStagnant } from "../lib/stagnation";
 import { EMPTY_PROSPECT_FILTERS, extractDistinctClients, extractDistinctNafLabels, filterProspects } from "../lib/prospectFilters";
 import type { ProspectFilters } from "../lib/prospectFilters";
 import { toCsv } from "../lib/csv";
@@ -161,7 +162,15 @@ export function ProspectsListPage() {
       columnHelper.accessor((row) => row.last_activity_at ?? "", {
         id: "lastActivity",
         header: "Dernière activité",
-        cell: ({ row }) => formatRelativeTime(row.original.last_activity_at),
+        cell: ({ row }) => {
+          const stagnant = isStagnant(row.original.last_activity_at);
+          return (
+            <span className={stagnant ? "font-medium text-yellow-700" : undefined}>
+              {stagnant && "⚠ "}
+              {formatRelativeTime(row.original.last_activity_at)}
+            </span>
+          );
+        },
       }),
     ],
     [],

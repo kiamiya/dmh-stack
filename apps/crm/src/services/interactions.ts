@@ -3,6 +3,7 @@ import type { InteractionChannel, InteractionType } from "@dmh/types";
 
 export interface InteractionRow {
   id: string;
+  prospect_id: string;
   type: InteractionType;
   channel: InteractionChannel;
   subject: string | null;
@@ -11,7 +12,7 @@ export interface InteractionRow {
   created_by: string | null;
 }
 
-const INTERACTION_SELECT = "id, type, channel, subject, content, occurred_at, created_by";
+const INTERACTION_SELECT = "id, prospect_id, type, channel, subject, content, occurred_at, created_by";
 
 export async function listInteractions(client: SupabaseClient, prospectId: string): Promise<InteractionRow[]> {
   const { data, error } = await client
@@ -20,6 +21,13 @@ export async function listInteractions(client: SupabaseClient, prospectId: strin
     .eq("prospect_id", prospectId)
     .order("occurred_at", { ascending: false });
 
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as InteractionRow[];
+}
+
+/** Toutes les interactions, tous prospects confondus — alimente le fil d'activité (Phase 5). */
+export async function listAllInteractions(client: SupabaseClient): Promise<InteractionRow[]> {
+  const { data, error } = await client.from("interactions").select(INTERACTION_SELECT);
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as InteractionRow[];
 }

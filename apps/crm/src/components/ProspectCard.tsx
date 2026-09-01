@@ -3,6 +3,7 @@ import { Avatar } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
+import { isStagnant } from "../lib/stagnation";
 import type { ProspectListRow } from "../services/prospects";
 
 export interface ProspectCardProps {
@@ -16,6 +17,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
   const contactName = prospect.contacts
     ? `${prospect.contacts.first_name} ${prospect.contacts.last_name}`
     : "—";
+  const stagnant = isStagnant(prospect.last_activity_at);
 
   return (
     <div
@@ -38,8 +40,10 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
           {formatScore(prospect.companies?.ai_score ?? null)}
         </Badge>
       </div>
-      <div className="mt-2 text-xs text-muted-foreground">
-        Dernière activité : {formatRelativeTime(prospect.last_activity_at)}
+      <div className="mt-2 flex items-center gap-1.5 text-xs">
+        <span className={stagnant ? "font-medium text-yellow-700" : "text-muted-foreground"}>
+          {stagnant && "⚠ "}Dernière activité : {formatRelativeTime(prospect.last_activity_at)}
+        </span>
       </div>
     </div>
   );

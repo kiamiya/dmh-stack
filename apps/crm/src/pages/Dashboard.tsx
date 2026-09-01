@@ -8,6 +8,9 @@ import { FunnelChart } from "../components/charts/FunnelChart";
 import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
+import { formatRelativeTime } from "../lib/relativeTime";
+import { isStagnant } from "../lib/stagnation";
+import { mergeActivityEvents } from "../lib/activityFeed";
 import {
   computeFunnelFromHistory,
   computeStatusCounts,
@@ -17,11 +20,15 @@ import {
 import { useProspects } from "../hooks/useProspects";
 import { useStatusHistory } from "../hooks/useStatusHistory";
 import { useDeals } from "../hooks/useDeals";
+import { useAllInteractions } from "../hooks/useAllInteractions";
+import { useStaffMembers } from "../hooks/useStaffMembers";
 
 export function DashboardPage() {
   const { prospects, loading: prospectsLoading } = useProspects();
   const { history, loading: historyLoading } = useStatusHistory();
   const { deals, loading: dealsLoading } = useDeals();
+  const { interactions, loading: interactionsLoading } = useAllInteractions();
+  const staff = useStaffMembers();
 
   const now = useMemo(() => new Date(), []);
   const statusCounts = useMemo(() => computeStatusCounts(prospects), [prospects]);
@@ -41,7 +48,21 @@ export function DashboardPage() {
     [deals, now],
   );
 
-  const loading = prospectsLoading || historyLoading || dealsLoading;
+  const companyNameByProspectId = useMemo(
+    () => new Map(prospects.map((p) => [p.id, p.companies?.name ?? "—"])),
+    [prospects],
+  );
+  const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  const activityEvents = useMemo(
+    () => mergeActivityEvents(history, interactions, companyNameByProspectId, staffById, 15),
+    [history, interactions, companyNameByProspectId, staffById],
+  );
+  const stagnantProspects = useMemo(
+    () => prospects.filter((p) => isStagnant(p.last_activity_at, undefined, now) && p.status !== "won" && p.status !== "lost" && p.status !== "not_interested"),
+    [prospects, now],
+  );
+
+  const loading = prospectsLoading || historyLoading || dealsLoading || interactionsLoading;
   const wonDeals = deals.filter((d) => d.status === "won");
   const lostDeals = deals.filter((d) => d.status === "lost");
   const totalCommission = wonDeals.reduce((sum, d) => sum + (d.commission_amount ?? 0), 0);
@@ -170,6 +191,50 @@ export function DashboardPage() {
                     </span>
                   )}
                 </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Fil d'activité récent</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
+            {activityEvents.map((e) => (
+              <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <Link to={`/prospects/${e.prospectId}`} className="font-medium text-foreground hover:underline">
+                    {e.companyName}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
+                </div>
+                <div className="text-muted-foreground">
+                  {e.description}
+                  {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Prospects stagnants ({stagnantProspects.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {stagnantProspects.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aucun prospect stagnant — bon rythme.</p>
+            )}
+            {stagnantProspects.map((p) => (
+              <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                <Link to={`/prospects/${p.id}`} className="truncate text-foreground hover:underline">
+                  {p.companies?.name ?? "—"}
+                </Link>
+                <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>
               </div>
             ))}
           </CardContent>

@@ -49,7 +49,9 @@ export interface MockProspect {
 
 export interface MockStatusHistory {
   prospect_id: string;
+  old_status: ProspectStatus | null;
   new_status: ProspectStatus;
+  changed_by: string | null;
   changed_at: string;
 }
 
@@ -241,24 +243,24 @@ export const mockProspects: MockProspect[] = [
 ];
 
 export const mockStatusHistory: MockStatusHistory[] = [
-  { prospect_id: "prospect-1", new_status: "to_enrich", changed_at: "2026-08-05T09:00:00Z" },
-  { prospect_id: "prospect-1", new_status: "enriched_pappers", changed_at: "2026-08-06T09:00:00Z" },
-  { prospect_id: "prospect-1", new_status: "enriched_contact", changed_at: "2026-08-07T09:00:00Z" },
-  { prospect_id: "prospect-1", new_status: "ready", changed_at: "2026-08-20T10:00:00Z" },
-  { prospect_id: "prospect-2", new_status: "to_enrich", changed_at: "2026-08-12T09:00:00Z" },
-  { prospect_id: "prospect-2", new_status: "enriched_pappers", changed_at: "2026-08-13T09:00:00Z" },
-  { prospect_id: "prospect-2", new_status: "enriched_contact", changed_at: "2026-08-14T09:00:00Z" },
-  { prospect_id: "prospect-2", new_status: "ready", changed_at: "2026-08-15T09:00:00Z" },
-  { prospect_id: "prospect-2", new_status: "in_sequence", changed_at: "2026-08-22T14:30:00Z" },
-  { prospect_id: "prospect-3", new_status: "to_enrich", changed_at: "2026-07-20T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "enriched_pappers", changed_at: "2026-07-21T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "enriched_contact", changed_at: "2026-07-22T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "ready", changed_at: "2026-07-25T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "in_sequence", changed_at: "2026-07-28T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "replied", changed_at: "2026-08-02T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "meeting_booked", changed_at: "2026-08-08T09:00:00Z" },
-  { prospect_id: "prospect-3", new_status: "qualified", changed_at: "2026-08-10T09:15:00Z" },
-  { prospect_id: "prospect-4", new_status: "to_enrich", changed_at: "2026-08-25T16:45:00Z" },
+  { prospect_id: "prospect-1", old_status: null, new_status: "to_enrich", changed_by: null, changed_at: "2026-08-05T09:00:00Z" },
+  { prospect_id: "prospect-1", old_status: "to_enrich", new_status: "enriched_pappers", changed_by: null, changed_at: "2026-08-06T09:00:00Z" },
+  { prospect_id: "prospect-1", old_status: "enriched_pappers", new_status: "enriched_contact", changed_by: null, changed_at: "2026-08-07T09:00:00Z" },
+  { prospect_id: "prospect-1", old_status: "enriched_contact", new_status: "ready", changed_by: "staff-1", changed_at: "2026-08-20T10:00:00Z" },
+  { prospect_id: "prospect-2", old_status: null, new_status: "to_enrich", changed_by: null, changed_at: "2026-08-12T09:00:00Z" },
+  { prospect_id: "prospect-2", old_status: "to_enrich", new_status: "enriched_pappers", changed_by: null, changed_at: "2026-08-13T09:00:00Z" },
+  { prospect_id: "prospect-2", old_status: "enriched_pappers", new_status: "enriched_contact", changed_by: null, changed_at: "2026-08-14T09:00:00Z" },
+  { prospect_id: "prospect-2", old_status: "enriched_contact", new_status: "ready", changed_by: null, changed_at: "2026-08-15T09:00:00Z" },
+  { prospect_id: "prospect-2", old_status: "ready", new_status: "in_sequence", changed_by: null, changed_at: "2026-08-22T14:30:00Z" },
+  { prospect_id: "prospect-3", old_status: null, new_status: "to_enrich", changed_by: null, changed_at: "2026-07-20T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "to_enrich", new_status: "enriched_pappers", changed_by: null, changed_at: "2026-07-21T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "enriched_pappers", new_status: "enriched_contact", changed_by: null, changed_at: "2026-07-22T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "enriched_contact", new_status: "ready", changed_by: null, changed_at: "2026-07-25T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "ready", new_status: "in_sequence", changed_by: null, changed_at: "2026-07-28T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "in_sequence", new_status: "replied", changed_by: null, changed_at: "2026-08-02T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "replied", new_status: "meeting_booked", changed_by: null, changed_at: "2026-08-08T09:00:00Z" },
+  { prospect_id: "prospect-3", old_status: "meeting_booked", new_status: "qualified", changed_by: "staff-2", changed_at: "2026-08-10T09:15:00Z" },
+  { prospect_id: "prospect-4", old_status: null, new_status: "to_enrich", changed_by: null, changed_at: "2026-08-25T16:45:00Z" },
 ];
 
 export const mockDeals: MockDeal[] = [
