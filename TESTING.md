@@ -46,6 +46,12 @@ sombre optionnel (Phase 6).
   demanderait d'introduire un cache/store partagé (React Query ou
   équivalent) — hors périmètre de cette refonte, à traiter comme un
   chantier dédié si souhaité.
+- **Pas de navigation par sous-onglets entre les cartes du Dashboard** —
+  la page `/dashboard` empile actuellement toutes les cartes verticalement
+  (stats, statuts, funnel, évolution, top scores, deals, activité,
+  stagnants). Un système de sous-onglets (ex. Tabs déjà posé en Phase 0)
+  faciliterait la navigation entre sections sans tout scroller. Pas fait
+  dans cette refonte, à ajouter dans une itération dédiée.
 
 ## Outillage disponible pour ce chantier
 
