@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { openProspectLinkState } from "../lib/navigation";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
@@ -10,7 +11,7 @@ import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
-import { mergeActivityEvents } from "../lib/activityFeed";
+import { groupActivityEventsByDay, mergeActivityEvents } from "../lib/activityFeed";
 import {
   computeFunnelFromHistory,
   computeStatusCounts,
@@ -24,6 +25,7 @@ import { useAllInteractions } from "../hooks/useAllInteractions";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 
 export function DashboardPage() {
+  const location = useLocation();
   const { prospects, loading: prospectsLoading } = useProspects();
   const { history, loading: historyLoading } = useStatusHistory();
   const { deals, loading: dealsLoading } = useDeals();
@@ -57,6 +59,7 @@ export function DashboardPage() {
     () => mergeActivityEvents(history, interactions, companyNameByProspectId, staffById, 15),
     [history, interactions, companyNameByProspectId, staffById],
   );
+  const activityDayGroups = useMemo(() => groupActivityEventsByDay(activityEvents, now), [activityEvents, now]);
   const stagnantProspects = useMemo(
     () => prospects.filter((p) => isStagnant(p.last_activity_at, undefined, now) && p.status !== "won" && p.status !== "lost" && p.status !== "not_interested"),
     [prospects, now],
@@ -162,7 +165,7 @@ export function DashboardPage() {
             {topScores.map((p, i) => (
               <div key={p.id} className="flex items-center gap-2 text-sm">
                 <span className="w-4 text-muted-foreground">{i + 1}.</span>
-                <Link to={`/prospects/${p.id}`} className="flex-1 truncate text-foreground hover:underline">
+                <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="flex-1 truncate text-foreground hover:underline">
                   {p.companyName}
                 </Link>
                 <Badge variant={getScoreColor(p.score)}>{formatScore(p.score)}</Badge>
@@ -202,19 +205,28 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle>Fil d'activité récent</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-4">
             {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
-            {activityEvents.map((e) => (
-              <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                <div className="flex items-center justify-between">
-                  <Link to={`/prospects/${e.prospectId}`} className="font-medium text-foreground hover:underline">
-                    {e.companyName}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
+            {activityDayGroups.map((group) => (
+              <div key={group.label}>
+                <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {group.label}
                 </div>
-                <div className="text-muted-foreground">
-                  {e.description}
-                  {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
+                <div className="space-y-2">
+                  {group.events.map((e) => (
+                    <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                      <div className="flex items-center justify-between">
+                        <Link to={`/prospects/${e.prospectId}`} state={openProspectLinkState(location)} className="font-medium text-foreground hover:underline">
+                          {e.companyName}
+                        </Link>
+                        <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {e.description}
+                        {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -231,7 +243,7 @@ export function DashboardPage() {
             )}
             {stagnantProspects.map((p) => (
               <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                <Link to={`/prospects/${p.id}`} className="truncate text-foreground hover:underline">
+                <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="truncate text-foreground hover:underline">
                   {p.companies?.name ?? "—"}
                 </Link>
                 <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>

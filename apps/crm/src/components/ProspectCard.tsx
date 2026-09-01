@@ -1,9 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Avatar } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
+import { openProspectLinkState } from "../lib/navigation";
 import type { ProspectListRow } from "../services/prospects";
 
 export interface ProspectCardProps {
@@ -18,6 +19,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
     ? `${prospect.contacts.first_name} ${prospect.contacts.last_name}`
     : "—";
   const stagnant = isStagnant(prospect.last_activity_at);
+  const location = useLocation();
 
   return (
     <div
@@ -29,6 +31,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
         <div className="min-w-0 flex-1">
           <Link
             to={`/prospects/${prospect.id}`}
+            state={openProspectLinkState(location)}
             onClick={(e) => e.stopPropagation()}
             className="block truncate text-sm font-medium text-foreground hover:underline"
           >

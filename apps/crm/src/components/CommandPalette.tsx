@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Command } from "cmdk";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useProspects } from "../hooks/useProspects";
 import { filterPaletteProspects } from "../lib/commandPalette";
+import { openProspectLinkState } from "../lib/navigation";
 import { ALL_PROSPECT_STATUSES, getStatusLabel } from "../lib/status";
 import { updateProspectStatus } from "../services/prospects";
 import { useToast } from "./ui/toast";
@@ -24,6 +25,7 @@ export function CommandPalette() {
   const [activeProspect, setActiveProspect] = useState<ProspectListRow | null>(null);
   const { prospects, reload } = useProspects();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,6 +47,12 @@ export function CommandPalette() {
 
   function goTo(path: string) {
     navigate(path);
+    close();
+  }
+
+  function goToProspect(id: string) {
+    // Ouvre en panneau latéral (background-location, voir App.tsx) plutôt qu'en navigation plein écran.
+    navigate(`/prospects/${id}`, { state: openProspectLinkState(location) });
     close();
   }
 
@@ -118,7 +126,7 @@ export function CommandPalette() {
           </div>
           <Command.List className="max-h-80 overflow-y-auto p-2">
             <Command.Group heading="Actions" className="mb-1 px-2 text-xs font-medium text-muted-foreground">
-              <Command.Item className={ITEM_CLASS} onSelect={() => goTo(`/prospects/${activeProspect.id}`)}>
+              <Command.Item className={ITEM_CLASS} onSelect={() => goToProspect(activeProspect.id)}>
                 Voir la fiche
               </Command.Item>
             </Command.Group>

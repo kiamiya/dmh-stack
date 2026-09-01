@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { openProspectLinkState } from "../lib/navigation";
 import {
   createColumnHelper,
   flexRender,
@@ -17,6 +18,7 @@ import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/st
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
+import { cn } from "../lib/cn";
 import { EMPTY_PROSPECT_FILTERS, extractDistinctClients, extractDistinctNafLabels, filterProspects } from "../lib/prospectFilters";
 import type { ProspectFilters } from "../lib/prospectFilters";
 import { toCsv } from "../lib/csv";
@@ -53,7 +55,16 @@ function downloadCsv(content: string, filename: string) {
 }
 
 export function ProspectsListPage() {
-  const { prospects, loading, error, bulkUpdateStatus, bulkUpdateAssignment } = useProspects();
+  const location = useLocation();
+  const {
+    prospects,
+    loading,
+    error,
+    bulkUpdateStatus,
+    bulkUpdateAssignment,
+    restoreStatuses,
+    restoreAssignments,
+  } = useProspects();
   const staff = useStaffMembers();
   const { toast } = useToast();
 
@@ -100,6 +111,11 @@ export function ProspectsListPage() {
   }
 
   const filtered = useMemo(() => filterProspects(prospects, filters), [prospects, filters]);
+  /** Dérivé (pas un state séparé) : l'onglet actif reflète toujours exactement les filtres courants, y compris après une modification manuelle qui s'écarterait d'une vue sauvegardée. */
+  const activeViewId = useMemo(() => {
+    const match = savedViews.find((v) => JSON.stringify(v.filters) === JSON.stringify(filters));
+    return match?.id ?? null;
+  }, [savedViews, filters]);
   const nafOptions = useMemo(() => extractDistinctNafLabels(prospects), [prospects]);
   const clientOptions = useMemo(() => extractDistinctClients(prospects), [prospects]);
 
@@ -125,7 +141,11 @@ export function ProspectsListPage() {
         id: "company",
         header: "Entreprise",
         cell: ({ row }) => (
-          <Link to={`/prospects/${row.original.id}`} className="font-medium text-foreground hover:underline">
+          <Link
+            to={`/prospects/${row.original.id}`}
+            state={openProspectLinkState(location)}
+            className="font-medium text-foreground hover:underline"
+          >
             {row.original.companies?.name ?? "—"}
           </Link>
         ),
@@ -192,9 +212,19 @@ export function ProspectsListPage() {
   const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id]);
 
   async function handleBulkStatus(status: ProspectStatus) {
+    const previousEntries = prospects
+      .filter((p) => selectedIds.includes(p.id))
+      .map((p) => ({ id: p.id, status: p.status }));
+
     const result = await bulkUpdateStatus(selectedIds, status);
     if (result.ok) {
-      toast(`Statut mis à jour pour ${selectedIds.length} prospect(s).`, "success");
+      toast(`Statut mis à jour pour ${selectedIds.length} prospect(s).`, "success", {
+        label: "Annuler",
+        onClick: async () => {
+          await restoreStatuses(previousEntries);
+          toast("Changement de statut annulé.", "default");
+        },
+      });
       setRowSelection({});
     } else {
       toast(`Échec : ${result.error}`, "destructive");
@@ -202,9 +232,19 @@ export function ProspectsListPage() {
   }
 
   async function handleBulkAssign(staffId: string | null) {
+    const previousEntries = prospects
+      .filter((p) => selectedIds.includes(p.id))
+      .map((p) => ({ id: p.id, assignedTo: p.assigned_to }));
+
     const result = await bulkUpdateAssignment(selectedIds, staffId);
     if (result.ok) {
-      toast(`Assignation mise à jour pour ${selectedIds.length} prospect(s).`, "success");
+      toast(`Assignation mise à jour pour ${selectedIds.length} prospect(s).`, "success", {
+        label: "Annuler",
+        onClick: async () => {
+          await restoreAssignments(previousEntries);
+          toast("Assignation annulée.", "default");
+        },
+      });
       setRowSelection({});
     } else {
       toast(`Échec : ${result.error}`, "destructive");
@@ -230,46 +270,6 @@ export function ProspectsListPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-foreground">Prospects</h1>
         <div className="flex gap-2">
-        <DropdownMenu
-          align="end"
-          trigger={
-            <Button variant="outline" size="sm">
-              Vues
-            </Button>
-          }
-        >
-          {savedViews.length === 0 && (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">Aucune vue enregistrée.</div>
-          )}
-          {savedViews.map((view) => (
-            <div key={view.id} className="flex items-center gap-2 px-2 py-1.5 text-sm" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setFilters(view.filters)}
-                className="flex-1 truncate text-left text-foreground hover:underline"
-              >
-                {view.name}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteView(view.id)}
-                className="text-muted-foreground hover:text-destructive"
-                aria-label={`Supprimer la vue ${view.name}`}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          <div className="mt-1 border-t border-border pt-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setSaveViewOpen(true)}
-              className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-accent hover:bg-secondary"
-            >
-              + Enregistrer la vue actuelle
-            </button>
-          </div>
-        </DropdownMenu>
         <DropdownMenu
           align="end"
           trigger={
@@ -318,6 +318,47 @@ export function ProspectsListPage() {
           ))}
         </DropdownMenu>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setFilters(EMPTY_PROSPECT_FILTERS)}
+          className={cn(
+            "border-b-2 px-3 py-1.5 text-sm font-medium",
+            activeViewId === null ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Toutes
+        </button>
+        {savedViews.map((view) => (
+          <div
+            key={view.id}
+            className={cn(
+              "group flex items-center gap-1 border-b-2 px-3 py-1.5 text-sm font-medium",
+              activeViewId === view.id ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <button type="button" onClick={() => setFilters(view.filters)} className="max-w-[10rem] truncate">
+              {view.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteView(view.id)}
+              aria-label={`Supprimer la vue ${view.name}`}
+              className="hidden text-muted-foreground hover:text-destructive group-hover:inline"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setSaveViewOpen(true)}
+          className="px-3 py-1.5 text-sm text-accent hover:underline"
+        >
+          + Nouvelle vue
+        </button>
       </div>
 
       <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>

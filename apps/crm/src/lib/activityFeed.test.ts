@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeActivityEvents } from "./activityFeed";
+import { groupActivityEventsByDay, mergeActivityEvents } from "./activityFeed";
+import type { ActivityEvent } from "./activityFeed";
 
 const companyNames = new Map([
   ["p1", "Acme"],
@@ -60,5 +61,54 @@ describe("mergeActivityEvents", () => {
     ];
     const result = mergeActivityEvents(statusHistory, [], companyNames, staff);
     expect(result[0]!.companyName).toBe("Prospect inconnu");
+  });
+});
+
+function event(overrides: Partial<ActivityEvent> = {}): ActivityEvent {
+  return {
+    id: "e1",
+    timestamp: "2026-08-26T09:00:00Z",
+    prospectId: "p1",
+    companyName: "Acme",
+    description: "Description",
+    authorName: null,
+    ...overrides,
+  };
+}
+
+describe("groupActivityEventsByDay", () => {
+  const NOW = new Date("2026-08-26T15:00:00Z");
+
+  it("regroupe le jour même sous Aujourd'hui", () => {
+    const groups = groupActivityEventsByDay([event({ timestamp: "2026-08-26T09:00:00Z" })], NOW);
+    expect(groups[0]!.label).toBe("Aujourd'hui");
+  });
+
+  it("regroupe la veille sous Hier", () => {
+    const groups = groupActivityEventsByDay([event({ timestamp: "2026-08-25T09:00:00Z" })], NOW);
+    expect(groups[0]!.label).toBe("Hier");
+  });
+
+  it("affiche une date complète au-delà d'hier", () => {
+    const groups = groupActivityEventsByDay([event({ timestamp: "2026-08-01T09:00:00Z" })], NOW);
+    expect(groups[0]!.label).not.toBe("Aujourd'hui");
+    expect(groups[0]!.label).not.toBe("Hier");
+    expect(groups[0]!.label.length).toBeGreaterThan(0);
+  });
+
+  it("préserve l'ordre d'entrée et regroupe les événements du même jour ensemble", () => {
+    const events = [
+      event({ id: "e1", timestamp: "2026-08-26T09:00:00Z" }),
+      event({ id: "e2", timestamp: "2026-08-25T09:00:00Z" }),
+      event({ id: "e3", timestamp: "2026-08-26T08:00:00Z" }),
+    ];
+    const groups = groupActivityEventsByDay(events, NOW);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]!.events.map((e) => e.id)).toEqual(["e1", "e3"]);
+    expect(groups[1]!.events.map((e) => e.id)).toEqual(["e2"]);
+  });
+
+  it("retourne un tableau vide pour un fil vide", () => {
+    expect(groupActivityEventsByDay([], NOW)).toEqual([]);
   });
 });

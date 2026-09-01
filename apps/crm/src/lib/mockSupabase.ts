@@ -44,7 +44,10 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
   private updatePatch: Record<string, unknown> | null = null;
   private insertPayload: Record<string, unknown> | null = null;
 
-  constructor(private table: string) {}
+  constructor(
+    private table: string,
+    private getCurrentUserId: () => string | null,
+  ) {}
 
   select(_columns: string) {
     return this;
@@ -132,7 +135,21 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
     if (this.table === "prospects") {
       const prospect = mockProspects.find((p) => p.id === id);
       if (prospect && this.updatePatch) {
-        Object.assign(prospect, this.updatePatch as { status?: ProspectStatus });
+        const patch = this.updatePatch as { status?: ProspectStatus };
+        // Reproduit le trigger `prospect_status_change` (migration 010) : la
+        // vraie base journalise automatiquement tout changement de statut
+        // dans prospect_status_history — sans ça, le fil d'activité et le
+        // funnel du mode démo divergeraient du comportement réel.
+        if (patch.status && patch.status !== prospect.status) {
+          mockStatusHistory.push({
+            prospect_id: prospect.id,
+            old_status: prospect.status,
+            new_status: patch.status,
+            changed_by: this.getCurrentUserId(),
+            changed_at: new Date().toISOString(),
+          });
+        }
+        Object.assign(prospect, patch);
       }
     }
     if (this.table === "messages_generated") {
@@ -224,7 +241,7 @@ export function createMockSupabaseClient() {
   return {
     auth,
     from(table: string) {
-      return new MockQuery(table);
+      return new MockQuery(table, () => session?.user.id ?? null);
     },
   };
 }
