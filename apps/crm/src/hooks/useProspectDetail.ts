@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ProspectStatus } from "@dmh/types";
 import { supabase } from "../lib/supabase";
-import { getProspect, updateProspectStatus } from "../services/prospects";
+import { getProspect, updateProspectAssignment, updateProspectStatus } from "../services/prospects";
 import type { ProspectDetailRow } from "../services/prospects";
 import { getLatestMessage, markMessageReady } from "../services/messages";
 import type { MessageRow } from "../services/messages";
@@ -63,5 +63,25 @@ export function useProspectDetail(id: string | undefined) {
     }
   }
 
-  return { prospect, message, loading, error, savingStatus, markingReady, changeStatus, markReadyForSmartlead };
+  async function changeAssignment(assignedTo: string | null) {
+    if (!id) return;
+    try {
+      await updateProspectAssignment(supabase, id, assignedTo);
+      setProspect((prev) => (prev ? { ...prev, assigned_to: assignedTo } : prev));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return {
+    prospect,
+    message,
+    loading,
+    error,
+    savingStatus,
+    markingReady,
+    changeStatus,
+    markReadyForSmartlead,
+    changeAssignment,
+  };
 }

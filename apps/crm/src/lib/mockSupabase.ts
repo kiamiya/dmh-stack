@@ -1,5 +1,14 @@
 import type { ProspectStatus } from "@dmh/types";
-import { mockClients, mockCompanies, mockContacts, mockMessages, mockProspects } from "./mockData";
+import {
+  mockClients,
+  mockCompanies,
+  mockContacts,
+  mockInteractions,
+  mockMessages,
+  mockProspects,
+  mockStaffMembers,
+} from "./mockData";
+import type { MockInteraction } from "./mockData";
 
 /**
  * Client Supabase factice pour le mode démo local (`SUPABASE_DEMO_MODE=true`
@@ -31,10 +40,16 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
   private eqFilters: Array<[string, string]> = [];
   private mode: "list" | "single" | "maybeSingle" = "list";
   private updatePatch: Record<string, unknown> | null = null;
+  private insertPayload: Record<string, unknown> | null = null;
 
   constructor(private table: string) {}
 
   select(_columns: string) {
+    return this;
+  }
+
+  insert(payload: Record<string, unknown>) {
+    this.insertPayload = payload;
     return this;
   }
 
@@ -67,12 +82,37 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
   }
 
   private execute(): { data: unknown; error: { message: string } | null } {
+    if (this.insertPayload) return this.executeInsert();
     if (this.updatePatch) return this.executeUpdate();
 
     if (this.table === "prospects") return this.executeProspectsSelect();
     if (this.table === "messages_generated") return this.executeMessagesSelect();
+    if (this.table === "interactions") return this.executeInteractionsSelect();
+    if (this.table === "staff_members") return this.executeStaffSelect();
 
     return { data: this.mode === "list" ? [] : null, error: null };
+  }
+
+  private executeInsert(): { data: unknown; error: { message: string } | null } {
+    if (this.table === "interactions") {
+      const payload = this.insertPayload as Omit<MockInteraction, "id">;
+      const row: MockInteraction = { id: `interaction-${mockInteractions.length + 1}`, ...payload };
+      mockInteractions.unshift(row);
+      return { data: row, error: null };
+    }
+    return { data: null, error: { message: `insert non supporté pour ${this.table} (mock)` } };
+  }
+
+  private executeInteractionsSelect() {
+    let rows = mockInteractions.slice();
+    const prospectFilter = this.eqFilters.find(([col]) => col === "prospect_id");
+    if (prospectFilter) rows = rows.filter((i) => i.prospect_id === prospectFilter[1]);
+    rows.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+    return { data: rows, error: null };
+  }
+
+  private executeStaffSelect() {
+    return { data: mockStaffMembers.slice(), error: null };
   }
 
   private executeUpdate(): { data: unknown; error: { message: string } | null } {
@@ -102,7 +142,10 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
 
     const joined = rows.map((p) => ({
       id: p.id,
+      client_id: p.client_id,
       status: p.status,
+      assigned_to: p.assigned_to,
+      last_activity_at: p.last_activity_at,
       companies: findCompany(p.company_id),
       contacts: findContact(p.contact_id),
       dmh_clients: findClient(p.client_id),

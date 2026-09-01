@@ -4,7 +4,10 @@ import { supabase } from "../lib/supabase";
 import { cn } from "../lib/cn";
 import { Button } from "./ui/button";
 
-const NAV_ITEMS = [{ to: "/", label: "Prospects" }];
+const NAV_ITEMS = [
+  { to: "/", label: "Prospects" },
+  { to: "/pipeline", label: "Pipeline" },
+];
 
 /**
  * Header commun aux pages protégées du CRM (staff interne — pas de

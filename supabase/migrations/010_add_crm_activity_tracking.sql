@@ -27,6 +27,19 @@ alter table interactions add column created_by uuid references staff_members(id)
 -- ------------------------------------------------------------
 alter table prospects add column assigned_to uuid references staff_members(id);
 
+-- La policy "staff_can_read_staff" (005_add_staff_members.sql) ne permet à
+-- chaque membre staff de lire QUE sa propre ligne (auth.uid() = id) — trop
+-- restrictif pour un sélecteur d'assignation dans le CRM, qui doit pouvoir
+-- lister tous les collègues. Données peu sensibles (nom/email interne DMH),
+-- élargie à toute l'équipe authentifiée en tant que staff.
+drop policy if exists "staff_can_read_staff" on staff_members;
+create policy "staff_can_read_staff" on staff_members
+  for select
+  using (
+    exists (select 1 from staff_members s2 where s2.id = (select auth.uid()))
+    or (select auth.role()) = 'service_role'
+  );
+
 -- ------------------------------------------------------------
 -- 3) Historique des changements de statut (fil d'activité + évolution
 --    du pipeline dans le temps)

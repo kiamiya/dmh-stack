@@ -1,4 +1,4 @@
-import type { ProspectStatus } from "@dmh/types";
+import type { InteractionChannel, InteractionType, ProspectStatus } from "@dmh/types";
 
 /**
  * Données factices pour le mode démo local (`SUPABASE_DEMO_MODE=true`,
@@ -10,6 +10,7 @@ import type { ProspectStatus } from "@dmh/types";
 export interface MockCompany {
   id: string;
   name: string;
+  siren: string | null;
   legal_form: string | null;
   naf_label: string | null;
   employee_range: string | null;
@@ -40,7 +41,26 @@ export interface MockProspect {
   company_id: string;
   contact_id: string;
   client_id: string;
+  assigned_to: string | null;
+  last_activity_at: string | null;
   updated_at: string;
+}
+
+export interface MockStaffMember {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface MockInteraction {
+  id: string;
+  prospect_id: string;
+  type: InteractionType;
+  channel: InteractionChannel;
+  subject: string | null;
+  content: string | null;
+  occurred_at: string;
+  created_by: string | null;
 }
 
 export interface MockMessage {
@@ -63,6 +83,7 @@ export const mockCompanies: MockCompany[] = [
   {
     id: "company-1",
     name: "PM Mécanique Industrie (démo)",
+    siren: "481838852",
     legal_form: "SAS",
     naf_label: "Mécanique industrielle",
     employee_range: "20-49 salariés",
@@ -75,6 +96,7 @@ export const mockCompanies: MockCompany[] = [
   {
     id: "company-2",
     name: "Atelier Ferronnerie du Nord (démo)",
+    siren: "512345678",
     legal_form: "SARL",
     naf_label: "Travail des métaux",
     employee_range: "50-99 salariés",
@@ -87,6 +109,7 @@ export const mockCompanies: MockCompany[] = [
   {
     id: "company-3",
     name: "Groupe Techno Soudure (démo)",
+    siren: "398765432",
     legal_form: "SA",
     naf_label: "Chaudronnerie",
     employee_range: "200-499 salariés",
@@ -98,6 +121,7 @@ export const mockCompanies: MockCompany[] = [
   {
     id: "company-4",
     name: "Menuiserie Dubois & Fils (démo)",
+    siren: null,
     legal_form: "SARL",
     naf_label: "Menuiserie industrielle",
     employee_range: "10-19 salariés",
@@ -147,6 +171,11 @@ export const mockContacts: MockContact[] = [
   },
 ];
 
+export const mockStaffMembers: MockStaffMember[] = [
+  { id: "staff-1", name: "William Demo", email: "demo@dmhassocies.com" },
+  { id: "staff-2", name: "Loïc Demo", email: "loic-demo@dmhassocies.com" },
+];
+
 export const mockProspects: MockProspect[] = [
   {
     id: "prospect-1",
@@ -154,6 +183,8 @@ export const mockProspects: MockProspect[] = [
     company_id: "company-1",
     contact_id: "contact-1",
     client_id: "client-1",
+    assigned_to: "staff-1",
+    last_activity_at: "2026-08-24T09:00:00Z",
     updated_at: "2026-08-20T10:00:00Z",
   },
   {
@@ -162,6 +193,8 @@ export const mockProspects: MockProspect[] = [
     company_id: "company-2",
     contact_id: "contact-2",
     client_id: "client-1",
+    assigned_to: null,
+    last_activity_at: "2026-08-25T08:00:00Z",
     updated_at: "2026-08-22T14:30:00Z",
   },
   {
@@ -170,6 +203,8 @@ export const mockProspects: MockProspect[] = [
     company_id: "company-3",
     contact_id: "contact-3",
     client_id: "client-1",
+    assigned_to: "staff-2",
+    last_activity_at: "2026-08-10T09:15:00Z",
     updated_at: "2026-08-24T09:15:00Z",
   },
   {
@@ -178,7 +213,52 @@ export const mockProspects: MockProspect[] = [
     company_id: "company-4",
     contact_id: "contact-4",
     client_id: "client-1",
+    assigned_to: null,
+    last_activity_at: null,
     updated_at: "2026-08-25T16:45:00Z",
+  },
+];
+
+export const mockInteractions: MockInteraction[] = [
+  {
+    id: "interaction-1",
+    prospect_id: "prospect-1",
+    type: "email_sent",
+    channel: "email",
+    subject: "Une question sur votre production au Creusot",
+    content: null,
+    occurred_at: "2026-08-20T10:05:00Z",
+    created_by: null,
+  },
+  {
+    id: "interaction-2",
+    prospect_id: "prospect-2",
+    type: "email_sent",
+    channel: "email",
+    subject: "Votre développement commercial en réseau",
+    content: null,
+    occurred_at: "2026-08-22T15:00:00Z",
+    created_by: null,
+  },
+  {
+    id: "interaction-3",
+    prospect_id: "prospect-2",
+    type: "email_replied",
+    channel: "email",
+    subject: null,
+    content: "Réponse du prospect — texte de démo.",
+    occurred_at: "2026-08-25T08:00:00Z",
+    created_by: null,
+  },
+  {
+    id: "interaction-4",
+    prospect_id: "prospect-3",
+    type: "note",
+    channel: "in_person",
+    subject: null,
+    content: "Échange rapide au téléphone — texte de démo.",
+    occurred_at: "2026-08-10T09:15:00Z",
+    created_by: "staff-2",
   },
 ];
 

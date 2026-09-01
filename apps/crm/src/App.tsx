@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/Login";
 import { ProspectsListPage } from "./pages/ProspectsList";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
+import { PipelinePage } from "./pages/Pipeline";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 
@@ -32,6 +33,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <ProspectDetailPage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/pipeline"
+        element={
+          <ProtectedLayout>
+            <PipelinePage />
           </ProtectedLayout>
         }
       />
