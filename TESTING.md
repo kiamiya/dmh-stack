@@ -50,6 +50,16 @@ optionnelle)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
   (Phase 5) — la page empile actuellement toutes les sections
   verticalement. Un système de Tabs (déjà posé en Phase 0) faciliterait la
   navigation sans tout scroller.
+- **Recherche globale mono-entité** — la palette cmd+K (Phase 4) ne
+  cherche que les prospects. Un vrai CRM moderne (Attio/HubSpot) cherche
+  aussi entreprises/contacts/deals séparément, avec des groupes par type
+  de résultat. Pas fait — demanderait d'indexer/interroger plusieurs
+  entités en parallèle dans `filterPaletteProspects`.
+- **Pas de champs personnalisés (custom properties)** — la vraie signature
+  UX des CRM type Attio/Folk. Impliquerait un schéma flexible (colonnes
+  JSONB ou table EAV dédiée) plutôt qu'un ajustement UI : changement
+  d'architecture à part entière, hors périmètre de cette refonte, à
+  cadrer séparément si DMH le souhaite un jour.
 
 ## Outillage disponible pour ce chantier
 
