@@ -11,10 +11,17 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — 4 améliorations inspirées des
-CRM modernes (Attio/HubSpot/Pipedrive/Folk)**, branche `feat/crm-redesign`,
-exécuté le 2026-09-01. Vient après les 6 phases initiales (toutes
-terminées).
+**Refonte UX/UI du CRM interne (`apps/crm`) — résorption de dette
+technique : sous-onglets sur le Dashboard**, branche `feat/crm-redesign`,
+exécuté le 2026-09-01. `/dashboard` est réorganisé en 4 onglets (Vue
+d'ensemble / Évolution / Scores & Deals / Activité) au lieu d'empiler
+toutes les sections verticalement — testé en navigateur, bascule
+instantanée entre les 4 onglets, contenu correct dans chacun. Aucune
+logique changée, uniquement la présentation.
+
+Vient après les 4 améliorations UX précédentes (panneau latéral, vues en
+onglets, fil d'activité groupé par jour, undo) et les 6 phases initiales
+(toutes terminées) :
 
 ### Ce qui a été fait
 
@@ -61,10 +68,7 @@ ferait la vraie base.
   une action depuis la palette persiste réellement mais ne rafraîchit pas
   la liste visible sans navigation. Corriger demanderait un cache/store
   partagé (React Query ou équivalent).
-- **Pas de navigation par sous-onglets entre les cartes du Dashboard** —
-  la page empile actuellement toutes les sections verticalement. Un
-  système de Tabs (déjà posé en Phase 0) faciliterait la navigation sans
-  tout scroller.
+- ~~Pas de navigation par sous-onglets entre les cartes du Dashboard~~ **Résolu le 2026-09-01** — `/dashboard` utilise maintenant `Tabs` (4 onglets).
 - **Recherche globale mono-entité** — la palette cmd+K ne cherche que les
   prospects, pas entreprises/contacts/deals séparément.
 - **Pas de champs personnalisés (custom properties)** — impliquerait un
