@@ -19,10 +19,22 @@ export interface DialogProps {
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Effet séparé du keydown ci-dessous, et dépendant uniquement de `open` :
+  // si `onOpenChange` était dans les deps ici, une fonction inline recréée
+  // à chaque frappe (cas courant : `onOpenChange={(v) => ...}` dans un
+  // parent qui re-render à chaque keystroke) redéclencherait ce focus en
+  // boucle et volerait le focus clavier au champ actif à chaque lettre.
+  useEffect(() => {
+    // Ne vole pas le focus si un champ interne l'a déjà pris (ex. un input
+    // `autoFocus`) — sinon la modale se referme sur elle-même juste après
+    // l'ouverture, empêchant de taper immédiatement.
+    if (open && !contentRef.current?.contains(document.activeElement)) {
+      contentRef.current?.focus();
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    contentRef.current?.focus();
-
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onOpenChange(false);
     }
