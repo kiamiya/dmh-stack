@@ -4,6 +4,7 @@ import { openProspectLinkState } from "../lib/navigation";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { StatusBarList } from "../components/charts/StatusBarList";
 import { FunnelChart } from "../components/charts/FunnelChart";
 import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
@@ -115,143 +116,160 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Prospects par statut</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatusBarList counts={statusCounts} />
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="evolution">Évolution</TabsTrigger>
+          <TabsTrigger value="scores-deals">Scores &amp; Deals</TabsTrigger>
+          <TabsTrigger value="activity">Activité</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Funnel de conversion</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FunnelChart stages={funnel} />
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Prospects par statut</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusBarList counts={statusCounts} />
+              </CardContent>
+            </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Nouveaux prospects par semaine</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WeeklyAreaChart title="Nouveaux prospects par semaine" data={weeklyNewProspects} />
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Funnel de conversion</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FunnelChart stages={funnel} />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Deals gagnés par semaine</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WeeklyAreaChart title="Deals gagnés par semaine" data={weeklyDealsWon} />
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="evolution">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Nouveaux prospects par semaine</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <WeeklyAreaChart title="Nouveaux prospects par semaine" data={weeklyNewProspects} />
+              </CardContent>
+            </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Top prospects par score IA</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {topScores.length === 0 && <p className="text-sm text-muted-foreground">Aucun prospect scoré.</p>}
-            {topScores.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-2 text-sm">
-                <span className="w-4 text-muted-foreground">{i + 1}.</span>
-                <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="flex-1 truncate text-foreground hover:underline">
-                  {p.companyName}
-                </Link>
-                <Badge variant={getScoreColor(p.score)}>{formatScore(p.score)}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Deals gagnés par semaine</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <WeeklyAreaChart title="Deals gagnés par semaine" data={weeklyDealsWon} />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Deals ({wonDeals.length} gagnés, {lostDeals.length} perdus)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {deals.length === 0 && <p className="text-sm text-muted-foreground">Aucun deal déclaré.</p>}
-            {deals.map((d) => (
-              <div key={d.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                <div className="min-w-0 flex-1 truncate text-foreground">{d.company_name}</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
-                  <Badge variant={d.status === "won" ? "green" : d.status === "lost" ? "red" : "yellow"}>
-                    {d.status === "won" ? "Gagné" : d.status === "lost" ? "Perdu" : "En négociation"}
-                  </Badge>
-                  {d.status === "won" && (
-                    <span className="text-xs text-muted-foreground">
-                      {d.attributed_to_dmh ? `Commission ${formatCurrency(d.commission_amount)}` : "Non attribué"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="scores-deals">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top prospects par score IA</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {topScores.length === 0 && <p className="text-sm text-muted-foreground">Aucun prospect scoré.</p>}
+                {topScores.map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-2 text-sm">
+                    <span className="w-4 text-muted-foreground">{i + 1}.</span>
+                    <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="flex-1 truncate text-foreground hover:underline">
+                      {p.companyName}
+                    </Link>
+                    <Badge variant={getScoreColor(p.score)}>{formatScore(p.score)}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Fil d'activité récent</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
-            {activityDayGroups.map((group) => (
-              <div key={group.label}>
-                <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {group.label}
-                </div>
-                <div className="space-y-2">
-                  {group.events.map((e) => (
-                    <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                      <div className="flex items-center justify-between">
-                        <Link to={`/prospects/${e.prospectId}`} state={openProspectLinkState(location)} className="font-medium text-foreground hover:underline">
-                          {e.companyName}
-                        </Link>
-                        <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        {e.description}
-                        {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
-                      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Deals ({wonDeals.length} gagnés, {lostDeals.length} perdus)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {deals.length === 0 && <p className="text-sm text-muted-foreground">Aucun deal déclaré.</p>}
+                {deals.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                    <div className="min-w-0 flex-1 truncate text-foreground">{d.company_name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
+                      <Badge variant={d.status === "won" ? "green" : d.status === "lost" ? "red" : "yellow"}>
+                        {d.status === "won" ? "Gagné" : d.status === "lost" ? "Perdu" : "En négociation"}
+                      </Badge>
+                      {d.status === "won" && (
+                        <span className="text-xs text-muted-foreground">
+                          {d.attributed_to_dmh ? `Commission ${formatCurrency(d.commission_amount)}` : "Non attribué"}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Prospects stagnants ({stagnantProspects.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {stagnantProspects.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucun prospect stagnant — bon rythme.</p>
-            )}
-            {stagnantProspects.map((p) => (
-              <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="truncate text-foreground hover:underline">
-                  {p.companies?.name ?? "—"}
-                </Link>
-                <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="activity">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fil d'activité récent</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
+                {activityDayGroups.map((group) => (
+                  <div key={group.label}>
+                    <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {group.label}
+                    </div>
+                    <div className="space-y-2">
+                      {group.events.map((e) => (
+                        <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                          <div className="flex items-center justify-between">
+                            <Link to={`/prospects/${e.prospectId}`} state={openProspectLinkState(location)} className="font-medium text-foreground hover:underline">
+                              {e.companyName}
+                            </Link>
+                            <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
+                          </div>
+                          <div className="text-muted-foreground">
+                            {e.description}
+                            {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Prospects stagnants ({stagnantProspects.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {stagnantProspects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Aucun prospect stagnant — bon rythme.</p>
+                )}
+                {stagnantProspects.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                    <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="truncate text-foreground hover:underline">
+                      {p.companies?.name ?? "—"}
+                    </Link>
+                    <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
