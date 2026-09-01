@@ -11,47 +11,45 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 5 (fil d'activité +
-indicateurs de stagnation)**, branche `feat/crm-redesign`, exécuté le
-2026-09-01. **Dernière phase obligatoire** — reste seulement le mode
-sombre optionnel (Phase 6).
+**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 6 (mode sombre,
+optionnelle)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
+**Toutes les phases prévues sont maintenant terminées.**
 
 ### Ce qui a été testé
 
 | Élément | Résultat |
 |---|---|
-| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (102 tests dans `@dmh/crm`, +10) |
-| Fil d'activité (Dashboard) | ✅ fusion correcte des changements de statut et interactions, tri chronologique décroissant vérifié |
-| Auteur affiché sur les changements manuels | ✅ "William Demo"/"Loïc Demo" apparaissent bien sur les transitions marquées `changed_by` dans les données démo |
-| Indicateur stagnant sur le Kanban | présent dans le code, pas re-testé visuellement séparément (même logique que la liste, déjà vérifiée) |
-| Indicateur stagnant sur la liste | ✅ "⚠" affiché sur "Groupe Techno Soudure" (22 jours sans activité), absent sur les autres |
-| Carte "Prospects stagnants" (Dashboard) | ✅ "Prospects stagnants (1)" — exactement le prospect attendu |
+| `pnpm typecheck` racine (10 packages) | ✅ vert (111 tests dans `@dmh/crm`, +9) |
+| Détection automatique de la préférence système | ✅ le navigateur de test préfère le sombre — le CRM s'est ouvert directement en mode sombre, sans action |
+| Bascule clair → sombre → système (bouton dans le Header) | ✅ icône et rendu changent correctement à chaque clic |
+| Rendu en mode sombre : liste, Dashboard (stats, statuts, funnel, fil d'activité, deals) | ✅ tout lisible, contrastes corrects, badges/alertes de stagnation cohérents |
+| Anti-flash au chargement | ✅ pas de flash clair→sombre visible au premier rendu |
 | Aucune erreur console | ✅ |
+
+### Ce qui n'a **pas** été re-testé
+
+- Le Kanban (`/pipeline`) et la fiche prospect en mode sombre spécifiquement
+  — même mécanisme de tokens que le reste, très probablement correct, mais
+  pas vérifié visuellement image par image dans cette phase précise.
 
 ### Point à valider par toi
 
-1. Vérifie visuellement `/dashboard` et `/pipeline` de ton côté.
-2. Confirme le seuil de stagnation (14 jours par défaut, `stagnation.ts`)
-   — à ajuster si ce n'est pas le bon rythme pour DMH.
-3. Feu vert pour merger `feat/crm-redesign` dans `master`, ou pour
-   attaquer le mode sombre (Phase 6, optionnelle) avant.
+1. Vérifie `/pipeline` et une fiche prospect en mode sombre de ton côté.
+2. **Toutes les phases (0 à 6) sont maintenant terminées.** Dis-moi si tu
+   veux merger `feat/crm-redesign` dans `master`, ou d'abord relire
+   l'ensemble du chantier.
 
-## Dette technique actée (pas dans le périmètre de cette refonte)
+## Dette technique actée (hors périmètre de cette refonte)
 
-- **Pas de store partagé entre les instances de `useProspects()`** — la
-  palette de commandes (Phase 4) et la page affichée ont chacune leur
-  propre état. Une action depuis la palette (ex. changer un statut)
-  persiste bien réellement, mais la liste visible ne se rafraîchit pas
-  automatiquement tant qu'on ne navigue pas. Corriger proprement
-  demanderait d'introduire un cache/store partagé (React Query ou
-  équivalent) — hors périmètre de cette refonte, à traiter comme un
-  chantier dédié si souhaité.
-- **Pas de navigation par sous-onglets entre les cartes du Dashboard** —
-  la page `/dashboard` empile actuellement toutes les cartes verticalement
-  (stats, statuts, funnel, évolution, top scores, deals, activité,
-  stagnants). Un système de sous-onglets (ex. Tabs déjà posé en Phase 0)
-  faciliterait la navigation entre sections sans tout scroller. Pas fait
-  dans cette refonte, à ajouter dans une itération dédiée.
+- **Pas de store partagé entre les instances de `useProspects()`** (Phase
+  4) — la palette de commandes et la page affichée ont chacune leur propre
+  état ; une action depuis la palette persiste réellement mais ne
+  rafraîchit pas la liste visible sans navigation. Corriger demanderait un
+  cache/store partagé (React Query ou équivalent).
+- **Pas de navigation par sous-onglets entre les cartes du Dashboard**
+  (Phase 5) — la page empile actuellement toutes les sections
+  verticalement. Un système de Tabs (déjà posé en Phase 0) faciliterait la
+  navigation sans tout scroller.
 
 ## Outillage disponible pour ce chantier
 
@@ -59,3 +57,4 @@ sombre optionnel (Phase 6).
 - `pnpm --filter @dmh/crm dev` (port 5173).
 - Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
   final validé par toi.
+- Vrai Supabase réactivé, migration 010 appliquée.
