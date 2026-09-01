@@ -11,54 +11,41 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 4 (recherche cmd+K +
-vues sauvegardées)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
+**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 5 (fil d'activité +
+indicateurs de stagnation)**, branche `feat/crm-redesign`, exécuté le
+2026-09-01. **Dernière phase obligatoire** — reste seulement le mode
+sombre optionnel (Phase 6).
 
 ### Ce qui a été testé
 
 | Élément | Résultat |
 |---|---|
-| `pnpm typecheck` racine (10 packages) | ✅ vert |
-| Raccourci `Ctrl+K` (ouvre la palette) | ✅ |
-| Recherche instantanée dans la palette | ✅ testé avec "Ferronnerie" → 1 résultat |
-| Navigation rapide (Prospects/Pipeline/Dashboard) | ✅ |
-| Sélection d'un prospect → sous-page d'actions | ✅ |
-| Changement de statut depuis la palette | ✅ toast de confirmation affiché |
-| Vues sauvegardées : enregistrer, réinitialiser, réappliquer | ✅ testé de bout en bout — le filtre "Secteur mécanique" a bien été réappliqué après réinitialisation |
-| Suppression d'une vue sauvegardée | présente dans l'UI, pas re-testée séparément (bouton "×") |
-
-### Alerte fausse piste rencontrée pendant le test
-
-Juste après l'ouverture de la palette pour la première fois, une vraie
-erreur React (`Cannot read properties of null (reading 'useRef')`, dans
-`cmdk`) est apparue — contrairement aux logs résiduels de HMR déjà
-rencontrés en Phases 2/3, celle-ci semblait neuve. Un cache Vite
-(`node_modules/.vite`) obsolète après l'ajout de `cmdk` en était la
-cause — vidé puis serveur redémarré, plus aucune erreur (serveur ET
-navigateur) sur les tests suivants. À garder en tête si l'erreur
-réapparaît après un futur ajout de dépendance : vider le cache Vite en
-premier réflexe.
-
-### Limite connue (documentée, pas un bug)
-
-La palette utilise sa propre instance du hook `useProspects()`,
-indépendante de celle de la page actuellement affichée (aucun store
-global/partagé dans ce projet). Résultat : changer le statut d'un
-prospect depuis la palette fonctionne bien (toast + persistance réelle),
-mais la liste visible sur `/` ne se rafraîchit pas automatiquement tant
-qu'on ne navigue pas ou ne recharge pas. Pas corrigé dans cette phase —
-introduirait un store partagé, un changement d'architecture plus large
-qu'un ajustement de Phase 4. À signaler si tu veux qu'on le traite.
+| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (102 tests dans `@dmh/crm`, +10) |
+| Fil d'activité (Dashboard) | ✅ fusion correcte des changements de statut et interactions, tri chronologique décroissant vérifié |
+| Auteur affiché sur les changements manuels | ✅ "William Demo"/"Loïc Demo" apparaissent bien sur les transitions marquées `changed_by` dans les données démo |
+| Indicateur stagnant sur le Kanban | présent dans le code, pas re-testé visuellement séparément (même logique que la liste, déjà vérifiée) |
+| Indicateur stagnant sur la liste | ✅ "⚠" affiché sur "Groupe Techno Soudure" (22 jours sans activité), absent sur les autres |
+| Carte "Prospects stagnants" (Dashboard) | ✅ "Prospects stagnants (1)" — exactement le prospect attendu |
+| Aucune erreur console | ✅ |
 
 ### Point à valider par toi
 
-1. Teste `Ctrl+K`/`Cmd+K` toi-même, notamment le comportement décrit
-   ci-dessus (staleness après changement de statut).
-2. Dis-moi si la limite connue (liste pas rafraîchie) doit être corrigée
-   maintenant ou peut attendre.
-3. Feu vert pour la **Phase 5 (fil d'activité + indicateurs de
-   stagnation)** — dernière phase obligatoire avant le mode sombre
-   optionnel.
+1. Vérifie visuellement `/dashboard` et `/pipeline` de ton côté.
+2. Confirme le seuil de stagnation (14 jours par défaut, `stagnation.ts`)
+   — à ajuster si ce n'est pas le bon rythme pour DMH.
+3. Feu vert pour merger `feat/crm-redesign` dans `master`, ou pour
+   attaquer le mode sombre (Phase 6, optionnelle) avant.
+
+## Dette technique actée (pas dans le périmètre de cette refonte)
+
+- **Pas de store partagé entre les instances de `useProspects()`** — la
+  palette de commandes (Phase 4) et la page affichée ont chacune leur
+  propre état. Une action depuis la palette (ex. changer un statut)
+  persiste bien réellement, mais la liste visible ne se rafraîchit pas
+  automatiquement tant qu'on ne navigue pas. Corriger proprement
+  demanderait d'introduire un cache/store partagé (React Query ou
+  équivalent) — hors périmètre de cette refonte, à traiter comme un
+  chantier dédié si souhaité.
 
 ## Outillage disponible pour ce chantier
 
@@ -66,5 +53,3 @@ qu'un ajustement de Phase 4. À signaler si tu veux qu'on le traite.
 - `pnpm --filter @dmh/crm dev` (port 5173).
 - Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
   final validé par toi.
-- Si une erreur "Cannot read properties of null" apparaît après un ajout
-  de dépendance : vider `apps/crm/node_modules/.vite` et redémarrer.
