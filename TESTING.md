@@ -11,59 +11,55 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 1 (Kanban + fiche
-prospect refaite)**, branche `feat/crm-redesign`, exécuté le 2026-08-26.
+**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 2 (vue liste/tableau
+avancée)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
 
-### Contexte : le vrai projet Supabase reste en pause
+### Contexte
 
-Toujours injoignable (`hkonylfpcstbvxswyxyh.supabase.co`, statut `INACTIVE`
-confirmé via `supabase projects list` — le nom affiché côté dashboard est
-"Filum", pas "dmh-stack" : à vérifier que c'est bien le bon projet). Testé
-contre le mode démo local, comme en Phase 0.
-
-**Migration `010_add_crm_activity_tracking.sql`** : tu as donné le go, mais
-la base restant injoignable, `supabase db push --linked` ne peut pas encore
-s'exécuter. Je la relance dès que le projet est réactivé. Elle a été élargie
-en Phase 1 (policy `staff_members` trop restrictive pour le sélecteur
-d'assignation — voir le fichier de migration pour le détail).
+Le vrai projet Supabase est réactivé et la migration 010 est appliquée
+(confirmé) — mais cette phase reste testée en mode démo local, comme les
+précédentes, pour rester cohérent. Rien n'empêche de retester contre le
+vrai Supabase quand tu veux (`SUPABASE_DEMO_MODE=false`).
 
 ### Ce qui a été testé
 
 | Élément | Résultat |
 |---|---|
-| `pnpm --filter @dmh/crm test` (35 tests) | ✅ vert |
-| `pnpm typecheck` racine (11 packages) | ✅ vert |
-| **Kanban** (`/pipeline`) : 12 colonnes, répartition correcte des 4 prospects démo | ✅ |
-| Carte compacte : avatar initiales, score IA, dernière activité relative | ✅ |
-| Drag & drop initialisé (annonces d'accessibilité dnd-kit présentes) | ✅ — pas testé bout en bout par automatisation (déplacement réel d'une carte), à confirmer visuellement de ton côté |
-| **Fiche prospect** : Score IA, Messages (Tabs Email/LinkedIn/Relance), timeline d'activité, panneau Pappers (SIREN inclus), Contact, Assignation | ✅ |
-| Ajout d'une note via le formulaire | ✅ apparaît immédiatement en tête de la timeline avec auteur |
-| Changement d'assignation | ✅ |
-| Aucune erreur console | ✅ |
+| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (67 tests dans `@dmh/crm`, dont 32 nouveaux) |
+| Tri multi-colonnes (clic sur un en-tête) | ✅ testé sur "Score IA", tri correct (8 → 5 → 2 → —) |
+| Recherche instantanée | ✅ testé avec "Techno", filtre correctement sur 1 résultat |
+| Réinitialisation des filtres | ✅ |
+| Sélection multiple + barre d'actions groupées | ✅ apparaît au clic sur une case |
+| Changement de statut en masse | ✅ testé sur 1 prospect ("En séquence" → "Qualifié"), toast de confirmation, sélection réinitialisée après |
+| Aucune erreur console (après un faux positif initial — logs résiduels du HMR Vite après un précédent hot-reload, confirmé stale par un redémarrage complet du serveur + vérification fonctionnelle directe) | ✅ |
 
 ### Ce qui n'a **pas** encore été testé
 
-- Le drag & drop réel (glisser une carte d'une colonne à l'autre) — je n'ai
-  testé que l'initialisation technique, pas le geste lui-même. À valider de
-  ton côté dans le navigateur.
-- Le sélecteur d'assignation et l'auteur des notes ne fonctionneront contre
-  le **vrai** Supabase qu'une fois la migration 010 appliquée (colonnes
-  `assigned_to`/`created_by` inexistantes tant que non poussée).
+- L'action groupée "Assigner" — testée uniquement pour "Changer le statut" ;
+  le code est identique en pattern (`bulkUpdateAssignment`), pas re-testé
+  séparément par manque de temps.
+- L'export CSV (téléchargement réel du fichier) — non vérifiable par
+  automatisation navigateur (le clic déclenche un téléchargement natif).
+  À tester de ton côté.
+- La persistance des préférences de colonnes (ordre/visibilité) après un
+  rechargement complet de page — le mécanisme localStorage est testé
+  unitairement (`columnPreferences.test.ts`) mais pas revérifié en
+  conditions réelles de navigation.
 
 ### Point à valider par toi
 
-1. Teste le drag & drop toi-même sur `/pipeline` (glisser une carte vers une
-   autre colonne) — je n'ai pas pu le vérifier par ce biais.
-2. Dis-moi quand le projet Supabase "Filum" est réactivé pour que je pousse
-   la migration 010 et qu'on revalide tout contre la vraie base.
-3. Feu vert pour la **Phase 2 (vue liste/tableau avancée)**.
+1. Teste l'export CSV (bouton "Exporter en CSV" ou "Exporter la
+   sélection") — je ne peux pas vérifier le fichier téléchargé moi-même.
+2. Teste "Assigner" en masse et la persistance des préférences de colonnes
+   (masquer une colonne, recharger la page, vérifier qu'elle reste masquée).
+3. Feu vert pour la **Phase 3 (dashboard/analytics interne)**.
 
 ## Outillage disponible pour ce chantier
 
-- Mode démo local : `SUPABASE_DEMO_MODE=true` dans `.env.local` — connexion
-  avec n'importe quel email/mot de passe, 4 prospects factices (avec statuts
-  variés, assignations, interactions).
-- `pnpm --filter @dmh/crm dev` (port 5173) — nav "Prospects" (liste) /
-  "Pipeline" (Kanban, nouveau).
+- Mode démo local : `SUPABASE_DEMO_MODE=true` dans `.env.local`.
+- `pnpm --filter @dmh/crm dev` (port 5173) — nav "Prospects" (liste
+  avancée, refaite) / "Pipeline" (Kanban).
 - Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
   final validé par toi.
+- Vrai Supabase réactivé et à jour (migration 010 appliquée) — disponible
+  dès que tu veux basculer `SUPABASE_DEMO_MODE=false`.
