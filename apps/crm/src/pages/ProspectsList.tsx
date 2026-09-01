@@ -11,6 +11,7 @@ import type { SortingState, VisibilityState } from "@tanstack/react-table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
 import { formatScore, getScoreColor } from "../lib/score";
@@ -19,6 +20,8 @@ import { EMPTY_PROSPECT_FILTERS, extractDistinctClients, extractDistinctNafLabel
 import type { ProspectFilters } from "../lib/prospectFilters";
 import { toCsv } from "../lib/csv";
 import { applyColumnOrder, loadColumnPreferences, moveColumn, saveColumnPreferences } from "../lib/columnPreferences";
+import { createSavedView, loadSavedViews, removeSavedView, saveSavedViews } from "../lib/savedViews";
+import type { SavedView } from "../lib/savedViews";
 import { useProspects } from "../hooks/useProspects";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useToast } from "../components/ui/toast";
@@ -58,6 +61,9 @@ export function ProspectsListPage() {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnOrder, setColumnOrder] = useState<string[]>(CONFIGURABLE_COLUMN_IDS);
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [newViewName, setNewViewName] = useState("");
 
   useEffect(() => {
     const saved = loadColumnPreferences(localStorage);
@@ -65,7 +71,25 @@ export function ProspectsListPage() {
       setColumnOrder(applyColumnOrder(CONFIGURABLE_COLUMN_IDS, saved.order));
       setColumnVisibility(Object.fromEntries(saved.hidden.map((id) => [id, false])));
     }
+    setSavedViews(loadSavedViews(localStorage));
   }, []);
+
+  function handleSaveView() {
+    if (!newViewName.trim()) return;
+    const view = createSavedView(crypto.randomUUID(), newViewName, filters, new Date().toISOString());
+    const next = [...savedViews, view];
+    setSavedViews(next);
+    saveSavedViews(localStorage, next);
+    setSaveViewOpen(false);
+    setNewViewName("");
+    toast(`Vue "${view.name}" enregistrée.`, "success");
+  }
+
+  function handleDeleteView(id: string) {
+    const next = removeSavedView(savedViews, id);
+    setSavedViews(next);
+    saveSavedViews(localStorage, next);
+  }
 
   function persistColumnPrefs(order: string[], visibility: VisibilityState) {
     const hidden = Object.entries(visibility)
@@ -196,6 +220,47 @@ export function ProspectsListPage() {
     <div className="mx-auto max-w-6xl space-y-3 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-foreground">Prospects</h1>
+        <div className="flex gap-2">
+        <DropdownMenu
+          align="end"
+          trigger={
+            <Button variant="outline" size="sm">
+              Vues
+            </Button>
+          }
+        >
+          {savedViews.length === 0 && (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">Aucune vue enregistrée.</div>
+          )}
+          {savedViews.map((view) => (
+            <div key={view.id} className="flex items-center gap-2 px-2 py-1.5 text-sm" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setFilters(view.filters)}
+                className="flex-1 truncate text-left text-foreground hover:underline"
+              >
+                {view.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteView(view.id)}
+                className="text-muted-foreground hover:text-destructive"
+                aria-label={`Supprimer la vue ${view.name}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <div className="mt-1 border-t border-border pt-1" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setSaveViewOpen(true)}
+              className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-accent hover:bg-secondary"
+            >
+              + Enregistrer la vue actuelle
+            </button>
+          </div>
+        </DropdownMenu>
         <DropdownMenu
           align="end"
           trigger={
@@ -243,7 +308,31 @@ export function ProspectsListPage() {
             </div>
           ))}
         </DropdownMenu>
+        </div>
       </div>
+
+      <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+        <DialogHeader>
+          <DialogTitle>Enregistrer la vue actuelle</DialogTitle>
+        </DialogHeader>
+        <DialogContent>
+          <input
+            autoFocus
+            value={newViewName}
+            onChange={(e) => setNewViewName(e.target.value)}
+            placeholder="Nom de la vue…"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm"
+          />
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSaveViewOpen(false)}>
+            Annuler
+          </Button>
+          <Button onClick={handleSaveView} disabled={!newViewName.trim()}>
+            Enregistrer
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
         <div>

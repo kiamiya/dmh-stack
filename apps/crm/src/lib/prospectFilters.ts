@@ -19,7 +19,7 @@ export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
   clientId: null,
 };
 
-function matchesSearch(prospect: ProspectListRow, query: string): boolean {
+export function matchesSearch(prospect: ProspectListRow, query: string): boolean {
   if (!query.trim()) return true;
   const q = query.trim().toLowerCase();
   const haystack = [

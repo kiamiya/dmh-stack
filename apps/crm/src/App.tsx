@@ -7,11 +7,13 @@ import { PipelinePage } from "./pages/Pipeline";
 import { DashboardPage } from "./pages/Dashboard";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
+import { CommandPalette } from "./components/CommandPalette";
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
       <Header />
+      <CommandPalette />
       {children}
     </ProtectedRoute>
   );
