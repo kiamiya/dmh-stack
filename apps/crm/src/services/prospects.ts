@@ -4,14 +4,16 @@ import type { ProspectStatus } from "@dmh/types";
 export interface ProspectListRow {
   id: string;
   status: ProspectStatus;
+  client_id: string;
+  assigned_to: string | null;
   last_activity_at: string | null;
-  companies: { name: string; ai_score: number | null } | null;
-  contacts: { first_name: string; last_name: string } | null;
-  dmh_clients: { name: string } | null;
+  companies: { name: string; ai_score: number | null; naf_label: string | null } | null;
+  contacts: { first_name: string; last_name: string; email: string | null } | null;
+  dmh_clients: { id: string; name: string } | null;
 }
 
 const PROSPECT_LIST_SELECT =
-  "id, status, last_activity_at, companies(name, ai_score), contacts(first_name, last_name), dmh_clients(name)";
+  "id, status, client_id, assigned_to, last_activity_at, companies(name, ai_score, naf_label), contacts(first_name, last_name, email), dmh_clients(id, name)";
 
 export async function listProspects(client: SupabaseClient): Promise<ProspectListRow[]> {
   const { data, error } = await client
