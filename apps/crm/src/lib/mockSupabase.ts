@@ -3,10 +3,12 @@ import {
   mockClients,
   mockCompanies,
   mockContacts,
+  mockDeals,
   mockInteractions,
   mockMessages,
   mockProspects,
   mockStaffMembers,
+  mockStatusHistory,
 } from "./mockData";
 import type { MockInteraction } from "./mockData";
 
@@ -89,6 +91,8 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
     if (this.table === "messages_generated") return this.executeMessagesSelect();
     if (this.table === "interactions") return this.executeInteractionsSelect();
     if (this.table === "staff_members") return this.executeStaffSelect();
+    if (this.table === "prospect_status_history") return { data: mockStatusHistory.slice(), error: null };
+    if (this.table === "deals") return this.executeDealsSelect();
 
     return { data: this.mode === "list" ? [] : null, error: null };
   }
@@ -113,6 +117,11 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
 
   private executeStaffSelect() {
     return { data: mockStaffMembers.slice(), error: null };
+  }
+
+  private executeDealsSelect() {
+    const rows = mockDeals.slice().sort((a, b) => (b.signed_at ?? "").localeCompare(a.signed_at ?? ""));
+    return { data: rows, error: null };
   }
 
   private executeUpdate(): { data: unknown; error: { message: string } | null } {
@@ -146,6 +155,7 @@ class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: st
       status: p.status,
       assigned_to: p.assigned_to,
       last_activity_at: p.last_activity_at,
+      created_at: p.created_at,
       companies: findCompany(p.company_id),
       contacts: findContact(p.contact_id),
       dmh_clients: findClient(p.client_id),

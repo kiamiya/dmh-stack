@@ -43,7 +43,24 @@ export interface MockProspect {
   client_id: string;
   assigned_to: string | null;
   last_activity_at: string | null;
+  created_at: string;
   updated_at: string;
+}
+
+export interface MockStatusHistory {
+  prospect_id: string;
+  new_status: ProspectStatus;
+  changed_at: string;
+}
+
+export interface MockDeal {
+  id: string;
+  company_name: string;
+  deal_value: number;
+  status: "negotiation" | "won" | "lost";
+  signed_at: string | null;
+  attributed_to_dmh: boolean | null;
+  commission_amount: number | null;
 }
 
 export interface MockStaffMember {
@@ -185,6 +202,7 @@ export const mockProspects: MockProspect[] = [
     client_id: "client-1",
     assigned_to: "staff-1",
     last_activity_at: "2026-08-24T09:00:00Z",
+    created_at: "2026-08-05T09:00:00Z",
     updated_at: "2026-08-20T10:00:00Z",
   },
   {
@@ -195,6 +213,7 @@ export const mockProspects: MockProspect[] = [
     client_id: "client-1",
     assigned_to: null,
     last_activity_at: "2026-08-25T08:00:00Z",
+    created_at: "2026-08-12T09:00:00Z",
     updated_at: "2026-08-22T14:30:00Z",
   },
   {
@@ -205,6 +224,7 @@ export const mockProspects: MockProspect[] = [
     client_id: "client-1",
     assigned_to: "staff-2",
     last_activity_at: "2026-08-10T09:15:00Z",
+    created_at: "2026-07-20T09:00:00Z",
     updated_at: "2026-08-24T09:15:00Z",
   },
   {
@@ -215,7 +235,59 @@ export const mockProspects: MockProspect[] = [
     client_id: "client-1",
     assigned_to: null,
     last_activity_at: null,
+    created_at: "2026-08-25T16:45:00Z",
     updated_at: "2026-08-25T16:45:00Z",
+  },
+];
+
+export const mockStatusHistory: MockStatusHistory[] = [
+  { prospect_id: "prospect-1", new_status: "to_enrich", changed_at: "2026-08-05T09:00:00Z" },
+  { prospect_id: "prospect-1", new_status: "enriched_pappers", changed_at: "2026-08-06T09:00:00Z" },
+  { prospect_id: "prospect-1", new_status: "enriched_contact", changed_at: "2026-08-07T09:00:00Z" },
+  { prospect_id: "prospect-1", new_status: "ready", changed_at: "2026-08-20T10:00:00Z" },
+  { prospect_id: "prospect-2", new_status: "to_enrich", changed_at: "2026-08-12T09:00:00Z" },
+  { prospect_id: "prospect-2", new_status: "enriched_pappers", changed_at: "2026-08-13T09:00:00Z" },
+  { prospect_id: "prospect-2", new_status: "enriched_contact", changed_at: "2026-08-14T09:00:00Z" },
+  { prospect_id: "prospect-2", new_status: "ready", changed_at: "2026-08-15T09:00:00Z" },
+  { prospect_id: "prospect-2", new_status: "in_sequence", changed_at: "2026-08-22T14:30:00Z" },
+  { prospect_id: "prospect-3", new_status: "to_enrich", changed_at: "2026-07-20T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "enriched_pappers", changed_at: "2026-07-21T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "enriched_contact", changed_at: "2026-07-22T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "ready", changed_at: "2026-07-25T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "in_sequence", changed_at: "2026-07-28T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "replied", changed_at: "2026-08-02T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "meeting_booked", changed_at: "2026-08-08T09:00:00Z" },
+  { prospect_id: "prospect-3", new_status: "qualified", changed_at: "2026-08-10T09:15:00Z" },
+  { prospect_id: "prospect-4", new_status: "to_enrich", changed_at: "2026-08-25T16:45:00Z" },
+];
+
+export const mockDeals: MockDeal[] = [
+  {
+    id: "deal-1",
+    company_name: "PM Mécanique Industrie (démo)",
+    deal_value: 20000,
+    status: "won",
+    signed_at: "2026-08-15",
+    attributed_to_dmh: true,
+    commission_amount: 1800,
+  },
+  {
+    id: "deal-2",
+    company_name: "Autre Prospect Gagné (démo)",
+    deal_value: 12000,
+    status: "won",
+    signed_at: "2026-07-28",
+    attributed_to_dmh: false,
+    commission_amount: 0,
+  },
+  {
+    id: "deal-3",
+    company_name: "Prospect Perdu (démo)",
+    deal_value: 8000,
+    status: "lost",
+    signed_at: "2026-08-05",
+    attributed_to_dmh: null,
+    commission_amount: null,
   },
 ];
 

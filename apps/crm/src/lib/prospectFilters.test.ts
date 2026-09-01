@@ -9,6 +9,7 @@ function row(overrides: Partial<ProspectListRow> = {}): ProspectListRow {
     client_id: "client-1",
     assigned_to: null,
     last_activity_at: null,
+    created_at: "2026-08-01T00:00:00Z",
     companies: { name: "Acme", ai_score: 5, naf_label: "Mécanique" },
     contacts: { first_name: "Jean", last_name: "Dupont", email: "jean@acme.fr" },
     dmh_clients: { id: "client-1", name: "Cabinet A" },

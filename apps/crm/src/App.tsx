@@ -4,6 +4,7 @@ import { LoginPage } from "./pages/Login";
 import { ProspectsListPage } from "./pages/ProspectsList";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
 import { PipelinePage } from "./pages/Pipeline";
+import { DashboardPage } from "./pages/Dashboard";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 
@@ -41,6 +42,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <PipelinePage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedLayout>
+            <DashboardPage />
           </ProtectedLayout>
         }
       />

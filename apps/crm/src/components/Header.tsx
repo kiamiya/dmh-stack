@@ -9,6 +9,7 @@ import { ChangePasswordDialog } from "./ChangePasswordDialog";
 const NAV_ITEMS = [
   { to: "/", label: "Prospects" },
   { to: "/pipeline", label: "Pipeline" },
+  { to: "/dashboard", label: "Dashboard" },
 ];
 
 /**
