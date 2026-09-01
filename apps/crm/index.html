@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DMH CRM</title>
+    <script>
+      // Anti-flash : applique le thème avant le premier rendu React (voir
+      // src/lib/theme.ts / src/hooks/useTheme.ts pour la logique complète,
+      // dupliquée ici en minimal car ce script doit rester synchrone/inline).
+      (function () {
+        try {
+          var stored = localStorage.getItem("dmh-crm-theme");
+          var theme = stored === "light" || stored === "dark" ? stored : "system";
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = theme === "system" ? (prefersDark ? "dark" : "light") : theme;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

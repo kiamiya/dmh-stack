@@ -28,7 +28,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+    <div className="flex min-h-screen items-center justify-center bg-secondary/40">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>DMH CRM</CardTitle>
@@ -41,7 +41,7 @@ export function LoginPage() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
             <input
               type="password"
@@ -49,9 +49,9 @@ export function LoginPage() {
               placeholder="Mot de passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={loading}>
               {loading ? "Connexion..." : "Se connecter"}
             </Button>

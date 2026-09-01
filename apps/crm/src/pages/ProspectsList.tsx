@@ -165,7 +165,7 @@ export function ProspectsListPage() {
         cell: ({ row }) => {
           const stagnant = isStagnant(row.original.last_activity_at);
           return (
-            <span className={stagnant ? "font-medium text-yellow-700" : undefined}>
+            <span className={stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : undefined}>
               {stagnant && "⚠ "}
               {formatRelativeTime(row.original.last_activity_at)}
             </span>

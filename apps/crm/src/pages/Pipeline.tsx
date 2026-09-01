@@ -25,7 +25,7 @@ export function PipelinePage() {
     if (!result.ok) toast(`Échec du changement de statut : ${result.error}`, "destructive");
   }
 
-  if (error) return <div className="p-8 text-sm text-red-600">{error}</div>;
+  if (error) return <div className="p-8 text-sm text-destructive">{error}</div>;
 
   if (loading) {
     return (

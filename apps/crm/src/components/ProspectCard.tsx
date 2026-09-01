@@ -41,7 +41,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
         </Badge>
       </div>
       <div className="mt-2 flex items-center gap-1.5 text-xs">
-        <span className={stagnant ? "font-medium text-yellow-700" : "text-muted-foreground"}>
+        <span className={stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground"}>
           {stagnant && "⚠ "}Dernière activité : {formatRelativeTime(prospect.last_activity_at)}
         </span>
       </div>

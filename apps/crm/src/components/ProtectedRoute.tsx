@@ -13,7 +13,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useSession();
 
   if (loading) {
-    return <div className="p-8 text-sm text-slate-500">Chargement…</div>;
+    return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
   }
 
   if (!session) {

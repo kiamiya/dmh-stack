@@ -5,6 +5,10 @@ import { supabase } from "../lib/supabase";
 import { cn } from "../lib/cn";
 import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
+import { useTheme } from "../hooks/useTheme";
+import { themeLabel } from "../lib/theme";
+
+const THEME_ICON = { light: "☀", dark: "☾", system: "◐" } as const;
 
 const NAV_ITEMS = [
   { to: "/", label: "Prospects" },
@@ -22,6 +26,7 @@ export function Header() {
   const { session } = useSession();
   const location = useLocation();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { theme, cycleTheme } = useTheme();
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -48,6 +53,15 @@ export function Header() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={cycleTheme}
+            title={`Thème : ${themeLabel(theme)} (cliquer pour changer)`}
+            aria-label={`Thème : ${themeLabel(theme)}`}
+            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+          >
+            {THEME_ICON[theme]}
+          </button>
           {session?.user.email && (
             <DropdownMenu
               align="end"

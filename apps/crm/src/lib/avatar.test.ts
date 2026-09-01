@@ -27,8 +27,8 @@ describe("getAvatarColor", () => {
     expect(color1).toBe(color2);
   });
 
-  it("retourne une classe Tailwind non vide pour différents noms", () => {
-    expect(getAvatarColor("Entreprise A")).toMatch(/^bg-\w+-100 text-\w+-800$/);
-    expect(getAvatarColor("Entreprise B")).toMatch(/^bg-\w+-100 text-\w+-800$/);
+  it("retourne une classe Tailwind non vide pour différents noms (avec variante mode sombre)", () => {
+    expect(getAvatarColor("Entreprise A")).toMatch(/^bg-\w+-100 text-\w+-800 dark:bg-\w+-950 dark:text-\w+-300$/);
+    expect(getAvatarColor("Entreprise B")).toMatch(/^bg-\w+-100 text-\w+-800 dark:bg-\w+-950 dark:text-\w+-300$/);
   });
 });

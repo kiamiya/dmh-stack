@@ -1,11 +1,11 @@
 /** Couleurs de fond pour les avatars à initiales — cycle stable par nom (pas de couleur assignée au hasard, pour rester déterministe entre deux rendus). */
 const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-800",
-  "bg-green-100 text-green-800",
-  "bg-yellow-100 text-yellow-800",
-  "bg-red-100 text-red-800",
-  "bg-purple-100 text-purple-800",
-  "bg-indigo-100 text-indigo-800",
+  "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
+  "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300",
 ] as const;
 
 /** Initiales (1-2 lettres) à partir d'un nom — "Frédéric Vaysse" -> "FV", "Acme" -> "A", "" -> "?". */
