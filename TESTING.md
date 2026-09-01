@@ -11,55 +11,65 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 6 (mode sombre,
-optionnelle)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
-**Toutes les phases prévues sont maintenant terminées.**
+**Refonte UX/UI du CRM interne (`apps/crm`) — 4 améliorations inspirées des
+CRM modernes (Attio/HubSpot/Pipedrive/Folk)**, branche `feat/crm-redesign`,
+exécuté le 2026-09-01. Vient après les 6 phases initiales (toutes
+terminées).
+
+### Ce qui a été fait
+
+1. **Panneau latéral pour la fiche prospect** — s'ouvre par-dessus la
+   liste/le Kanban (pattern background-location React Router), au lieu
+   d'une navigation plein écran qui faisait perdre le scroll/filtres/
+   sélection.
+2. **Vues sauvegardées en onglets épinglés** dans `/prospects` (au lieu
+   d'un dropdown) — "Toutes" + une vue par onglet + "+ Nouvelle vue".
+3. **Fil d'activité du Dashboard groupé par jour** ("Aujourd'hui", "Hier",
+   date complète au-delà).
+4. **Undo sur les actions groupées** — le toast de confirmation propose
+   "Annuler", qui restaure la valeur propre à chaque prospect.
+
+**Corrigé au passage** : le mode démo ne reproduisait pas le trigger
+`prospect_status_change` (migration 010) — un changement de statut fait
+dans le CRM n'apparaissait jamais dans le fil d'activité/funnel en mode
+démo. `mockSupabase.ts` journalise maintenant l'historique comme le
+ferait la vraie base.
 
 ### Ce qui a été testé
 
 | Élément | Résultat |
 |---|---|
-| `pnpm typecheck` racine (10 packages) | ✅ vert (111 tests dans `@dmh/crm`, +9) |
-| Détection automatique de la préférence système | ✅ le navigateur de test préfère le sombre — le CRM s'est ouvert directement en mode sombre, sans action |
-| Bascule clair → sombre → système (bouton dans le Header) | ✅ icône et rendu changent correctement à chaque clic |
-| Rendu en mode sombre : liste, Dashboard (stats, statuts, funnel, fil d'activité, deals) | ✅ tout lisible, contrastes corrects, badges/alertes de stagnation cohérents |
-| Anti-flash au chargement | ✅ pas de flash clair→sombre visible au premier rendu |
-| Aucune erreur console | ✅ |
-
-### Ce qui n'a **pas** été re-testé
-
-- Le Kanban (`/pipeline`) et la fiche prospect en mode sombre spécifiquement
-  — même mécanisme de tokens que le reste, très probablement correct, mais
-  pas vérifié visuellement image par image dans cette phase précise.
+| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (116 tests dans `@dmh/crm`, +10) |
+| Ouverture du panneau latéral (clic sur un prospect depuis la liste) | ✅ liste visible en arrière-plan, filtres/scroll préservés |
+| Fermeture du panneau (bouton "✕ Fermer") | ✅ retour à `/`, état de la liste intact |
+| Onglets de vues sauvegardées | ✅ "Toutes" / vue existante testées, bascule correcte |
+| Undo sur changement de statut groupé | ✅ testé de bout en bout : statut changé → toast "Annuler" → clic → statut restauré à sa valeur d'origine, confirmé visuellement |
+| Fil d'activité groupé par jour, y compris "Aujourd'hui" en temps réel | ✅ après correction du mode démo, un changement de statut fait à l'instant apparaît bien sous "Aujourd'hui" |
+| Aucune erreur console réelle (résidus de logs HMR déjà expliqués précédemment, confirmés stale) | ✅ |
 
 ### Point à valider par toi
 
-1. Vérifie `/pipeline` et une fiche prospect en mode sombre de ton côté.
-2. **Toutes les phases (0 à 6) sont maintenant terminées.** Dis-moi si tu
-   veux merger `feat/crm-redesign` dans `master`, ou d'abord relire
-   l'ensemble du chantier.
+1. Teste le panneau latéral et l'undo toi-même en conditions réelles.
+2. Toutes les phases (0-6) + ces 4 améliorations sont maintenant
+   terminées. Dis-moi si tu veux merger `feat/crm-redesign` dans `master`,
+   ou d'abord relire l'ensemble du chantier.
 
 ## Dette technique actée (hors périmètre de cette refonte)
 
-- **Pas de store partagé entre les instances de `useProspects()`** (Phase
-  4) — la palette de commandes et la page affichée ont chacune leur propre
-  état ; une action depuis la palette persiste réellement mais ne
-  rafraîchit pas la liste visible sans navigation. Corriger demanderait un
-  cache/store partagé (React Query ou équivalent).
-- **Pas de navigation par sous-onglets entre les cartes du Dashboard**
-  (Phase 5) — la page empile actuellement toutes les sections
-  verticalement. Un système de Tabs (déjà posé en Phase 0) faciliterait la
-  navigation sans tout scroller.
-- **Recherche globale mono-entité** — la palette cmd+K (Phase 4) ne
-  cherche que les prospects. Un vrai CRM moderne (Attio/HubSpot) cherche
-  aussi entreprises/contacts/deals séparément, avec des groupes par type
-  de résultat. Pas fait — demanderait d'indexer/interroger plusieurs
-  entités en parallèle dans `filterPaletteProspects`.
-- **Pas de champs personnalisés (custom properties)** — la vraie signature
-  UX des CRM type Attio/Folk. Impliquerait un schéma flexible (colonnes
-  JSONB ou table EAV dédiée) plutôt qu'un ajustement UI : changement
-  d'architecture à part entière, hors périmètre de cette refonte, à
-  cadrer séparément si DMH le souhaite un jour.
+- **Pas de store partagé entre les instances de `useProspects()`** — la
+  palette de commandes et la page affichée ont chacune leur propre état ;
+  une action depuis la palette persiste réellement mais ne rafraîchit pas
+  la liste visible sans navigation. Corriger demanderait un cache/store
+  partagé (React Query ou équivalent).
+- **Pas de navigation par sous-onglets entre les cartes du Dashboard** —
+  la page empile actuellement toutes les sections verticalement. Un
+  système de Tabs (déjà posé en Phase 0) faciliterait la navigation sans
+  tout scroller.
+- **Recherche globale mono-entité** — la palette cmd+K ne cherche que les
+  prospects, pas entreprises/contacts/deals séparément.
+- **Pas de champs personnalisés (custom properties)** — impliquerait un
+  schéma flexible (JSONB/EAV) : changement d'architecture à part entière,
+  à cadrer séparément si DMH le souhaite un jour.
 
 ## Outillage disponible pour ce chantier
 
