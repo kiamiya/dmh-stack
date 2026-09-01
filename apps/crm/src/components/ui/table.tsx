@@ -10,7 +10,7 @@ export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>)
 }
 
 export function TableHeader(props: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className="border-b border-slate-200" {...props} />;
+  return <thead className="border-b border-border" {...props} />;
 }
 
 export function TableBody(props: HTMLAttributes<HTMLTableSectionElement>) {
@@ -18,13 +18,13 @@ export function TableBody(props: HTMLAttributes<HTMLTableSectionElement>) {
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("border-b border-slate-100 hover:bg-slate-50", className)} {...props} />;
+  return <tr className={cn("border-b border-border hover:bg-secondary/50", className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("h-10 px-2 text-left align-middle font-medium text-slate-500", className)}
+      className={cn("h-10 px-2 text-left align-middle font-medium text-muted-foreground", className)}
       {...props}
     />
   );

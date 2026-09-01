@@ -1,0 +1,247 @@
+import type { ProspectStatus } from "@dmh/types";
+import {
+  mockClients,
+  mockCompanies,
+  mockContacts,
+  mockDeals,
+  mockInteractions,
+  mockMessages,
+  mockProspects,
+  mockStaffMembers,
+  mockStatusHistory,
+} from "./mockData";
+import type { MockInteraction } from "./mockData";
+
+/**
+ * Client Supabase factice pour le mode démo local (`SUPABASE_DEMO_MODE=true`
+ * dans `.env.local`, jamais commité/poussé) — reproduit le sous-ensemble de
+ * l'API `@supabase/supabase-js` réellement utilisé par `apps/crm`
+ * (auth.getSession/onAuthStateChange/signInWithPassword/signOut,
+ * from().select().order()/.eq()/.single()/.maybeSingle()/.update()).
+ * Sert uniquement quand le vrai projet Supabase est injoignable — jamais
+ * une source de vérité, ne remplace pas un vrai test fonctionnel.
+ */
+
+type Listener = (event: string, session: MockSession | null) => void;
+
+interface MockSession {
+  user: { id: string; email: string };
+}
+
+function findCompany(id: string) {
+  return mockCompanies.find((c) => c.id === id) ?? null;
+}
+function findContact(id: string) {
+  return mockContacts.find((c) => c.id === id) ?? null;
+}
+function findClient(id: string) {
+  return mockClients.find((c) => c.id === id) ?? null;
+}
+
+class MockQuery<T> implements PromiseLike<{ data: T | null; error: { message: string } | null }> {
+  private eqFilters: Array<[string, string]> = [];
+  private mode: "list" | "single" | "maybeSingle" = "list";
+  private updatePatch: Record<string, unknown> | null = null;
+  private insertPayload: Record<string, unknown> | null = null;
+
+  constructor(
+    private table: string,
+    private getCurrentUserId: () => string | null,
+  ) {}
+
+  select(_columns: string) {
+    return this;
+  }
+
+  insert(payload: Record<string, unknown>) {
+    this.insertPayload = payload;
+    return this;
+  }
+
+  order(_column: string, _opts?: { ascending?: boolean }) {
+    return this;
+  }
+
+  limit(_n: number) {
+    return this;
+  }
+
+  eq(column: string, value: string) {
+    this.eqFilters.push([column, value]);
+    return this;
+  }
+
+  single() {
+    this.mode = "single";
+    return this;
+  }
+
+  maybeSingle() {
+    this.mode = "maybeSingle";
+    return this;
+  }
+
+  update(patch: Record<string, unknown>) {
+    this.updatePatch = patch;
+    return this;
+  }
+
+  private execute(): { data: unknown; error: { message: string } | null } {
+    if (this.insertPayload) return this.executeInsert();
+    if (this.updatePatch) return this.executeUpdate();
+
+    if (this.table === "prospects") return this.executeProspectsSelect();
+    if (this.table === "messages_generated") return this.executeMessagesSelect();
+    if (this.table === "interactions") return this.executeInteractionsSelect();
+    if (this.table === "staff_members") return this.executeStaffSelect();
+    if (this.table === "prospect_status_history") return { data: mockStatusHistory.slice(), error: null };
+    if (this.table === "deals") return this.executeDealsSelect();
+
+    return { data: this.mode === "list" ? [] : null, error: null };
+  }
+
+  private executeInsert(): { data: unknown; error: { message: string } | null } {
+    if (this.table === "interactions") {
+      const payload = this.insertPayload as Omit<MockInteraction, "id">;
+      const row: MockInteraction = { id: `interaction-${mockInteractions.length + 1}`, ...payload };
+      mockInteractions.unshift(row);
+      return { data: row, error: null };
+    }
+    return { data: null, error: { message: `insert non supporté pour ${this.table} (mock)` } };
+  }
+
+  private executeInteractionsSelect() {
+    let rows = mockInteractions.slice();
+    const prospectFilter = this.eqFilters.find(([col]) => col === "prospect_id");
+    if (prospectFilter) rows = rows.filter((i) => i.prospect_id === prospectFilter[1]);
+    rows.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+    return { data: rows, error: null };
+  }
+
+  private executeStaffSelect() {
+    return { data: mockStaffMembers.slice(), error: null };
+  }
+
+  private executeDealsSelect() {
+    const rows = mockDeals.slice().sort((a, b) => (b.signed_at ?? "").localeCompare(a.signed_at ?? ""));
+    return { data: rows, error: null };
+  }
+
+  private executeUpdate(): { data: unknown; error: { message: string } | null } {
+    const idFilter = this.eqFilters.find(([col]) => col === "id");
+    if (!idFilter) return { data: null, error: { message: "update sans filtre id (mock)" } };
+    const [, id] = idFilter;
+
+    if (this.table === "prospects") {
+      const prospect = mockProspects.find((p) => p.id === id);
+      if (prospect && this.updatePatch) {
+        const patch = this.updatePatch as { status?: ProspectStatus };
+        // Reproduit le trigger `prospect_status_change` (migration 010) : la
+        // vraie base journalise automatiquement tout changement de statut
+        // dans prospect_status_history — sans ça, le fil d'activité et le
+        // funnel du mode démo divergeraient du comportement réel.
+        if (patch.status && patch.status !== prospect.status) {
+          mockStatusHistory.push({
+            prospect_id: prospect.id,
+            old_status: prospect.status,
+            new_status: patch.status,
+            changed_by: this.getCurrentUserId(),
+            changed_at: new Date().toISOString(),
+          });
+        }
+        Object.assign(prospect, patch);
+      }
+    }
+    if (this.table === "messages_generated") {
+      const message = mockMessages.find((m) => m.id === id);
+      if (message && this.updatePatch) {
+        Object.assign(message, this.updatePatch);
+      }
+    }
+    return { data: null, error: null };
+  }
+
+  private executeProspectsSelect() {
+    let rows = mockProspects.slice();
+    const idFilter = this.eqFilters.find(([col]) => col === "id");
+    if (idFilter) rows = rows.filter((p) => p.id === idFilter[1]);
+
+    const joined = rows.map((p) => ({
+      id: p.id,
+      client_id: p.client_id,
+      status: p.status,
+      assigned_to: p.assigned_to,
+      last_activity_at: p.last_activity_at,
+      created_at: p.created_at,
+      companies: findCompany(p.company_id),
+      contacts: findContact(p.contact_id),
+      dmh_clients: findClient(p.client_id),
+    }));
+
+    if (this.mode === "single") {
+      return { data: joined[0] ?? null, error: joined[0] ? null : { message: "Prospect introuvable (mock)" } };
+    }
+    if (this.mode === "maybeSingle") {
+      return { data: joined[0] ?? null, error: null };
+    }
+    return { data: joined, error: null };
+  }
+
+  private executeMessagesSelect() {
+    let rows = mockMessages.slice();
+    const prospectFilter = this.eqFilters.find(([col]) => col === "prospect_id");
+    if (prospectFilter) rows = rows.filter((m) => m.prospect_id === prospectFilter[1]);
+    rows = rows.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    if (this.mode === "maybeSingle" || this.mode === "single") {
+      return { data: rows[0] ?? null, error: null };
+    }
+    return { data: rows, error: null };
+  }
+
+  then<TResult1 = { data: T | null; error: { message: string } | null }, TResult2 = never>(
+    onfulfilled?:
+      | ((value: { data: T | null; error: { message: string } | null }) => TResult1 | PromiseLike<TResult1>)
+      | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2> {
+    const result = this.execute() as { data: T | null; error: { message: string } | null };
+    return Promise.resolve(result).then(onfulfilled, onrejected);
+  }
+}
+
+export function createMockSupabaseClient() {
+  let session: MockSession | null = null;
+  const listeners = new Set<Listener>();
+
+  const auth = {
+    async getSession() {
+      return { data: { session } };
+    },
+    onAuthStateChange(callback: Listener) {
+      listeners.add(callback);
+      return { data: { subscription: { unsubscribe: () => listeners.delete(callback) } } };
+    },
+    async signInWithPassword({ email }: { email: string; password: string }) {
+      session = { user: { id: "mock-staff-id", email: email || "demo@dmhassocies.com" } };
+      listeners.forEach((cb) => cb("SIGNED_IN", session));
+      return { data: { session }, error: null };
+    },
+    async signOut() {
+      session = null;
+      listeners.forEach((cb) => cb("SIGNED_OUT", null));
+      return { error: null };
+    },
+    async updateUser(_attrs: { password?: string }) {
+      // Mode démo : accepte toujours, ne persiste rien (pas de vrai mot de passe à changer).
+      return { data: { user: session?.user ?? null }, error: null };
+    },
+  };
+
+  return {
+    auth,
+    from(table: string) {
+      return new MockQuery(table, () => session?.user.id ?? null);
+    },
+  };
+}

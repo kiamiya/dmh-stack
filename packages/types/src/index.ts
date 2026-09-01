@@ -91,6 +91,8 @@ export interface Prospect {
   last_activity_at: string | null;
   notes: string | null;
   is_existing_contact: boolean;
+  /** Membre staff assigné à ce prospect — voir migration 010_add_crm_activity_tracking.sql. */
+  assigned_to: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -123,6 +125,20 @@ export interface Interaction {
   metadata: unknown;
   occurred_at: string;
   created_at: string;
+  /** Membre staff auteur (notes/appels saisis manuellement) — null pour les interactions automatiques (webhooks). Voir migration 010_add_crm_activity_tracking.sql. */
+  created_by: string | null;
+}
+
+/** Historique des changements de statut d'un prospect — voir migration 010_add_crm_activity_tracking.sql. */
+export interface ProspectStatusHistory {
+  id: string;
+  prospect_id: string;
+  client_id: string;
+  old_status: ProspectStatus | null;
+  new_status: ProspectStatus;
+  /** null si le changement vient d'une Edge Function/webhook (service_role) plutôt que d'un staff via le CRM. */
+  changed_by: string | null;
+  changed_at: string;
 }
 
 export interface MessageGenerated {

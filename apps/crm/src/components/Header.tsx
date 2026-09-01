@@ -1,10 +1,20 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
 import { cn } from "../lib/cn";
-import { Button } from "./ui/button";
+import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
+import { useTheme } from "../hooks/useTheme";
+import { themeLabel } from "../lib/theme";
 
-const NAV_ITEMS = [{ to: "/", label: "Prospects" }];
+const THEME_ICON = { light: "☀", dark: "☾", system: "◐" } as const;
+
+const NAV_ITEMS = [
+  { to: "/", label: "Prospects" },
+  { to: "/pipeline", label: "Pipeline" },
+  { to: "/dashboard", label: "Dashboard" },
+];
 
 /**
  * Header commun aux pages protégées du CRM (staff interne — pas de
@@ -15,15 +25,17 @@ const NAV_ITEMS = [{ to: "/", label: "Prospects" }];
 export function Header() {
   const { session } = useSession();
   const location = useLocation();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { theme, cycleTheme } = useTheme();
 
   async function handleLogout() {
     await supabase.auth.signOut();
   }
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-        <span className="text-sm font-semibold text-slate-900">DMH CRM</span>
+        <span className="text-sm font-semibold text-foreground">DMH CRM</span>
 
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
@@ -34,21 +46,40 @@ export function Header() {
                 to={item.to}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-sm font-medium",
-                  active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100",
+                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
                 )}
               >
                 {item.label}
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={cycleTheme}
+            title={`Thème : ${themeLabel(theme)} (cliquer pour changer)`}
+            aria-label={`Thème : ${themeLabel(theme)}`}
+            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+          >
+            {THEME_ICON[theme]}
+          </button>
           {session?.user.email && (
-            <span className="px-2 text-xs text-slate-400">{session.user.email}</span>
+            <DropdownMenu
+              align="end"
+              trigger={
+                <button className="cursor-pointer rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary">
+                  {session.user.email}
+                </button>
+              }
+            >
+              <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+                Changer le mot de passe
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
+            </DropdownMenu>
           )}
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            Déconnexion
-          </Button>
         </nav>
       </div>
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </header>
   );
 }
