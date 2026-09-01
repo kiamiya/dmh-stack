@@ -11,55 +11,51 @@
 
 ## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 2 (vue liste/tableau
-avancée)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
-
-### Contexte
-
-Le vrai projet Supabase est réactivé et la migration 010 est appliquée
-(confirmé) — mais cette phase reste testée en mode démo local, comme les
-précédentes, pour rester cohérent. Rien n'empêche de retester contre le
-vrai Supabase quand tu veux (`SUPABASE_DEMO_MODE=false`).
+**Refonte UX/UI du CRM interne (`apps/crm`) — Phase 3 (dashboard/analytics
+interne)**, branche `feat/crm-redesign`, exécuté le 2026-09-01.
 
 ### Ce qui a été testé
 
 | Élément | Résultat |
 |---|---|
-| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (67 tests dans `@dmh/crm`, dont 32 nouveaux) |
-| Tri multi-colonnes (clic sur un en-tête) | ✅ testé sur "Score IA", tri correct (8 → 5 → 2 → —) |
-| Recherche instantanée | ✅ testé avec "Techno", filtre correctement sur 1 résultat |
-| Réinitialisation des filtres | ✅ |
-| Sélection multiple + barre d'actions groupées | ✅ apparaît au clic sur une case |
-| Changement de statut en masse | ✅ testé sur 1 prospect ("En séquence" → "Qualifié"), toast de confirmation, sélection réinitialisée après |
-| Aucune erreur console (après un faux positif initial — logs résiduels du HMR Vite après un précédent hot-reload, confirmé stale par un redémarrage complet du serveur + vérification fonctionnelle directe) | ✅ |
+| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (81 tests dans `@dmh/crm`, dont 19 nouveaux) |
+| Nouvelle page `/dashboard` (nav "Dashboard") | ✅ |
+| Tuiles de stats (total, en séquence, deals gagnés, commission cumulée) | ✅ valeurs cohérentes avec les données démo |
+| Compteurs par statut (12, y compris à 0) | ✅ |
+| Funnel de conversion | ✅ calcul vérifié à la main : 4 → 3 (75%) → 3 (100%) → 3 (100%) → 2 (66.7%) → 1 (50%) → 1 (100%) → 1 (100%) → 0 — cohérent avec l'historique de statuts factice |
+| Évolution hebdomadaire (nouveaux prospects, deals gagnés) | ✅ graphiques SVG faits main, tooltips au survol des points, table de données accessible en alternative |
+| Top 5 prospects par score IA | ✅ tri correct (8, 5, 2) |
+| Liste des deals avec attribution/commission | ✅ (2 gagnés dont 1 attribué à 1800€, 1 perdu) |
+| Aucune erreur console réelle (mêmes logs résiduels de HMR déjà expliqués en Phase 2, confirmés stale) | ✅ |
+
+### Décision technique notable
+
+Le funnel utilise `prospect_status_history` (migration 010, maintenant
+appliquée) plutôt que le statut courant des prospects — un prospect passé
+à `qualified` a bien "atteint" `ready` même s'il ne s'y trouve plus. Un
+comptage naïf par statut courant aurait fortement sous-estimé les
+premières étapes du pipeline.
 
 ### Ce qui n'a **pas** encore été testé
 
-- L'action groupée "Assigner" — testée uniquement pour "Changer le statut" ;
-  le code est identique en pattern (`bulkUpdateAssignment`), pas re-testé
-  séparément par manque de temps.
-- L'export CSV (téléchargement réel du fichier) — non vérifiable par
-  automatisation navigateur (le clic déclenche un téléchargement natif).
-  À tester de ton côté.
-- La persistance des préférences de colonnes (ordre/visibilité) après un
-  rechargement complet de page — le mécanisme localStorage est testé
-  unitairement (`columnPreferences.test.ts`) mais pas revérifié en
-  conditions réelles de navigation.
+- Contre le **vrai** Supabase — toujours testé en mode démo par cohérence
+  avec les phases précédentes. Le vrai historique de statuts (migration
+  010) n'a que très peu de recul réel (juste appliquée), donc le funnel
+  sera peu significatif tant que le pipeline n'a pas vraiment tourné.
+- Le rendu sur un jeu de données plus large (le mode démo n'a que 4
+  prospects et 3 deals) — les graphiques n'ont pas été éprouvés avec plus
+  de points/semaines.
 
 ### Point à valider par toi
 
-1. Teste l'export CSV (bouton "Exporter en CSV" ou "Exporter la
-   sélection") — je ne peux pas vérifier le fichier téléchargé moi-même.
-2. Teste "Assigner" en masse et la persistance des préférences de colonnes
-   (masquer une colonne, recharger la page, vérifier qu'elle reste masquée).
-3. Feu vert pour la **Phase 3 (dashboard/analytics interne)**.
+1. Vérifie visuellement `/dashboard` de ton côté.
+2. Feu vert pour la **Phase 4 (recherche cmd+K + vues sauvegardées)**.
 
 ## Outillage disponible pour ce chantier
 
 - Mode démo local : `SUPABASE_DEMO_MODE=true` dans `.env.local`.
-- `pnpm --filter @dmh/crm dev` (port 5173) — nav "Prospects" (liste
-  avancée, refaite) / "Pipeline" (Kanban).
+- `pnpm --filter @dmh/crm dev` (port 5173) — nav "Prospects" / "Pipeline" /
+  "Dashboard" (nouveau).
 - Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
   final validé par toi.
-- Vrai Supabase réactivé et à jour (migration 010 appliquée) — disponible
-  dès que tu veux basculer `SUPABASE_DEMO_MODE=false`.
+- Vrai Supabase réactivé, migration 010 appliquée.
