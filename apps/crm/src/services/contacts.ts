@@ -9,15 +9,16 @@ export interface ContactListRow {
   linkedin_url: string | null;
   company_id: string;
   client_id: string;
+  companies: { name: string } | null;
 }
 
 export async function listContacts(client: SupabaseClient): Promise<ContactListRow[]> {
   const { data, error } = await client
     .from("contacts")
-    .select("id, first_name, last_name, job_title, email, linkedin_url, company_id, client_id")
+    .select("id, first_name, last_name, job_title, email, linkedin_url, company_id, client_id, companies(name)")
     .order("last_name");
   if (error) throw new Error(error.message);
-  return (data ?? []) as ContactListRow[];
+  return (data ?? []) as unknown as ContactListRow[];
 }
 
 export interface ContactDetailRow {
@@ -77,7 +78,13 @@ export interface ContactInsert {
   linkedinUrl: string | null;
 }
 
-/** Crée un contact saisi manuellement (ex. identifié sur LinkedIn) — `data_source: "manual"`, voir `@dmh/types`. */
+/**
+ * Crée un contact saisi manuellement (ex. identifié sur LinkedIn) —
+ * `data_source: "manual"`, voir `@dmh/types`. Insère aussi la relation
+ * `contact_companies` correspondante (`is_primary: true`) — sans ça, un
+ * contact créé après la migration 013 n'apparaîtrait dans aucune relation
+ * malgré son `company_id`, contrairement aux contacts backfillés.
+ */
 export async function createContact(client: SupabaseClient, input: ContactInsert): Promise<{ id: string }> {
   const { data, error } = await client
     .from("contacts")
@@ -94,5 +101,15 @@ export async function createContact(client: SupabaseClient, input: ContactInsert
     .select("id")
     .single();
   if (error) throw new Error(error.message);
-  return data as { id: string };
+  const contact = data as { id: string };
+
+  const { error: relationError } = await client.from("contact_companies").insert({
+    client_id: input.clientId,
+    contact_id: contact.id,
+    company_id: input.companyId,
+    is_primary: true,
+  });
+  if (relationError) throw new Error(relationError.message);
+
+  return contact;
 }

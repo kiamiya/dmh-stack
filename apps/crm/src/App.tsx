@@ -6,6 +6,12 @@ import { ProspectsListPage } from "./pages/ProspectsList";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
 import { PipelinePage } from "./pages/Pipeline";
 import { DashboardPage } from "./pages/Dashboard";
+import { ContactsPage } from "./pages/Contacts";
+import { ContactDetailPage } from "./pages/ContactDetail";
+import { CompaniesPage } from "./pages/Companies";
+import { CompanyDetailPage } from "./pages/CompanyDetail";
+import { OpportunitiesPage } from "./pages/Opportunities";
+import { TasksPage } from "./pages/Tasks";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 import { CommandPalette } from "./components/CommandPalette";
@@ -68,6 +74,54 @@ export default function App() {
           element={
             <ProtectedLayout>
               <DashboardPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <ProtectedLayout>
+              <ContactsPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/contacts/:id"
+          element={
+            <ProtectedLayout>
+              <ContactDetailPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/companies"
+          element={
+            <ProtectedLayout>
+              <CompaniesPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/companies/:id"
+          element={
+            <ProtectedLayout>
+              <CompanyDetailPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/opportunities"
+          element={
+            <ProtectedLayout>
+              <OpportunitiesPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedLayout>
+              <TasksPage />
             </ProtectedLayout>
           }
         />
