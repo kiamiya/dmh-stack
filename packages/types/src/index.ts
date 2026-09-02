@@ -291,3 +291,44 @@ export interface ClientUser {
   client_id: string;
   created_at: string;
 }
+
+/**
+ * Moteur d'automatisation (migration 017, S12 de la roadmap "parité
+ * Brevo") — périmètre v1 volontairement réduit : 2 déclencheurs, 1 type
+ * d'action (voir le commentaire en tête de la migration).
+ */
+export type AutomationEntityType = "contact" | "company" | "opportunity" | "task";
+export type AutomationTriggerType = "record_created" | "stage_changed";
+export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set";
+export type AutomationActionType = "create_task";
+
+export interface AutomationRule {
+  id: string;
+  client_id: string;
+  name: string;
+  enabled: boolean;
+  entity_type: AutomationEntityType;
+  trigger_type: AutomationTriggerType;
+  trigger_config: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AutomationCondition {
+  id: string;
+  client_id: string;
+  rule_id: string;
+  field: string;
+  operator: AutomationConditionOperator;
+  value: unknown;
+  created_at: string;
+}
+
+export interface AutomationAction {
+  id: string;
+  client_id: string;
+  rule_id: string;
+  position: number;
+  action_type: AutomationActionType;
+  action_config: Record<string, unknown>;
+  created_at: string;
+}

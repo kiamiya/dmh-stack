@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/companies", label: "Entreprises" },
   { to: "/opportunities", label: "Opportunités" },
   { to: "/tasks", label: "Tâches" },
+  { to: "/automations", label: "Automatisations" },
   { to: "/settings/custom-fields", label: "Réglages" },
 ];
 

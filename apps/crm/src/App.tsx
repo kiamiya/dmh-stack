@@ -14,6 +14,7 @@ import { OpportunitiesPage } from "./pages/Opportunities";
 import { OpportunityDetailPage } from "./pages/OpportunityDetail";
 import { TasksPage } from "./pages/Tasks";
 import { CustomFieldSettingsPage } from "./pages/CustomFieldSettings";
+import { AutomationsPage } from "./pages/Automations";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 import { CommandPalette } from "./components/CommandPalette";
@@ -140,6 +141,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <CustomFieldSettingsPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/automations"
+          element={
+            <ProtectedLayout>
+              <AutomationsPage />
             </ProtectedLayout>
           }
         />
