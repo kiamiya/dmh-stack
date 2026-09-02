@@ -11,6 +11,7 @@ import { ContactDetailPage } from "./pages/ContactDetail";
 import { CompaniesPage } from "./pages/Companies";
 import { CompanyDetailPage } from "./pages/CompanyDetail";
 import { OpportunitiesPage } from "./pages/Opportunities";
+import { OpportunityDetailPage } from "./pages/OpportunityDetail";
 import { TasksPage } from "./pages/Tasks";
 import { CustomFieldSettingsPage } from "./pages/CustomFieldSettings";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -115,6 +116,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <OpportunitiesPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/opportunities/:id"
+          element={
+            <ProtectedLayout>
+              <OpportunityDetailPage />
             </ProtectedLayout>
           }
         />

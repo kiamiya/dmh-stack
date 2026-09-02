@@ -1,41 +1,50 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useOpportunities } from "../hooks/useOpportunities";
+import { useClients } from "../hooks/useClients";
+import { usePipelineStages } from "../hooks/usePipelineStages";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { AddDealDialog } from "../components/AddDealDialog";
 import { formatCurrency } from "../lib/deals";
-import { ALL_DEAL_STATUSES, getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
-import type { DealRow, DealStatus } from "../services/deals";
+import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
+import { validateStageForm } from "../lib/pipelineForm";
 import { useToast } from "../components/ui/toast";
 
-function StatusSelect({ deal, onChange }: { deal: DealRow; onChange: (status: DealStatus) => void }) {
-  return (
-    <select
-      value={deal.status}
-      onChange={(e) => onChange(e.target.value as DealStatus)}
-      className="rounded-md border border-border px-2 py-1 text-sm"
-    >
-      {ALL_DEAL_STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {getDealStatusLabel(s)}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 export function OpportunitiesPage() {
-  const { deals, loading, error, create, changeStatus } = useOpportunities();
+  const { deals, loading, error, create, changeStage } = useOpportunities();
+  const clients = useClients();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<"list" | "kanban">("list");
+  const [kanbanClientId, setKanbanClientId] = useState("");
+  const { stages, addStage } = usePipelineStages(kanbanClientId);
+  const [newStageName, setNewStageName] = useState("");
+  const [stageError, setStageError] = useState<string | null>(null);
 
-  async function handleStatusChange(id: string, status: DealStatus) {
+  async function handleStageChange(id: string, stageId: string) {
     try {
-      await changeStatus(id, status);
+      await changeStage(id, stageId);
     } catch (err) {
       toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  async function handleAddStage(e: FormEvent) {
+    e.preventDefault();
+    const validationError = validateStageForm({ name: newStageName, existingNames: stages.map((s) => s.name) });
+    if (validationError) {
+      setStageError(validationError);
+      return;
+    }
+    setStageError(null);
+    try {
+      await addStage(newStageName.trim());
+      setNewStageName("");
+    } catch (err) {
+      setStageError((err as Error).message);
     }
   }
 
@@ -84,11 +93,15 @@ export function OpportunitiesPage() {
           <TableBody>
             {deals.map((d) => (
               <TableRow key={d.id}>
-                <TableCell className="font-medium text-foreground">{d.company_name}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  <Link to={`/opportunities/${d.id}`} className="hover:underline">
+                    {d.company_name}
+                  </Link>
+                </TableCell>
                 <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>
                 <TableCell>{formatCurrency(d.deal_value)}</TableCell>
                 <TableCell>
-                  <StatusSelect deal={d} onChange={(status) => handleStatusChange(d.id, status)} />
+                  <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>
                 </TableCell>
                 <TableCell>
                   {d.attributed_to_dmh === null ? "—" : (
@@ -112,31 +125,90 @@ export function OpportunitiesPage() {
       )}
 
       {!loading && !error && view === "kanban" && (
-        <div className="flex gap-3 overflow-x-auto">
-          {ALL_DEAL_STATUSES.map((status) => {
-            const columnDeals = deals.filter((d) => d.status === status);
-            return (
-              <div key={status} className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-secondary/50 p-2">
-                <div className="flex items-center justify-between px-1 pb-2">
-                  <span className="text-sm font-semibold text-foreground">{getDealStatusLabel(status)}</span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    {columnDeals.length}
-                  </span>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground">Client DMH</label>
+            <select
+              value={kanbanClientId}
+              onChange={(e) => setKanbanClientId(e.target.value)}
+              className="rounded-md border border-border px-2 py-1 text-sm"
+            >
+              <option value="">Choisir un client…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!kanbanClientId && (
+            <p className="text-sm text-muted-foreground">
+              Choisis un client pour voir son Kanban — les étapes sont propres à chaque client.
+            </p>
+          )}
+
+          {kanbanClientId && (
+            <>
+              <form onSubmit={handleAddStage} className="flex items-end gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Ajouter une étape</label>
+                  <input
+                    value={newStageName}
+                    onChange={(e) => setNewStageName(e.target.value)}
+                    placeholder="Nom de l'étape"
+                    className="rounded-md border border-border px-2 py-1.5 text-sm"
+                  />
                 </div>
-                <div className="flex flex-col gap-2">
-                  {columnDeals.map((d) => (
-                    <div key={d.id} className="rounded-md border border-border bg-card p-2 text-sm shadow-sm">
-                      <div className="font-medium text-foreground">{d.company_name}</div>
-                      <div className="text-muted-foreground">{formatCurrency(d.deal_value)}</div>
-                      <div className="mt-1">
-                        <StatusSelect deal={d} onChange={(s) => handleStatusChange(d.id, s)} />
+                <Button type="submit" size="sm" variant="outline">
+                  + Étape
+                </Button>
+                {stageError && <p className="text-sm text-destructive">{stageError}</p>}
+              </form>
+
+              <div className="flex gap-3 overflow-x-auto">
+                {stages.map((stage) => {
+                  const columnDeals = deals.filter((d) => d.stage_id === stage.id);
+                  return (
+                    <div
+                      key={stage.id}
+                      className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-secondary/50 p-2"
+                    >
+                      <div className="flex items-center justify-between px-1 pb-2">
+                        <span className="text-sm font-semibold text-foreground">{stage.name}</span>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          {columnDeals.length}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {columnDeals.map((d) => (
+                          <div key={d.id} className="rounded-md border border-border bg-card p-2 text-sm shadow-sm">
+                            <Link to={`/opportunities/${d.id}`} className="font-medium text-foreground hover:underline">
+                              {d.company_name}
+                            </Link>
+                            <div className="text-muted-foreground">{formatCurrency(d.deal_value)}</div>
+                            <div className="mt-1">
+                              <select
+                                value={stage.id}
+                                onChange={(e) => handleStageChange(d.id, e.target.value)}
+                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                              >
+                                {stages.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </>
+          )}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { createDeal, listDeals, updateDealStatus } from "../services/deals";
-import type { DealInsert, DealRow, DealStatus } from "../services/deals";
+import { createDeal, listDeals, updateDealStage } from "../services/deals";
+import type { DealInsert, DealRow } from "../services/deals";
 
 export function useOpportunities() {
   const [deals, setDeals] = useState<DealRow[]>([]);
@@ -25,10 +25,10 @@ export function useOpportunities() {
     await load();
   }
 
-  async function changeStatus(id: string, status: DealStatus): Promise<void> {
-    await updateDealStatus(supabase, id, status);
+  async function changeStage(id: string, stageId: string): Promise<void> {
+    await updateDealStage(supabase, id, stageId);
     await load();
   }
 
-  return { deals, loading, error, create, changeStatus, reload: load };
+  return { deals, loading, error, create, changeStage, reload: load };
 }

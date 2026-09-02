@@ -21,6 +21,7 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
 const ENTITY_TYPE_LABELS: Record<CustomFieldEntityType, string> = {
   contact: "Contacts",
   company: "Entreprises",
+  opportunity: "Opportunités",
 };
 
 export function CustomFieldSettingsPage() {

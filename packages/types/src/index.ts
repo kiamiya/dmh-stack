@@ -207,8 +207,28 @@ export interface Task {
   updated_at: string;
 }
 
-/** Champs personnalisés (migration 014) — S9 de la roadmap "parité Brevo". Opportunités pas encore couvertes (arrive en S10). */
-export type CustomFieldEntityType = "contact" | "company";
+/** Pipelines & étapes personnalisables (migration 015) — S10 de la roadmap "parité Brevo". */
+export interface Pipeline {
+  id: string;
+  client_id: string;
+  name: string;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface PipelineStage {
+  id: string;
+  client_id: string;
+  pipeline_id: string;
+  name: string;
+  position: number;
+  is_won: boolean;
+  is_lost: boolean;
+  created_at: string;
+}
+
+/** Champs personnalisés (migration 014, étendu aux Opportunités en migration 016) — S9/S10 de la roadmap "parité Brevo". */
+export type CustomFieldEntityType = "contact" | "company" | "opportunity";
 export type CustomFieldType = "text" | "number" | "date" | "boolean" | "select";
 
 export interface CustomFieldDefinition {

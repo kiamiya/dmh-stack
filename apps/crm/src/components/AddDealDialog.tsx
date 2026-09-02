@@ -10,6 +10,7 @@ import { listContactsForCompany } from "../services/contactCompanies";
 import type { ContactRelationRow } from "../services/contactCompanies";
 import { validateDealForm } from "../lib/dealForm";
 import { useToast } from "./ui/toast";
+import { usePipelineStages } from "../hooks/usePipelineStages";
 
 export interface AddDealDialogProps {
   open: boolean;
@@ -21,6 +22,8 @@ export interface AddDealDialogProps {
     companyId?: string | null;
     contactId?: string | null;
     signedAt?: string | null;
+    pipelineId?: string | null;
+    stageId?: string | null;
   }) => Promise<void>;
 }
 
@@ -33,9 +36,16 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
   const [contactId, setContactId] = useState("");
   const [dealValue, setDealValue] = useState("");
   const [signedAt, setSignedAt] = useState("");
+  const [stageId, setStageId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+  const { pipeline, stages } = usePipelineStages(clientId);
+
+  useEffect(() => {
+    const firstOpenStage = stages.find((s) => !s.is_won && !s.is_lost) ?? stages[0];
+    setStageId(firstOpenStage?.id ?? "");
+  }, [stages]);
 
   useEffect(() => {
     if (!clientId) {
@@ -67,6 +77,7 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
     setContactId("");
     setDealValue("");
     setSignedAt("");
+    setStageId("");
     setError(null);
   }
 
@@ -93,6 +104,8 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
         companyId: companyId || null,
         contactId: contactId || null,
         signedAt: signedAt || null,
+        pipelineId: pipeline?.id ?? null,
+        stageId: stageId || null,
       });
       toast(`Opportunité "${companyName}" créée.`, "success");
       reset();
@@ -172,6 +185,24 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
               {contacts.map((rel) => (
                 <option key={rel.contact_id} value={rel.contact_id}>
                   {rel.contacts ? `${rel.contacts.first_name} ${rel.contacts.last_name}` : rel.contact_id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-stage">
+              Étape
+            </label>
+            <select
+              id="deal-stage"
+              value={stageId}
+              onChange={(e) => setStageId(e.target.value)}
+              disabled={!clientId || stages.length === 0}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
+            >
+              {stages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </select>

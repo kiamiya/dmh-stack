@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createDeal, listDeals, updateDealStatus } from "./deals";
+import { createDeal, getDeal, listDeals, updateDeal, updateDealStage } from "./deals";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -52,14 +52,39 @@ describe("createDeal", () => {
   });
 });
 
-describe("updateDealStatus", () => {
+describe("getDeal", () => {
+  it("retourne l'opportunité trouvée", async () => {
+    const row = { id: "deal-1", company_name: "ACME SAS", status: "negotiation" };
+    const client = makeStubClient({ data: row, error: null });
+    await expect(getDeal(client, "deal-1")).resolves.toEqual(row);
+  });
+
+  it("lève une erreur si Supabase en renvoie une", async () => {
+    const client = makeStubClient({ data: null, error: { message: "introuvable" } });
+    await expect(getDeal(client, "missing")).rejects.toThrow("introuvable");
+  });
+});
+
+describe("updateDealStage", () => {
   it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
     const client = makeStubClient({ data: null, error: null });
-    await expect(updateDealStatus(client, "deal-1", "won")).resolves.toBeUndefined();
+    await expect(updateDealStage(client, "deal-1", "stage-2")).resolves.toBeUndefined();
   });
 
   it("lève une erreur avec le message Supabase en cas d'échec", async () => {
     const client = makeStubClient({ data: null, error: { message: "update refusé" } });
-    await expect(updateDealStatus(client, "deal-1", "won")).rejects.toThrow("update refusé");
+    await expect(updateDealStage(client, "deal-1", "stage-2")).rejects.toThrow("update refusé");
+  });
+});
+
+describe("updateDeal", () => {
+  it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(updateDeal(client, "deal-1", { probability: 50 })).resolves.toBeUndefined();
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "update refusé" } });
+    await expect(updateDeal(client, "deal-1", { probability: 50 })).rejects.toThrow("update refusé");
   });
 });
