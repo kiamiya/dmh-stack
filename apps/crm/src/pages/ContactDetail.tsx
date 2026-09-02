@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
+import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -124,6 +125,8 @@ export function ContactDetailPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <CustomFieldsCard entityType="contact" entityId={contact.id} clientId={contact.client_id} />
 
       <Card>
         <CardHeader>

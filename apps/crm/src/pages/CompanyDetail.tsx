@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../components/ui/toast";
+import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -107,6 +108,8 @@ export function CompanyDetailPage() {
           {company.ai_score_reason && <div>Justification score : {company.ai_score_reason}</div>}
         </CardContent>
       </Card>
+
+      <CustomFieldsCard entityType="company" entityId={company.id} clientId={company.client_id} />
 
       <Card>
         <CardHeader>

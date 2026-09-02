@@ -12,6 +12,7 @@ import { CompaniesPage } from "./pages/Companies";
 import { CompanyDetailPage } from "./pages/CompanyDetail";
 import { OpportunitiesPage } from "./pages/Opportunities";
 import { TasksPage } from "./pages/Tasks";
+import { CustomFieldSettingsPage } from "./pages/CustomFieldSettings";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 import { CommandPalette } from "./components/CommandPalette";
@@ -122,6 +123,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <TasksPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/settings/custom-fields"
+          element={
+            <ProtectedLayout>
+              <CustomFieldSettingsPage />
             </ProtectedLayout>
           }
         />

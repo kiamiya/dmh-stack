@@ -207,6 +207,31 @@ export interface Task {
   updated_at: string;
 }
 
+/** Champs personnalisés (migration 014) — S9 de la roadmap "parité Brevo". Opportunités pas encore couvertes (arrive en S10). */
+export type CustomFieldEntityType = "contact" | "company";
+export type CustomFieldType = "text" | "number" | "date" | "boolean" | "select";
+
+export interface CustomFieldDefinition {
+  id: string;
+  client_id: string;
+  entity_type: CustomFieldEntityType;
+  field_key: string;
+  label: string;
+  field_type: CustomFieldType;
+  select_options: string[] | null;
+  created_at: string;
+}
+
+export interface CustomFieldValue {
+  id: string;
+  client_id: string;
+  entity_type: CustomFieldEntityType;
+  entity_id: string;
+  field_definition_id: string;
+  value: string | number | boolean | null;
+  created_at: string;
+}
+
 export interface AttributionReport {
   first_contact_at: string | null;
   signed_at: string | null;

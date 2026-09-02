@@ -66,7 +66,7 @@ Dernière mise à jour : 2026-09-02
 
 | # | Étape | Statut |
 |---|---|---|
-| S9 | Champs personnalisés (Contacts/Entreprises) | ⬜ à faire |
+| S9 | Champs personnalisés (Contacts/Entreprises) | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S10 | Pipelines & étapes personnalisables + fiche détail Opportunité | ⬜ à faire |
 | S11 | Kanban drag-and-drop + propriétés de deal enrichies | ⬜ à faire |
 | S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ⬜ à faire |
@@ -324,3 +324,7 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - Loïc a demandé une analyse de Brevo.com (recherche web) pour identifier les écarts restants vers un CRM du marché. Analyse livrée dans le chat : pipelines à étapes personnalisables, Kanban drag-and-drop, propriétés de deal (probabilité/date de clôture), tâches automatiques, RDV/calendrier, segments dynamiques, champs personnalisés, fusion de contacts, moteur d'automatisation, dashboards pipeline, permissions par rôle.
 - Loïc a demandé le plan complet pour tout réaliser. Cadrage validé par lui avant d'écrire le plan : **champs personnalisés inclus** (revient sur la dette technique actée dans `TESTING.md`, décision explicite), **RDV/calendrier inclus** (mais bloqué tant que les comptes développeur Google/Microsoft n'existent pas), **moteur d'automatisation générique inclus** (pas seulement le cas ponctuel "tâche auto au changement d'étape"), **permissions par rôle explicitement hors périmètre**. Plan détaillé écrit et validé (8 étapes, S9-S16, tableau ajouté ci-dessus) — voir le plan de session pour le détail technique complet de chaque étape (schémas, fichiers, ordre des dépendances).
 - **Point de reprise** : démarrage de S9 (champs personnalisés) à la suite de cette entrée de journal.
+- **S9 terminé.** Migration `014_custom_fields.sql` appliquée (confirmation explicite) : `custom_field_definitions`/`custom_field_values` (colonne `value` en jsonb plutôt que 4 colonnes nullable par type), RLS standard via `is_staff_member()`. `@dmh/types` étendu (`CustomFieldDefinition`/`CustomFieldValue`/`CustomFieldEntityType`/`CustomFieldType`). Backend : `services/customFields.ts`, `lib/customFieldForm.ts` (slug de clé, validation, 11 tests). UI : `/settings/custom-fields` (création de définitions par type d'objet, onglets Contacts/Entreprises), composant réutilisable `CustomFieldsCard.tsx` ajouté sur `ContactDetail.tsx`/`CompanyDetail.tsx` (rendu dynamique texte/nombre/date/case à cocher/liste). Opportunités volontairement pas couvertes (pas encore de fiche détail, arrive en S10).
+- **Test fonctionnel exécuté** en navigateur réel : création d'un champ texte + d'un champ liste pour Contacts, d'un champ case à cocher pour Entreprises, remplissage sur une fiche contact/entreprise de test, persistance vérifiée après rechargement de page pour les 3 types. Données de test nettoyées après coup.
+- `pnpm typecheck`/`pnpm test` racine verts (201 tests côté `@dmh/crm`).
+- **Point de reprise** : S9 fait. Prochaine étape dans l'ordre du plan = S10 (pipelines & étapes personnalisables + fiche détail Opportunité).
