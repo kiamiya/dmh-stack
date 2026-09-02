@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getProspect, listProspects, updateProspectStatus } from "./prospects";
+import { createProspect, getProspect, listProspects, updateProspectStatus } from "./prospects";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ces services — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -9,6 +9,7 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     order: () => query,
     eq: () => query,
     update: () => query,
+    insert: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
   };
@@ -57,5 +58,21 @@ describe("updateProspectStatus", () => {
   it("lève une erreur avec le message Supabase en cas d'échec", async () => {
     const client = makeStubClient({ data: null, error: { message: "update refusé" } });
     await expect(updateProspectStatus(client, "p1", "qualified")).rejects.toThrow("update refusé");
+  });
+});
+
+describe("createProspect", () => {
+  it("retourne l'id du prospect créé", async () => {
+    const client = makeStubClient({ data: { id: "p42" }, error: null });
+    await expect(
+      createProspect(client, { clientId: "client-1", contactId: "contact-1", companyId: "company-1" }),
+    ).resolves.toEqual({ id: "p42" });
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "insert refusé" } });
+    await expect(
+      createProspect(client, { clientId: "client-1", contactId: "contact-1", companyId: "company-1" }),
+    ).rejects.toThrow("insert refusé");
   });
 });

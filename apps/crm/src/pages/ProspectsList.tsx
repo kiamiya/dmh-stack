@@ -28,6 +28,8 @@ import type { SavedView } from "../lib/savedViews";
 import { useProspects } from "../hooks/useProspects";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useToast } from "../components/ui/toast";
+import { AddCompanyDialog } from "../components/AddCompanyDialog";
+import { AddContactDialog } from "../components/AddContactDialog";
 import type { ProspectListRow } from "../services/prospects";
 import type { ProspectStatus } from "@dmh/types";
 
@@ -60,6 +62,7 @@ export function ProspectsListPage() {
     prospects,
     loading,
     error,
+    reload,
     bulkUpdateStatus,
     bulkUpdateAssignment,
     restoreStatuses,
@@ -68,6 +71,8 @@ export function ProspectsListPage() {
   const staff = useStaffMembers();
   const { toast } = useToast();
 
+  const [addCompanyOpen, setAddCompanyOpen] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const [filters, setFilters] = useState<ProspectFilters>(EMPTY_PROSPECT_FILTERS);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -270,6 +275,12 @@ export function ProspectsListPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-foreground">Prospects</h1>
         <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => setAddCompanyOpen(true)}>
+          + Entreprise
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
+          + Contact
+        </Button>
         <DropdownMenu
           align="end"
           trigger={
@@ -542,6 +553,13 @@ export function ProspectsListPage() {
           </TableBody>
         </Table>
       )}
+
+      <AddCompanyDialog open={addCompanyOpen} onOpenChange={setAddCompanyOpen} />
+      <AddContactDialog
+        open={addContactOpen}
+        onOpenChange={setAddContactOpen}
+        onCreated={() => reload()}
+      />
     </div>
   );
 }

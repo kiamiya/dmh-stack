@@ -79,3 +79,30 @@ export async function updateProspectAssignment(
   const { error } = await client.from("prospects").update({ assigned_to: assignedTo }).eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+export interface ProspectInsert {
+  clientId: string;
+  contactId: string;
+  companyId: string;
+}
+
+/**
+ * Crée un prospect en statut `to_enrich` pour un contact/entreprise déjà
+ * saisis manuellement — même point d'entrée que l'import Pharow (voir
+ * `packages/pharow/src/importer.ts`), pour que le pipeline d'enrichissement
+ * (Pappers, scoring, Dropcontact, génération de message) démarre normalement.
+ */
+export async function createProspect(client: SupabaseClient, input: ProspectInsert): Promise<{ id: string }> {
+  const { data, error } = await client
+    .from("prospects")
+    .insert({
+      client_id: input.clientId,
+      contact_id: input.contactId,
+      company_id: input.companyId,
+      status: "to_enrich",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as { id: string };
+}
