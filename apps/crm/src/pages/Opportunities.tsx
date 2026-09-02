@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { DndContext } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useClients } from "../hooks/useClients";
 import { usePipelineStages } from "../hooks/usePipelineStages";
@@ -8,6 +10,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { AddDealDialog } from "../components/AddDealDialog";
+import { OpportunityKanbanBoardShell, OpportunityKanbanColumn } from "../components/OpportunityKanbanColumn";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
@@ -24,11 +27,19 @@ export function OpportunitiesPage() {
   const [newStageName, setNewStageName] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
 
-  async function handleStageChange(id: string, stageId: string) {
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const dealId = String(active.id);
+    const targetStageId = String(over.id);
+    const current = deals.find((d) => d.id === dealId);
+    if (!current || current.stage_id === targetStageId) return;
+
     try {
-      await changeStage(id, stageId);
+      await changeStage(dealId, targetStageId);
     } catch (err) {
-      toast(`Échec : ${(err as Error).message}`, "destructive");
+      toast(`Échec du changement d'étape : ${(err as Error).message}`, "destructive");
     }
   }
 
@@ -166,47 +177,17 @@ export function OpportunitiesPage() {
                 {stageError && <p className="text-sm text-destructive">{stageError}</p>}
               </form>
 
-              <div className="flex gap-3 overflow-x-auto">
-                {stages.map((stage) => {
-                  const columnDeals = deals.filter((d) => d.stage_id === stage.id);
-                  return (
-                    <div
+              <DndContext onDragEnd={handleDragEnd}>
+                <OpportunityKanbanBoardShell>
+                  {stages.map((stage) => (
+                    <OpportunityKanbanColumn
                       key={stage.id}
-                      className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-secondary/50 p-2"
-                    >
-                      <div className="flex items-center justify-between px-1 pb-2">
-                        <span className="text-sm font-semibold text-foreground">{stage.name}</span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                          {columnDeals.length}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {columnDeals.map((d) => (
-                          <div key={d.id} className="rounded-md border border-border bg-card p-2 text-sm shadow-sm">
-                            <Link to={`/opportunities/${d.id}`} className="font-medium text-foreground hover:underline">
-                              {d.company_name}
-                            </Link>
-                            <div className="text-muted-foreground">{formatCurrency(d.deal_value)}</div>
-                            <div className="mt-1">
-                              <select
-                                value={stage.id}
-                                onChange={(e) => handleStageChange(d.id, e.target.value)}
-                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
-                              >
-                                {stages.map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      stage={stage}
+                      deals={deals.filter((d) => d.stage_id === stage.id)}
+                    />
+                  ))}
+                </OpportunityKanbanBoardShell>
+              </DndContext>
             </>
           )}
         </div>

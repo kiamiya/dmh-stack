@@ -68,7 +68,7 @@ Dernière mise à jour : 2026-09-02
 |---|---|---|
 | S9 | Champs personnalisés (Contacts/Entreprises) | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S10 | Pipelines & étapes personnalisables + fiche détail Opportunité | ✅ fait — validé en navigateur réel le 2026-09-02 |
-| S11 | Kanban drag-and-drop + propriétés de deal enrichies | ⬜ à faire |
+| S11 | Kanban drag-and-drop + propriétés de deal enrichies | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ⬜ à faire |
 | S13 | Segments dynamiques sur Contacts | ⬜ à faire |
 | S14 | Fusion/dédoublonnage de contacts | ⬜ à faire |
@@ -336,3 +336,9 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - **Test fonctionnel exécuté** en navigateur réel : création d'une opportunité avec étape par défaut "Négociation" pré-sélectionnée, fiche détail affichant l'étape/statut, vue Kanban montrant les 3 colonnes par défaut avec l'opportunité de test bien groupée, ajout d'une étape personnalisée (apparaît en 4ᵉ colonne), déplacement vers "Gagné" confirmé sur la fiche détail (statut "Gagnée" + section Attribution affichée). Données de test (opportunité, étape personnalisée, entreprise/contact) nettoyées après coup.
 - `pnpm typecheck`/`pnpm test` racine verts (217 tests côté `@dmh/crm`).
 - **Point de reprise** : S10 fait. Prochaine étape dans l'ordre du plan = S11 (Kanban drag-and-drop + propriétés de deal enrichies — `probability`/`expected_close_date` déjà en base depuis S10, reste l'indicateur de stagnation et le vrai drag-and-drop).
+- **S11 terminé.** `probability`/`expected_close_date` déjà posés en base et exposés dans l'UI depuis S10 (fiche `/opportunities/:id`) — ne restait que l'indicateur de stagnation et le vrai drag-and-drop. `services/deals.ts` : `updateDealStage`/`updateDeal` posent désormais explicitement `updated_at` (aucun trigger générique dans ce schéma pour ça, même convention que le reste du projet) — nécessaire pour que l'indicateur de stagnation ait une date de référence fiable. Réutilise `lib/stagnation.ts` (`isStagnant`) tel quel, sans duplication.
+- Nouveaux `components/OpportunityCard.tsx`/`OpportunityKanbanColumn.tsx` (dnd-kit), dupliqués depuis `ProspectCard.tsx`/`KanbanColumn.tsx` plutôt que généralisés — mêmes raisons qu'en S10 (types différents, éviter de risquer de casser le Kanban Prospects déjà validé). `/opportunities` (vue Kanban) : la sélection par menu déroulant devient un vrai glisser-déposer entre colonnes/étapes.
+- **Bug évité avant même le test** : première ébauche de `OpportunityCard.tsx` copiait le pattern `backgroundLocation`/panneau latéral de `ProspectCard.tsx` sans qu'une route de superposition existe pour `/opportunities/:id` — aurait rendu le clic sur une carte silencieusement sans effet (changement d'URL sans navigation visible). Repéré en relisant le code avant de tester, corrigé en un lien simple (page pleine largeur, comme Contacts/Entreprises).
+- **Test fonctionnel exécuté** en navigateur réel : création d'une opportunité liée à une entreprise de test, glisser-déposer réel (simulation souris bas niveau, pas l'API `dragTo` de Playwright — nécessaire pour dnd-kit) de la colonne "Négociation" vers "Gagné", carte bien déplacée, fiche détail confirmant le statut "Gagnée". Données de test nettoyées après coup.
+- `pnpm typecheck`/`pnpm test` racine verts (217 tests côté `@dmh/crm`, inchangé — pas de nouvelle logique pure isolée cette fois, uniquement du rendu/interaction).
+- **Point de reprise** : S11 fait. Prochaine étape dans l'ordre du plan = S12 (moteur d'automatisation générique — la plus grosse étape restante).

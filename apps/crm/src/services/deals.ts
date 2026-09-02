@@ -17,12 +17,13 @@ export interface DealRow {
   stage_id: string | null;
   probability: number | null;
   expected_close_date: string | null;
+  updated_at: string;
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
 }
 
 const DEAL_SELECT =
-  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, contacts(first_name, last_name), companies(name)";
+  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, updated_at, contacts(first_name, last_name), companies(name)";
 
 export async function listDeals(client: SupabaseClient): Promise<DealRow[]> {
   const { data, error } = await client.from("deals").select(DEAL_SELECT).order("signed_at", { ascending: false });
@@ -84,7 +85,10 @@ export async function createDeal(client: SupabaseClient, input: DealInsert): Pro
  * l'étape courante à la prochaine mise à jour.
  */
 export async function updateDealStage(client: SupabaseClient, id: string, stageId: string): Promise<void> {
-  const { error } = await client.from("deals").update({ stage_id: stageId }).eq("id", id);
+  const { error } = await client
+    .from("deals")
+    .update({ stage_id: stageId, updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -105,6 +109,7 @@ export async function updateDeal(client: SupabaseClient, id: string, patch: Deal
       ...(patch.expectedCloseDate !== undefined && { expected_close_date: patch.expectedCloseDate }),
       ...(patch.contactId !== undefined && { contact_id: patch.contactId }),
       ...(patch.companyId !== undefined && { company_id: patch.companyId }),
+      updated_at: new Date().toISOString(),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
