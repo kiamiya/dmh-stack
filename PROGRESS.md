@@ -56,6 +56,25 @@ Dernière mise à jour : 2026-09-02
 | S8 | Tests & pilote | Corriger les bugs, optimiser les performances | ✅ fait — 1 bug bloquant (Claude `max_tokens`) + durcissement RLS/index via `supabase db advisors` (voir Journal) |
 | S8 | Tests & pilote | V1 de la documentation technique interne | ✅ fait — `README.md` |
 
+## Roadmap "parité Brevo" (S9-S16) — demande de Delphine, relayée par Loïc
+
+> Phase 1 (S1-S8) terminée. Ce tableau couvre l'évolution du CRM vers un
+> modèle plus proche de HubSpot/Brevo (analyse du 2026-09-02, plan détaillé
+> validé le même jour). Ordre strict comme pour S1-S8 — voir dépendances
+> dans le plan de session au moment de l'écriture. Permissions par rôle
+> explicitement hors périmètre (décision Loïc).
+
+| # | Étape | Statut |
+|---|---|---|
+| S9 | Champs personnalisés (Contacts/Entreprises) | ⬜ à faire |
+| S10 | Pipelines & étapes personnalisables + fiche détail Opportunité | ⬜ à faire |
+| S11 | Kanban drag-and-drop + propriétés de deal enrichies | ⬜ à faire |
+| S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ⬜ à faire |
+| S13 | Segments dynamiques sur Contacts | ⬜ à faire |
+| S14 | Fusion/dédoublonnage de contacts | ⬜ à faire |
+| S15 | Dashboards pipeline Opportunités/Tâches | ⬜ à faire |
+| S16 | Rendez-vous / synchro calendrier (Google/Outlook) | ⬜ à faire — **bloqué** tant que les comptes développeur Google Cloud/Microsoft Entra n'existent pas (action Loïc) |
+
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
 - [ ] Le pipeline d'enrichissement tourne sans intervention manuelle : CSV Pharow → prospects enrichis + messages générés en moins de 24h.
@@ -302,3 +321,6 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - `pnpm typecheck`/`pnpm test` racine verts sur l'ensemble du monorepo après cette étape.
 - **Point de reprise** : le chantier "objets CRM génériques" (Contacts/Entreprises/Opportunités/Tâches) est fonctionnellement complet et validé en conditions réelles. En attente du retour de Delphine/Loïc en conditions réelles (compte staff) avant d'itérer. Dette technique assumée à date : pas de drag-and-drop sur le Kanban Opportunités, pas de création de contact directement depuis la fiche Entreprise, pas de fiche détail dédiée pour une Opportunité/Tâche (seulement liste/Kanban).
 - **Retour UX de Loïc** : le filtre "Statuts" de `/` (Prospects) utilisait un `<select multiple>` natif — nécessite ctrl/cmd+clic pour sélectionner plusieurs statuts, pas intuitif, corrigé ("n'a pas de sens"). Remplacé par un dropdown à cases à cocher (réutilise `DropdownMenu` déjà utilisé pour "Colonnes"), bouton affichant "Tous les statuts" ou "N statut(s)". Vérifié en navigateur réel (le dropdown reste ouvert entre les clics, le libellé se met à jour). `pnpm typecheck`/`pnpm test` verts.
+- Loïc a demandé une analyse de Brevo.com (recherche web) pour identifier les écarts restants vers un CRM du marché. Analyse livrée dans le chat : pipelines à étapes personnalisables, Kanban drag-and-drop, propriétés de deal (probabilité/date de clôture), tâches automatiques, RDV/calendrier, segments dynamiques, champs personnalisés, fusion de contacts, moteur d'automatisation, dashboards pipeline, permissions par rôle.
+- Loïc a demandé le plan complet pour tout réaliser. Cadrage validé par lui avant d'écrire le plan : **champs personnalisés inclus** (revient sur la dette technique actée dans `TESTING.md`, décision explicite), **RDV/calendrier inclus** (mais bloqué tant que les comptes développeur Google/Microsoft n'existent pas), **moteur d'automatisation générique inclus** (pas seulement le cas ponctuel "tâche auto au changement d'étape"), **permissions par rôle explicitement hors périmètre**. Plan détaillé écrit et validé (8 étapes, S9-S16, tableau ajouté ci-dessus) — voir le plan de session pour le détail technique complet de chaque étape (schémas, fichiers, ordre des dépendances).
+- **Point de reprise** : démarrage de S9 (champs personnalisés) à la suite de cette entrée de journal.
