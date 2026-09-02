@@ -407,23 +407,37 @@ export function ProspectsListPage() {
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Statuts</label>
-          <select
-            multiple
-            value={filters.statuses}
-            onChange={(e) =>
-              setFilters((f) => ({
-                ...f,
-                statuses: Array.from(e.target.selectedOptions).map((o) => o.value as ProspectStatus),
-              }))
+          <DropdownMenu
+            trigger={
+              <Button variant="outline" size="sm" className="h-8">
+                {filters.statuses.length === 0
+                  ? "Tous les statuts"
+                  : `${filters.statuses.length} statut${filters.statuses.length > 1 ? "s" : ""}`}
+              </Button>
             }
-            className="h-8 rounded-md border border-border px-2 py-1 text-sm"
           >
             {ALL_PROSPECT_STATUSES.map((status) => (
-              <option key={status} value={status}>
+              <label
+                key={status}
+                className="flex items-center gap-2 px-2 py-1.5 text-sm text-foreground hover:bg-secondary"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={filters.statuses.includes(status)}
+                  onChange={(e) =>
+                    setFilters((f) => ({
+                      ...f,
+                      statuses: e.target.checked
+                        ? [...f.statuses, status]
+                        : f.statuses.filter((s) => s !== status),
+                    }))
+                  }
+                />
                 {getStatusLabel(status)}
-              </option>
+              </label>
             ))}
-          </select>
+          </DropdownMenu>
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Score min</label>
