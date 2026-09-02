@@ -162,6 +162,9 @@ export interface Deal {
   id: string;
   client_id: string;
   prospect_id: string | null;
+  /** Relations réelles ajoutées par la migration 013 — "company_name" reste pour compatibilité (dashboard client, script d'attribution) mais une nouvelle Opportunité doit préférer contact_id/company_id. */
+  contact_id: string | null;
+  company_id: string | null;
   company_name: string;
   deal_value: number;
   status: DealStatus;
@@ -171,6 +174,35 @@ export interface Deal {
   commission_amount: number | null;
   commission_paid: boolean;
   attribution_report: AttributionReport | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Relation N:N Contact<->Entreprise (migration 013) — `contacts.company_id` reste l'entreprise "principale" ; cette table ajoute les relations additionnelles. */
+export interface ContactCompany {
+  id: string;
+  client_id: string;
+  contact_id: string;
+  company_id: string;
+  is_primary: boolean;
+  role: string | null;
+  created_at: string;
+}
+
+export type TaskStatus = "to_do" | "in_progress" | "done";
+
+export interface Task {
+  id: string;
+  client_id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: TaskStatus;
+  assigned_to: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  deal_id: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
