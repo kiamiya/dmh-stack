@@ -13,13 +13,24 @@ import { fetchMicrosoftBusyEvents, mapMicrosoftEventsToSummaries } from "../../.
 import { resolveConnectionsByStaffId } from "../_shared/calendarConnection.ts";
 import type { EventSummary } from "../../../packages/calendar/src/googleCalendar.ts";
 
+// Appelée directement depuis le navigateur avec un en-tête Authorization
+// personnalisé -> le navigateur envoie un preflight CORS (OPTIONS) sans
+// aucun en-tête d'auth. D'où les en-têtes CORS et la gestion explicite
+// de OPTIONS (sinon : "NetworkError"/"Failed to fetch" côté navigateur,
+// jamais reproduit par curl qui ne fait pas de preflight).
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+};
+
 function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
 }
 
 const WINDOW_DAYS = 14;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization");
