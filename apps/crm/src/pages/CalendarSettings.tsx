@@ -7,16 +7,20 @@ import { buildGoogleConnectUrl, buildMicrosoftConnectUrl } from "../lib/calendar
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { CalendarEventGrid } from "../components/CalendarEventGrid";
+import { EditCalendarEventDialog } from "../components/EditCalendarEventDialog";
 import { useToast } from "../components/ui/toast";
+import type { UpcomingCalendarEvent } from "../services/calendarEvents";
 
 const PROVIDER_LABELS: Record<string, string> = { google: "Google Calendar", microsoft: "Microsoft / Outlook" };
 
 export function CalendarSettingsPage() {
   const { session } = useSession();
   const { connections, loading, disconnect } = useCalendarConnections();
-  const { events, loading: eventsLoading, error: eventsError } = useUpcomingCalendarEvents();
+  const { events, loading: eventsLoading, error: eventsError, updateEvent } = useUpcomingCalendarEvents();
   const { toast } = useToast();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<UpcomingCalendarEvent | null>(null);
 
   const staffId = session?.user.id;
   const googleConnection = connections.find((c) => c.provider === "google");
@@ -60,7 +64,7 @@ export function CalendarSettingsPage() {
   if (loading || !staffId) return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-6">
       <h1 className="text-lg font-semibold text-foreground">Mon calendrier</h1>
       <p className="text-sm text-muted-foreground">
         Connecte ton calendrier pour obtenir un lien de prise de RDV que tu peux partager avec un prospect — il
@@ -136,26 +140,14 @@ export function CalendarSettingsPage() {
       {hasAnyConnection && (
         <Card>
           <CardHeader>
-            <CardTitle>Prochains événements (14 prochains jours)</CardTitle>
+            <CardTitle>Calendrier</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent>
             {eventsLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
             {eventsError && <p className="text-sm text-destructive">{eventsError}</p>}
-            {!eventsLoading && !eventsError && events.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucun événement à venir.</p>
+            {!eventsLoading && !eventsError && (
+              <CalendarEventGrid events={events} onSelectEvent={setEditingEvent} />
             )}
-            {!eventsLoading &&
-              events.map((e, i) => (
-                <div key={i} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                  <div>
-                    <div className="text-foreground">{e.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(e.start).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
-                    </div>
-                  </div>
-                  <Badge>{PROVIDER_LABELS[e.provider]}</Badge>
-                </div>
-              ))}
           </CardContent>
         </Card>
       )}
@@ -164,6 +156,8 @@ export function CalendarSettingsPage() {
         Astuce : ajoute <code>?client=&lt;id du client DMH&gt;</code> à la fin du lien pour l'associer au bon
         client avant de le partager (ex. <code>{PROVIDER_LABELS.google} ...?client=xxxxxxxx-xxxx-...</code>).
       </p>
+
+      <EditCalendarEventDialog event={editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)} onUpdated={updateEvent} />
     </div>
   );
 }

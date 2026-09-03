@@ -87,6 +87,7 @@ export async function fetchMicrosoftUserEmail(
 }
 
 export interface MicrosoftCalendarEvent {
+  id?: string;
   subject?: string;
   start?: { dateTime?: string };
   end?: { dateTime?: string };
@@ -113,13 +114,14 @@ export function mapMicrosoftEventsToBusyIntervals(
     }));
 }
 
-/** Pure : convertit la réponse brute Microsoft Graph en résumés affichables (titre + horaires) — pour la liste "prochains événements". */
+/** Pure : convertit la réponse brute Microsoft Graph en résumés affichables (id + titre + horaires) — pour la liste "prochains événements" et leur édition. */
 export function mapMicrosoftEventsToSummaries(
   events: MicrosoftCalendarEvent[],
-): Array<{ title: string; start: string; end: string }> {
+): Array<{ id: string; title: string; start: string; end: string }> {
   return events
-    .filter((e) => e.start?.dateTime && e.end?.dateTime)
+    .filter((e) => e.id && e.start?.dateTime && e.end?.dateTime)
     .map((e) => ({
+      id: e.id!,
       title: e.subject?.trim() || "Sans titre",
       start: normalizeUtc(e.start!.dateTime!),
       end: normalizeUtc(e.end!.dateTime!),
@@ -160,5 +162,25 @@ export async function createMicrosoftEvent(
     }),
   });
   await assertOk(res, "Microsoft event creation");
+  return res.json();
+}
+
+/** Met à jour un événement existant (PATCH — ne touche que les champs fournis). */
+export async function updateMicrosoftEvent(
+  params: { accessToken: string; eventId: string; subject?: string; startIso?: string; endIso?: string },
+  options: MicrosoftClientOptions = {},
+): Promise<{ id: string }> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const body: Record<string, unknown> = {};
+  if (params.subject !== undefined) body.subject = params.subject;
+  if (params.startIso !== undefined) body.start = { dateTime: params.startIso, timeZone: "UTC" };
+  if (params.endIso !== undefined) body.end = { dateTime: params.endIso, timeZone: "UTC" };
+
+  const res = await fetchImpl(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(params.eventId)}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${params.accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  await assertOk(res, "Microsoft event update");
   return res.json();
 }

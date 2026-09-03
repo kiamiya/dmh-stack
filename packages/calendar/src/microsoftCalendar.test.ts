@@ -4,6 +4,7 @@ import {
   exchangeMicrosoftCode,
   mapMicrosoftEventsToBusyIntervals,
   mapMicrosoftEventsToSummaries,
+  updateMicrosoftEvent,
 } from "./microsoftCalendar.js";
 
 function mockFetch(status: number, body: unknown) {
@@ -54,16 +55,39 @@ describe("mapMicrosoftEventsToBusyIntervals", () => {
 });
 
 describe("mapMicrosoftEventsToSummaries", () => {
-  it("garde le titre de l'événement (subject) et normalise le fuseau", () => {
-    const events = [{ subject: "Point client", start: { dateTime: "2026-09-07T10:00:00.0000000" }, end: { dateTime: "2026-09-07T11:00:00.0000000" } }];
+  it("garde l'id et le titre de l'événement (subject) et normalise le fuseau", () => {
+    const events = [{ id: "evt-1", subject: "Point client", start: { dateTime: "2026-09-07T10:00:00.0000000" }, end: { dateTime: "2026-09-07T11:00:00.0000000" } }];
     expect(mapMicrosoftEventsToSummaries(events)).toEqual([
-      { title: "Point client", start: "2026-09-07T10:00:00.0000000Z", end: "2026-09-07T11:00:00.0000000Z" },
+      { id: "evt-1", title: "Point client", start: "2026-09-07T10:00:00.0000000Z", end: "2026-09-07T11:00:00.0000000Z" },
     ]);
   });
 
   it("utilise 'Sans titre' si l'événement n'a pas de subject", () => {
-    const events = [{ start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    const events = [{ id: "evt-1", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
     expect(mapMicrosoftEventsToSummaries(events)[0].title).toBe("Sans titre");
+  });
+
+  it("ignore les événements sans id (non modifiables)", () => {
+    const events = [{ subject: "x", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    expect(mapMicrosoftEventsToSummaries(events)).toEqual([]);
+  });
+});
+
+describe("updateMicrosoftEvent", () => {
+  it("envoie une requête PATCH avec uniquement les champs fournis", async () => {
+    const fetchImpl = mockFetch(200, { id: "evt-1" });
+    await updateMicrosoftEvent({ accessToken: "at", eventId: "evt-1", subject: "Nouveau titre" }, { fetchImpl });
+    const [url, init] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://graph.microsoft.com/v1.0/me/events/evt-1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body as string)).toEqual({ subject: "Nouveau titre" });
+  });
+
+  it("lève une erreur explicite si Microsoft renvoie un échec", async () => {
+    const fetchImpl = mockFetch(404, { error: "not found" });
+    await expect(
+      updateMicrosoftEvent({ accessToken: "at", eventId: "evt-1", subject: "x" }, { fetchImpl }),
+    ).rejects.toThrow(/Microsoft event update failed/);
   });
 });
 

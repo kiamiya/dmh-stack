@@ -4,6 +4,7 @@ import {
   exchangeGoogleCode,
   mapGoogleEventsToBusyIntervals,
   mapGoogleEventsToSummaries,
+  updateGoogleEvent,
 } from "./googleCalendar.js";
 
 function mockFetch(status: number, body: unknown) {
@@ -48,16 +49,39 @@ describe("mapGoogleEventsToBusyIntervals", () => {
 });
 
 describe("mapGoogleEventsToSummaries", () => {
-  it("garde le titre de l'événement", () => {
-    const events = [{ summary: "Point client", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+  it("garde l'id et le titre de l'événement", () => {
+    const events = [{ id: "evt-1", summary: "Point client", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
     expect(mapGoogleEventsToSummaries(events)).toEqual([
-      { title: "Point client", start: "2026-09-07T10:00:00Z", end: "2026-09-07T11:00:00Z" },
+      { id: "evt-1", title: "Point client", start: "2026-09-07T10:00:00Z", end: "2026-09-07T11:00:00Z" },
     ]);
   });
 
   it("utilise 'Sans titre' si l'événement n'a pas de summary", () => {
-    const events = [{ start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    const events = [{ id: "evt-1", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
     expect(mapGoogleEventsToSummaries(events)[0].title).toBe("Sans titre");
+  });
+
+  it("ignore les événements sans id (non modifiables)", () => {
+    const events = [{ summary: "x", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    expect(mapGoogleEventsToSummaries(events)).toEqual([]);
+  });
+});
+
+describe("updateGoogleEvent", () => {
+  it("envoie une requête PATCH avec uniquement les champs fournis", async () => {
+    const fetchImpl = mockFetch(200, { id: "evt-1" });
+    await updateGoogleEvent({ accessToken: "at", eventId: "evt-1", summary: "Nouveau titre" }, { fetchImpl });
+    const [url, init] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://www.googleapis.com/calendar/v3/calendars/primary/events/evt-1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body as string)).toEqual({ summary: "Nouveau titre" });
+  });
+
+  it("lève une erreur explicite si Google renvoie un échec", async () => {
+    const fetchImpl = mockFetch(404, { error: "not found" });
+    await expect(
+      updateGoogleEvent({ accessToken: "at", eventId: "evt-1", summary: "x" }, { fetchImpl }),
+    ).rejects.toThrow(/Google event update failed/);
   });
 });
 

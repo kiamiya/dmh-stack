@@ -82,6 +82,7 @@ export async function fetchGoogleUserEmail(
 }
 
 export interface GoogleCalendarEvent {
+  id?: string;
   summary?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
@@ -96,6 +97,7 @@ export interface GoogleCalendarEvent {
  * PROGRESS.md S7).
  */
 export interface EventSummary {
+  id: string;
   title: string;
   start: string;
   end: string;
@@ -108,11 +110,11 @@ export function mapGoogleEventsToBusyIntervals(events: GoogleCalendarEvent[]): A
     .map((e) => ({ start: e.start!.dateTime!, end: e.end!.dateTime! }));
 }
 
-/** Pure : convertit la réponse brute Google Calendar en résumés affichables (titre + horaires) — pour la liste "prochains événements". */
+/** Pure : convertit la réponse brute Google Calendar en résumés affichables (id + titre + horaires) — pour la liste "prochains événements" et leur édition. */
 export function mapGoogleEventsToSummaries(events: GoogleCalendarEvent[]): EventSummary[] {
   return events
-    .filter((e) => e.start?.dateTime && e.end?.dateTime)
-    .map((e) => ({ title: e.summary?.trim() || "Sans titre", start: e.start!.dateTime!, end: e.end!.dateTime! }));
+    .filter((e) => e.id && e.start?.dateTime && e.end?.dateTime)
+    .map((e) => ({ id: e.id!, title: e.summary?.trim() || "Sans titre", start: e.start!.dateTime!, end: e.end!.dateTime! }));
 }
 
 export async function fetchGoogleBusyEvents(
@@ -146,5 +148,28 @@ export async function createGoogleEvent(
     }),
   });
   await assertOk(res, "Google event creation");
+  return res.json();
+}
+
+/** Met à jour un événement existant (PATCH — ne touche que les champs fournis). */
+export async function updateGoogleEvent(
+  params: { accessToken: string; eventId: string; summary?: string; startIso?: string; endIso?: string },
+  options: GoogleClientOptions = {},
+): Promise<{ id: string }> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const body: Record<string, unknown> = {};
+  if (params.summary !== undefined) body.summary = params.summary;
+  if (params.startIso !== undefined) body.start = { dateTime: params.startIso };
+  if (params.endIso !== undefined) body.end = { dateTime: params.endIso };
+
+  const res = await fetchImpl(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(params.eventId)}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${params.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  await assertOk(res, "Google event update");
   return res.json();
 }

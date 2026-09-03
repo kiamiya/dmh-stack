@@ -105,3 +105,26 @@ export async function resolveConnectionsByStaffId(
   if (error) throw new Error(error.message);
   return Promise.all((rows ?? []).map((row) => refreshIfNeeded(supabase, env, row as unknown as ConnectionRow)));
 }
+
+/**
+ * Charge la connexion d'un membre staff pour UN fournisseur précis — pour
+ * modifier un événement (l'appelant sait déjà de quel calendrier vient
+ * l'événement puisqu'il l'a reçu via `calendar-my-events`). Retourne `null`
+ * si ce staff n'a pas connecté ce fournisseur.
+ */
+export async function resolveConnectionByStaffIdAndProvider(
+  supabase: SupabaseClient,
+  env: CalendarFunctionEnv,
+  staffId: string,
+  provider: "google" | "microsoft",
+): Promise<ResolvedConnection | null> {
+  const { data: connection, error } = await supabase
+    .from("staff_calendar_connections")
+    .select(CONNECTION_SELECT)
+    .eq("staff_id", staffId)
+    .eq("provider", provider)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!connection) return null;
+  return refreshIfNeeded(supabase, env, connection as unknown as ConnectionRow);
+}
