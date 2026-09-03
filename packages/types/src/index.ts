@@ -332,3 +332,18 @@ export interface AutomationAction {
   action_config: Record<string, unknown>;
   created_at: string;
 }
+
+/** Segments dynamiques sur Contacts (migration 019, S13) — `rules` a la même forme que les conditions d'automatisation. */
+export interface SegmentRule {
+  field: string;
+  operator: AutomationConditionOperator;
+  value: unknown;
+}
+
+export interface ContactSegment {
+  id: string;
+  client_id: string;
+  name: string;
+  rules: SegmentRule[];
+  created_at: string;
+}

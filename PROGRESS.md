@@ -70,7 +70,7 @@ Dernière mise à jour : 2026-09-02
 | S10 | Pipelines & étapes personnalisables + fiche détail Opportunité | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S11 | Kanban drag-and-drop + propriétés de deal enrichies | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ✅ fait — validé en navigateur réel le 2026-09-03 |
-| S13 | Segments dynamiques sur Contacts | ⬜ à faire |
+| S13 | Segments dynamiques sur Contacts | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S14 | Fusion/dédoublonnage de contacts | ⬜ à faire |
 | S15 | Dashboards pipeline Opportunités/Tâches | ⬜ à faire |
 | S16 | Rendez-vous / synchro calendrier (Google/Outlook) | ⬜ à faire — **bloqué** tant que les comptes développeur Google Cloud/Microsoft Entra n'existent pas (action Loïc) |
@@ -355,3 +355,10 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - **Test fonctionnel exécuté** en navigateur réel : création d'une règle complète (opportunité → étape "Gagné", condition `deal_value > 500`, action "créer une tâche" avec échéance) via le formulaire, création d'une opportunité de test (montant 1200 €, donc condition remplie), glisser-déposer vers "Gagné", tâche automatique bien apparue dans `/tasks` avec le bon titre, suppression de la règle confirmée dans la liste. Données de test nettoyées après coup.
 - `pnpm typecheck`/`pnpm test` racine verts (232 tests côté `@dmh/crm`).
 - **Point de reprise** : S12 fait — c'était la plus grosse étape restante du plan. Prochaine étape dans l'ordre = S13 (segments dynamiques sur Contacts, réutilise le composant de conditions construit ici).
+- **S13 terminé.** Migration `019_contact_segments.sql` (table isolée, aucun trigger sur l'existant, RLS standard) — la moins risquée du plan.
+- Extrait `components/ConditionRowsEditor.tsx` depuis `Automations.tsx` (S12) pour le réutiliser tel quel dans `Contacts.tsx`, exactement comme prévu au plan. `lib/segmentEvaluator.ts` (`matchesSegment`, pure, 8 tests) réimplémente en TS la même logique de comparaison que le trigger SQL (S12) — nécessaire car l'évaluation se fait côté client sur des objets JS, pas dans Postgres.
+- Backend : `@dmh/types` (`ContactSegment`/`SegmentRule`), `services/contactSegments.ts`, `hooks/useContactSegments.ts`.
+- UI : `/contacts` gagne un filtre "Client DMH" (n'existait pas jusqu'ici — la liste montrait tous les contacts de tous les clients mélangés) et, une fois un client choisi, un sélecteur de segment + "+ Nouveau segment" (réutilise `ConditionRowsEditor`). Évaluation des règles à la volée côté client sur les contacts déjà chargés (pas de requête serveur dédiée par segment), cohérent avec le volume actuel.
+- **Test fonctionnel exécuté** en navigateur réel : création d'une entreprise + 2 contacts (un "Directeur Commercial", un "Assistante"), création d'un segment avec la condition `job_title contains "Directeur"`, sélection du segment → seul le bon contact reste affiché, retour à "Tous les contacts" → les deux réapparaissent. Données de test nettoyées après coup.
+- `pnpm typecheck`/`pnpm test` racine verts (245 tests côté `@dmh/crm`).
+- **Point de reprise** : S13 fait. Prochaine étape dans l'ordre du plan = S14 (fusion/dédoublonnage de contacts).

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { AutomationConditionOperator, AutomationEntityType, AutomationTriggerType } from "@dmh/types";
+import type { AutomationEntityType, AutomationTriggerType } from "@dmh/types";
 import { useClients } from "../hooks/useClients";
 import { useAutomationRules } from "../hooks/useAutomationRules";
 import { usePipelineStages } from "../hooks/usePipelineStages";
@@ -13,6 +13,8 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { useToast } from "../components/ui/toast";
+import { ConditionRowsEditor } from "../components/ConditionRowsEditor";
+import type { ConditionDraft } from "../components/ConditionRowsEditor";
 
 const ENTITY_LABELS: Record<AutomationEntityType, string> = {
   contact: "Contact",
@@ -25,21 +27,6 @@ const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   record_created: "À la création",
   stage_changed: "Au changement d'étape",
 };
-
-const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
-  eq: "égal à",
-  neq: "différent de",
-  gt: "supérieur à",
-  lt: "inférieur à",
-  contains: "contient",
-  is_set: "est renseigné",
-};
-
-interface ConditionDraft {
-  field: string;
-  operator: AutomationConditionOperator;
-  value: string;
-}
 
 export function AutomationsPage() {
   const clients = useClients();
@@ -67,18 +54,6 @@ export function AutomationsPage() {
     setDueInDays("");
     setAssignedTo("");
     setToStageId("");
-  }
-
-  function addConditionRow() {
-    setConditions((prev) => [...prev, { field: "", operator: "eq", value: "" }]);
-  }
-
-  function updateConditionRow(index: number, patch: Partial<ConditionDraft>) {
-    setConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
-  }
-
-  function removeConditionRow(index: number) {
-    setConditions((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -214,48 +189,11 @@ export function AutomationsPage() {
                   </select>
                 )}
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Conditions (optionnel, toutes doivent être vraies)
-                    </span>
-                    <Button type="button" variant="ghost" size="sm" onClick={addConditionRow}>
-                      + Condition
-                    </Button>
-                  </div>
-                  {conditions.map((cond, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input
-                        value={cond.field}
-                        onChange={(e) => updateConditionRow(i, { field: e.target.value })}
-                        placeholder="Champ (ex. deal_value, job_title)"
-                        className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm"
-                      />
-                      <select
-                        value={cond.operator}
-                        onChange={(e) => updateConditionRow(i, { operator: e.target.value as AutomationConditionOperator })}
-                        className="rounded-md border border-border px-2 py-1.5 text-sm"
-                      >
-                        {(Object.keys(OPERATOR_LABELS) as AutomationConditionOperator[]).map((op) => (
-                          <option key={op} value={op}>
-                            {OPERATOR_LABELS[op]}
-                          </option>
-                        ))}
-                      </select>
-                      {cond.operator !== "is_set" && (
-                        <input
-                          value={cond.value}
-                          onChange={(e) => updateConditionRow(i, { value: e.target.value })}
-                          placeholder="Valeur"
-                          className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm"
-                        />
-                      )}
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeConditionRow(i)}>
-                        ✕
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                <ConditionRowsEditor
+                  conditions={conditions}
+                  onChange={setConditions}
+                  label="Conditions (optionnel, toutes doivent être vraies)"
+                />
 
                 <div className="space-y-2 rounded-md border border-border p-3">
                   <span className="text-xs font-medium text-muted-foreground">Action : créer une tâche</span>
