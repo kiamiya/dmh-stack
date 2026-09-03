@@ -507,13 +507,13 @@ tests côté `@dmh/crm`, +21 depuis S18), `deno check` propre sur les 7
 fonctions calendrier (5 existantes + `calendar-update-event` +
 `calendar-create-event`).
 
-**Point de reprise** : migrations `023`/`024` et déploiement de
-`calendar-create-event` nécessaires sur le vrai projet Supabase avant que
-Loïc puisse tester S19/S20 en conditions réelles (confirmation à demander
-avant `db push`/`functions deploy`). S21/S22 sont déjà pleinement
-fonctionnels dès le prochain rechargement du CRM (aucune action serveur
-requise). Demander à Loïc de tester : créer un événement lié à un contact
-(vérifier qu'il apparaît sur la fiche contact ET dans son vrai calendrier
-externe), créer une liste et y ajouter des contacts, vérifier le badge de
-tâches du jour dans l'en-tête, et confirmer que les blocs de connexion
-calendrier sont bien compacts.
+Migrations `023`/`024` appliquées et `calendar-create-event` déployée
+(confirmé avec Loïc avant exécution) — testé par un preflight CORS (204 +
+bons en-têtes) et un appel sans authentification (401 posé par le code),
+même méthode de vérification que les fonctions calendrier précédentes.
+
+**Point de reprise** : demander à Loïc de tester en conditions réelles —
+créer un événement lié à un contact (vérifier qu'il apparaît sur la fiche
+contact ET dans son vrai calendrier externe), créer une liste et y
+ajouter des contacts, vérifier le badge de tâches du jour dans l'en-tête,
+et confirmer que les blocs de connexion calendrier sont bien compacts.
