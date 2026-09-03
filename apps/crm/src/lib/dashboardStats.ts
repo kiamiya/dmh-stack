@@ -3,7 +3,8 @@ import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "./status"
 import type { BadgeProps } from "../components/ui/badge";
 
 export interface StatusCount {
-  status: ProspectStatus;
+  /** Élargi à `string` (au lieu de `ProspectStatus`) — sert de clé React dans StatusBarList, réutilisé par lib/taskStats.ts (S15) pour des statuts de tâches. */
+  status: string;
   label: string;
   color: NonNullable<BadgeProps["variant"]>;
   count: number;

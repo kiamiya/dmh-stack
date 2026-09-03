@@ -72,7 +72,7 @@ Dernière mise à jour : 2026-09-02
 | S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S13 | Segments dynamiques sur Contacts | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S14 | Fusion/dédoublonnage de contacts | ✅ fait — validé en navigateur réel le 2026-09-03 |
-| S15 | Dashboards pipeline Opportunités/Tâches | ⬜ à faire |
+| S15 | Dashboards pipeline Opportunités/Tâches | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S16 | Rendez-vous / synchro calendrier (Google/Outlook) | ⬜ à faire — **bloqué** tant que les comptes développeur Google Cloud/Microsoft Entra n'existent pas (action Loïc) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -368,3 +368,9 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - **Test fonctionnel exécuté** en deux temps : (1) script jetable contre le vrai Supabase confirmant dédoublonnage correct des relations + réassignation deals/tasks + rejet cross-client ; (2) navigateur réel — la première tentative avec le compte client de test a été **correctement rejetée** (`merge_contacts` est réservée au staff, comportement voulu, pas un bug), donc un compte staff jetable a été créé spécifiquement pour valider le flux UI complet (sélection du doublon → confirmation → fusion → redirection vers `/contacts` → contact fusionné absent de la liste). Compte staff jetable et données de test supprimés après coup.
 - `pnpm typecheck`/`pnpm test` racine verts (247 tests côté `@dmh/crm`).
 - **Point de reprise** : S14 fait. Reste S15 (dashboards pipeline Opportunités/Tâches) et S16 (RDV/calendrier — **bloqué** tant que les comptes développeur Google/Microsoft n'existent pas).
+- **S15 terminé.** Aucune migration nécessaire (données déjà en base depuis S9-S14) — l'étape la plus légère du plan. Nouvel onglet "Opportunités & Tâches" dans `Dashboard.tsx` (`apps/crm`, le dashboard interne staff multi-clients) : pipeline par statut (négociation/gagné/perdu, nombre + valeur cumulée) avec taux de conversion, tâches par statut (réutilise `StatusBarList`, déjà construit pour les statuts prospects), liste des tâches en retard.
+- `lib/opportunityStats.ts`/`lib/taskStats.ts` (logique pure, testée, même esprit que `lib/dashboardStats.ts`). `StatusCount.status` élargi de `ProspectStatus` à `string` (changement mineur rétrocompatible) pour que `StatusBarList` accepte aussi des statuts de tâches.
+- **Réutilisation trouvée en cours de route** : `hooks/useDeals.ts` (existant depuis S8) utilise déjà `services/deals.ts` — le même fichier étendu tout au long de S10-S11 — donc `deals` disponible dans `Dashboard.tsx` a déjà tous les champs nécessaires (`status`, `deal_value`). Pas eu besoin d'un second hook/fetch dédié aux opportunités pour cette vue.
+- **Test fonctionnel exécuté** en navigateur réel : onglet "Opportunités & Tâches" affiche les 3 lignes de statut (négociation/gagné/perdu) avec leur valeur, le taux de conversion, la répartition des tâches par statut, la liste des tâches en retard — aucune erreur console.
+- `pnpm typecheck`/`pnpm test` racine verts (256 tests côté `@dmh/crm`).
+- **Point de reprise** : S9 à S15 sont tous terminés et validés. Seul S16 (RDV/synchro calendrier) reste — **bloqué** tant que Loïc n'a pas créé les comptes développeur Google Cloud (Calendar API) et Microsoft Entra (Graph API/Outlook). Rien à faire côté dev tant que ces comptes n'existent pas.

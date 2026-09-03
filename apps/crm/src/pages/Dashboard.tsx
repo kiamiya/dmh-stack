@@ -24,6 +24,9 @@ import { useStatusHistory } from "../hooks/useStatusHistory";
 import { useDeals } from "../hooks/useDeals";
 import { useAllInteractions } from "../hooks/useAllInteractions";
 import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useTasks } from "../hooks/useTasks";
+import { computeConversionRate, computePipelineValueByStatus } from "../lib/opportunityStats";
+import { computeOverdueTasks, computeTaskCountsByStatus } from "../lib/taskStats";
 
 export function DashboardPage() {
   const location = useLocation();
@@ -32,6 +35,7 @@ export function DashboardPage() {
   const { deals, loading: dealsLoading } = useDeals();
   const { interactions, loading: interactionsLoading } = useAllInteractions();
   const staff = useStaffMembers();
+  const { tasks, loading: tasksLoading } = useTasks();
 
   const now = useMemo(() => new Date(), []);
   const statusCounts = useMemo(() => computeStatusCounts(prospects), [prospects]);
@@ -66,10 +70,15 @@ export function DashboardPage() {
     [prospects, now],
   );
 
-  const loading = prospectsLoading || historyLoading || dealsLoading || interactionsLoading;
+  const loading = prospectsLoading || historyLoading || dealsLoading || interactionsLoading || tasksLoading;
   const wonDeals = deals.filter((d) => d.status === "won");
   const lostDeals = deals.filter((d) => d.status === "lost");
   const totalCommission = wonDeals.reduce((sum, d) => sum + (d.commission_amount ?? 0), 0);
+
+  const pipelineValue = useMemo(() => computePipelineValueByStatus(deals), [deals]);
+  const conversionRate = useMemo(() => computeConversionRate(deals), [deals]);
+  const taskCounts = useMemo(() => computeTaskCountsByStatus(tasks), [tasks]);
+  const overdueTasks = useMemo(() => computeOverdueTasks(tasks, now), [tasks, now]);
 
   if (loading) {
     return (
@@ -121,6 +130,7 @@ export function DashboardPage() {
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="evolution">Évolution</TabsTrigger>
           <TabsTrigger value="scores-deals">Scores &amp; Deals</TabsTrigger>
+          <TabsTrigger value="opportunities-tasks">Opportunités &amp; Tâches</TabsTrigger>
           <TabsTrigger value="activity">Activité</TabsTrigger>
         </TabsList>
 
@@ -208,6 +218,55 @@ export function DashboardPage() {
                         </span>
                       )}
                     </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="opportunities-tasks">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Pipeline des opportunités</span>
+                  <Badge variant="blue">{conversionRate}% de conversion</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {pipelineValue.map((row) => (
+                  <div key={row.status} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                    <span className="text-foreground">{row.label}</span>
+                    <span className="text-muted-foreground">
+                      {row.count} · {formatCurrency(row.totalValue)}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Tâches par statut</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusBarList counts={taskCounts} />
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Tâches en retard ({overdueTasks.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {overdueTasks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Aucune tâche en retard — bon rythme.</p>
+                )}
+                {overdueTasks.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                    <span className="truncate text-foreground">{t.title}</span>
+                    <Badge variant="red">Échéance {t.due_date}</Badge>
                   </div>
                 ))}
               </CardContent>
