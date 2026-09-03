@@ -87,8 +87,13 @@ export async function fetchMicrosoftUserEmail(
 }
 
 export interface MicrosoftCalendarEvent {
+  subject?: string;
   start?: { dateTime?: string };
   end?: { dateTime?: string };
+}
+
+function normalizeUtc(dateTime: string): string {
+  return dateTime.endsWith("Z") ? dateTime : `${dateTime}Z`;
 }
 
 /**
@@ -103,8 +108,21 @@ export function mapMicrosoftEventsToBusyIntervals(
   return events
     .filter((e) => e.start?.dateTime && e.end?.dateTime)
     .map((e) => ({
-      start: e.start!.dateTime!.endsWith("Z") ? e.start!.dateTime! : `${e.start!.dateTime}Z`,
-      end: e.end!.dateTime!.endsWith("Z") ? e.end!.dateTime! : `${e.end!.dateTime}Z`,
+      start: normalizeUtc(e.start!.dateTime!),
+      end: normalizeUtc(e.end!.dateTime!),
+    }));
+}
+
+/** Pure : convertit la réponse brute Microsoft Graph en résumés affichables (titre + horaires) — pour la liste "prochains événements". */
+export function mapMicrosoftEventsToSummaries(
+  events: MicrosoftCalendarEvent[],
+): Array<{ title: string; start: string; end: string }> {
+  return events
+    .filter((e) => e.start?.dateTime && e.end?.dateTime)
+    .map((e) => ({
+      title: e.subject?.trim() || "Sans titre",
+      start: normalizeUtc(e.start!.dateTime!),
+      end: normalizeUtc(e.end!.dateTime!),
     }));
 }
 

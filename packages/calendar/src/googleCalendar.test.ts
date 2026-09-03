@@ -3,6 +3,7 @@ import {
   buildGoogleAuthorizationUrl,
   exchangeGoogleCode,
   mapGoogleEventsToBusyIntervals,
+  mapGoogleEventsToSummaries,
 } from "./googleCalendar.js";
 
 function mockFetch(status: number, body: unknown) {
@@ -43,6 +44,20 @@ describe("mapGoogleEventsToBusyIntervals", () => {
 
   it("retourne un tableau vide sans événement", () => {
     expect(mapGoogleEventsToBusyIntervals([])).toEqual([]);
+  });
+});
+
+describe("mapGoogleEventsToSummaries", () => {
+  it("garde le titre de l'événement", () => {
+    const events = [{ summary: "Point client", start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    expect(mapGoogleEventsToSummaries(events)).toEqual([
+      { title: "Point client", start: "2026-09-07T10:00:00Z", end: "2026-09-07T11:00:00Z" },
+    ]);
+  });
+
+  it("utilise 'Sans titre' si l'événement n'a pas de summary", () => {
+    const events = [{ start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    expect(mapGoogleEventsToSummaries(events)[0].title).toBe("Sans titre");
   });
 });
 

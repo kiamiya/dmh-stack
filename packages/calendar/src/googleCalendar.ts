@@ -82,8 +82,23 @@ export async function fetchGoogleUserEmail(
 }
 
 export interface GoogleCalendarEvent {
+  summary?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+}
+
+/**
+ * Structurellement identique au type retourné par
+ * `mapMicrosoftEventsToSummaries` (microsoftCalendar.ts) mais dupliqué
+ * plutôt que partagé via un fichier commun — un import interne entre
+ * deux fichiers de ce package casse la résolution Deno des Edge
+ * Functions (même limite déjà rencontrée pour `packages/scoring`, voir
+ * PROGRESS.md S7).
+ */
+export interface EventSummary {
+  title: string;
+  start: string;
+  end: string;
 }
 
 /** Pure : convertit la réponse brute Google Calendar en intervalles occupés génériques — ignore les événements "journée entière" (pas de `dateTime`, seulement `date`). */
@@ -91,6 +106,13 @@ export function mapGoogleEventsToBusyIntervals(events: GoogleCalendarEvent[]): A
   return events
     .filter((e) => e.start?.dateTime && e.end?.dateTime)
     .map((e) => ({ start: e.start!.dateTime!, end: e.end!.dateTime! }));
+}
+
+/** Pure : convertit la réponse brute Google Calendar en résumés affichables (titre + horaires) — pour la liste "prochains événements". */
+export function mapGoogleEventsToSummaries(events: GoogleCalendarEvent[]): EventSummary[] {
+  return events
+    .filter((e) => e.start?.dateTime && e.end?.dateTime)
+    .map((e) => ({ title: e.summary?.trim() || "Sans titre", start: e.start!.dateTime!, end: e.end!.dateTime! }));
 }
 
 export async function fetchGoogleBusyEvents(

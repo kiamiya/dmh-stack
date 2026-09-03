@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSession } from "../lib/useSession";
 import { useCalendarConnections } from "../hooks/useCalendarConnections";
+import { useUpcomingCalendarEvents } from "../hooks/useUpcomingCalendarEvents";
 import { calendarOAuthConfig } from "../lib/supabase";
 import { buildGoogleConnectUrl, buildMicrosoftConnectUrl } from "../lib/calendarOAuthLinks";
 import { Button } from "../components/ui/button";
@@ -13,12 +14,14 @@ const PROVIDER_LABELS: Record<string, string> = { google: "Google Calendar", mic
 export function CalendarSettingsPage() {
   const { session } = useSession();
   const { connections, loading, disconnect } = useCalendarConnections();
+  const { events, loading: eventsLoading, error: eventsError } = useUpcomingCalendarEvents();
   const { toast } = useToast();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const staffId = session?.user.id;
   const googleConnection = connections.find((c) => c.provider === "google");
   const microsoftConnection = connections.find((c) => c.provider === "microsoft");
+  const hasAnyConnection = connections.length > 0;
 
   function bookingUrl(token: string): string {
     return `${window.location.origin}/book/${token}`;
@@ -114,6 +117,33 @@ export function CalendarSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {hasAnyConnection && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Prochains événements (14 prochains jours)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {eventsLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
+            {eventsError && <p className="text-sm text-destructive">{eventsError}</p>}
+            {!eventsLoading && !eventsError && events.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aucun événement à venir.</p>
+            )}
+            {!eventsLoading &&
+              events.map((e, i) => (
+                <div key={i} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                  <div>
+                    <div className="text-foreground">{e.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(e.start).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+                    </div>
+                  </div>
+                  <Badge>{PROVIDER_LABELS[e.provider]}</Badge>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Astuce : ajoute <code>?client=&lt;id du client DMH&gt;</code> à la fin du lien pour l'associer au bon

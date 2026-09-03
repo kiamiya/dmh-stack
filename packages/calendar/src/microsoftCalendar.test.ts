@@ -3,6 +3,7 @@ import {
   buildMicrosoftAuthorizationUrl,
   exchangeMicrosoftCode,
   mapMicrosoftEventsToBusyIntervals,
+  mapMicrosoftEventsToSummaries,
 } from "./microsoftCalendar.js";
 
 function mockFetch(status: number, body: unknown) {
@@ -49,6 +50,20 @@ describe("mapMicrosoftEventsToBusyIntervals", () => {
 
   it("ignore les événements sans dateTime", () => {
     expect(mapMicrosoftEventsToBusyIntervals([{}])).toEqual([]);
+  });
+});
+
+describe("mapMicrosoftEventsToSummaries", () => {
+  it("garde le titre de l'événement (subject) et normalise le fuseau", () => {
+    const events = [{ subject: "Point client", start: { dateTime: "2026-09-07T10:00:00.0000000" }, end: { dateTime: "2026-09-07T11:00:00.0000000" } }];
+    expect(mapMicrosoftEventsToSummaries(events)).toEqual([
+      { title: "Point client", start: "2026-09-07T10:00:00.0000000Z", end: "2026-09-07T11:00:00.0000000Z" },
+    ]);
+  });
+
+  it("utilise 'Sans titre' si l'événement n'a pas de subject", () => {
+    const events = [{ start: { dateTime: "2026-09-07T10:00:00Z" }, end: { dateTime: "2026-09-07T11:00:00Z" } }];
+    expect(mapMicrosoftEventsToSummaries(events)[0].title).toBe("Sans titre");
   });
 });
 
