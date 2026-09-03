@@ -43,3 +43,21 @@ export async function updateCalendarEvent(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
 }
+
+/** Appelle l'Edge Function calendar-create-event pour créer un événement sur le calendrier externe (Google/Microsoft) de l'appelant. Retourne l'id externe de l'événement créé — à insérer ensuite dans `meetings` côté client. */
+export async function createCalendarEvent(
+  accessToken: string,
+  functionsBaseUrl: string,
+  provider: "google" | "microsoft",
+  input: { title: string; startIso: string; endIso: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ id: string }> {
+  const res = await fetchImpl(`${functionsBaseUrl}/calendar-create-event`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, title: input.title, startIso: input.startIso, endIso: input.endIso }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
+  return { id: data.id };
+}

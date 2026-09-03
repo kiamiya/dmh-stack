@@ -7,11 +7,13 @@ import { supabase } from "../lib/supabase";
 import { mergeContacts } from "../services/mergeContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useTasks } from "../hooks/useTasks";
+import { useContactLists } from "../hooks/useContactLists";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
+import { MeetingsCard } from "../components/MeetingsCard";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -26,6 +28,9 @@ export function ContactDetailPage() {
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
   const { toast } = useToast();
+  const { lists, addContacts: addContactToList } = useContactLists(contact?.client_id ?? "");
+  const [addToListId, setAddToListId] = useState("");
+  const [addingToList, setAddingToList] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState("");
   const [mergeConfirming, setMergeConfirming] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -80,6 +85,20 @@ export function ContactDetailPage() {
   const mergeCandidates = allContacts.contacts.filter(
     (c) => c.id !== contact.id && c.client_id === contact.client_id,
   );
+
+  async function handleAddToList() {
+    if (!addToListId || !contact) return;
+    setAddingToList(true);
+    try {
+      await addContactToList(addToListId, [contact.id]);
+      toast("Contact ajouté à la liste.", "success");
+      setAddToListId("");
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    } finally {
+      setAddingToList(false);
+    }
+  }
 
   async function handleMerge() {
     if (!mergeTargetId) return;
@@ -245,6 +264,38 @@ export function ContactDetailPage() {
           {relatedTasks.length === 0 && <p className="text-sm text-muted-foreground">Aucune tâche liée.</p>}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ajouter à une liste</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <select
+              value={addToListId}
+              onChange={(e) => setAddToListId(e.target.value)}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <option value="">Choisir une liste…</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <Button variant="outline" disabled={!addToListId || addingToList} onClick={handleAddToList} className="shrink-0">
+              {addingToList ? "…" : "Ajouter"}
+            </Button>
+          </div>
+          {lists.length === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Aucune liste pour ce client — crée-en une depuis la page Contacts.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <MeetingsCard contactId={contact.id} />
 
       <Card>
         <CardHeader>

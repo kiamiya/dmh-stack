@@ -347,3 +347,11 @@ export interface ContactSegment {
   rules: SegmentRule[];
   created_at: string;
 }
+
+/** Ensemble figé de contacts choisis à la main — différent de ContactSegment (dynamique, basé sur des règles). */
+export interface ContactList {
+  id: string;
+  client_id: string;
+  name: string;
+  created_at: string;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchMyUpcomingEvents, updateCalendarEvent } from "./calendarEvents";
+import { createCalendarEvent, fetchMyUpcomingEvents, updateCalendarEvent } from "./calendarEvents";
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn(async () => ({
@@ -50,6 +50,39 @@ describe("updateCalendarEvent", () => {
     const fetchImpl = mockFetch(404, { error: "Calendrier non connecté" });
     await expect(
       updateCalendarEvent("token", baseUrl, "microsoft", "evt-1", { title: "x" }, fetchImpl),
+    ).rejects.toThrow("Calendrier non connecté");
+  });
+});
+
+describe("createCalendarEvent", () => {
+  const baseUrl = "https://example.supabase.co/functions/v1";
+
+  it("envoie le provider/titre/horaires et retourne l'id créé", async () => {
+    const fetchImpl = mockFetch(200, { id: "evt-99", provider: "google" });
+    const result = await createCalendarEvent(
+      "access-token-123",
+      baseUrl,
+      "google",
+      { title: "Point client", startIso: "2026-09-07T10:00:00Z", endIso: "2026-09-07T11:00:00Z" },
+      fetchImpl,
+    );
+    expect(result).toEqual({ id: "evt-99" });
+    const [url, init] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${baseUrl}/calendar-create-event`);
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer access-token-123");
+    expect(JSON.parse(init.body as string)).toEqual({
+      provider: "google",
+      title: "Point client",
+      startIso: "2026-09-07T10:00:00Z",
+      endIso: "2026-09-07T11:00:00Z",
+    });
+  });
+
+  it("lève une erreur avec le message renvoyé par la fonction en cas d'échec", async () => {
+    const fetchImpl = mockFetch(404, { error: "Calendrier non connecté" });
+    await expect(
+      createCalendarEvent("token", baseUrl, "microsoft", { title: "x", startIso: "a", endIso: "b" }, fetchImpl),
     ).rejects.toThrow("Calendrier non connecté");
   });
 });

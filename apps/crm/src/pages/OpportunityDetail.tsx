@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
+import { MeetingsCard } from "../components/MeetingsCard";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -173,6 +174,8 @@ export function OpportunityDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <MeetingsCard dealId={deal.id} />
     </div>
   );
 }

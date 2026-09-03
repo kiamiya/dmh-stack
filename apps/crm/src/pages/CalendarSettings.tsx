@@ -9,6 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { CalendarEventGrid } from "../components/CalendarEventGrid";
 import { EditCalendarEventDialog } from "../components/EditCalendarEventDialog";
+import { AddCalendarEventDialog } from "../components/AddCalendarEventDialog";
 import { useToast } from "../components/ui/toast";
 import type { UpcomingCalendarEvent } from "../services/calendarEvents";
 
@@ -17,10 +18,11 @@ const PROVIDER_LABELS: Record<string, string> = { google: "Google Calendar", mic
 export function CalendarSettingsPage() {
   const { session } = useSession();
   const { connections, loading, disconnect } = useCalendarConnections();
-  const { events, loading: eventsLoading, error: eventsError, updateEvent } = useUpcomingCalendarEvents();
+  const { events, loading: eventsLoading, error: eventsError, updateEvent, addEvent } = useUpcomingCalendarEvents();
   const { toast } = useToast();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<UpcomingCalendarEvent | null>(null);
+  const [addEventOpen, setAddEventOpen] = useState(false);
 
   const staffId = session?.user.id;
   const googleConnection = connections.find((c) => c.provider === "google");
@@ -75,27 +77,22 @@ export function CalendarSettingsPage() {
         <CardHeader>
           <CardTitle>Google Calendar</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent>
           {googleConnection ? (
-            <>
-              <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center gap-2">
                 <Badge variant="green">Connecté</Badge>
                 <span className="text-muted-foreground">{googleConnection.provider_account_email}</span>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={bookingUrl(googleConnection.booking_token)}
-                  className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm text-muted-foreground"
-                />
                 <Button size="sm" variant="outline" onClick={() => copyLink(googleConnection.id, googleConnection.booking_token)}>
-                  {copiedId === googleConnection.id ? "Copié !" : "Copier"}
+                  {copiedId === googleConnection.id ? "Copié !" : "Copier le lien"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleDisconnect(googleConnection.id)}>
+                  Déconnecter
                 </Button>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => handleDisconnect(googleConnection.id)}>
-                Déconnecter
-              </Button>
-            </>
+            </div>
           ) : (
             <a href={buildGoogleConnectUrl(calendarOAuthConfig, staffId, window.location.origin)}>
               <Button size="sm">Connecter Google Calendar</Button>
@@ -108,27 +105,22 @@ export function CalendarSettingsPage() {
         <CardHeader>
           <CardTitle>Microsoft / Outlook</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent>
           {microsoftConnection ? (
-            <>
-              <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center gap-2">
                 <Badge variant="green">Connecté</Badge>
                 <span className="text-muted-foreground">{microsoftConnection.provider_account_email}</span>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={bookingUrl(microsoftConnection.booking_token)}
-                  className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm text-muted-foreground"
-                />
                 <Button size="sm" variant="outline" onClick={() => copyLink(microsoftConnection.id, microsoftConnection.booking_token)}>
-                  {copiedId === microsoftConnection.id ? "Copié !" : "Copier"}
+                  {copiedId === microsoftConnection.id ? "Copié !" : "Copier le lien"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleDisconnect(microsoftConnection.id)}>
+                  Déconnecter
                 </Button>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => handleDisconnect(microsoftConnection.id)}>
-                Déconnecter
-              </Button>
-            </>
+            </div>
           ) : (
             <a href={buildMicrosoftConnectUrl(calendarOAuthConfig, staffId, window.location.origin)}>
               <Button size="sm">Connecter Outlook</Button>
@@ -139,8 +131,11 @@ export function CalendarSettingsPage() {
 
       {hasAnyConnection && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Calendrier</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setAddEventOpen(true)}>
+              + Événement
+            </Button>
           </CardHeader>
           <CardContent>
             {eventsLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
@@ -158,6 +153,7 @@ export function CalendarSettingsPage() {
       </p>
 
       <EditCalendarEventDialog event={editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)} onUpdated={updateEvent} />
+      <AddCalendarEventDialog open={addEventOpen} onOpenChange={setAddEventOpen} connections={connections} onCreated={addEvent} />
     </div>
   );
 }

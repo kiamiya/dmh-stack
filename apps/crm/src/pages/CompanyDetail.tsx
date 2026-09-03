@@ -9,6 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../components/ui/toast";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
+import { MeetingsCard } from "../components/MeetingsCard";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -190,6 +191,8 @@ export function CompanyDetailPage() {
           {relatedTasks.length === 0 && <p className="text-sm text-muted-foreground">Aucune tâche liée.</p>}
         </CardContent>
       </Card>
+
+      <MeetingsCard companyId={company.id} />
     </div>
   );
 }

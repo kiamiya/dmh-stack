@@ -22,3 +22,12 @@ export function computeOverdueTasks<T extends { due_date: string | null; status:
   const todayStr = now.toISOString().slice(0, 10);
   return tasks.filter((t) => t.due_date !== null && t.due_date < todayStr && t.status !== "done");
 }
+
+/** Pure : tâches dont l'échéance est aujourd'hui et pas encore terminées — pour le rappel dans l'en-tête. */
+export function computeTasksDueToday<T extends { due_date: string | null; status: TaskStatus }>(
+  tasks: T[],
+  now: Date = new Date(),
+): T[] {
+  const todayStr = now.toISOString().slice(0, 10);
+  return tasks.filter((t) => t.due_date === todayStr && t.status !== "done");
+}

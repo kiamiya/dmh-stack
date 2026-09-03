@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-02
+Dernière mise à jour : 2026-09-03
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -75,6 +75,11 @@ Dernière mise à jour : 2026-09-02
 | S15 | Dashboards pipeline Opportunités/Tâches | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S16 | Rendez-vous / synchro calendrier (Google/Outlook) | ✅ fait — validé en conditions réelles le 2026-09-03 (Google + Microsoft connectés, liste d'événements visible) |
 | S17 | Calendrier visuel des tâches internes + édition d'une tâche | ✅ fait — voir Journal, en attente de test navigateur réel par Loïc |
+| S18 | Calendrier visuel + édition d'événement sur "Mon calendrier" (Google/Outlook) | ✅ fait — validé en conditions réelles le 2026-09-03 |
+| S19 | Créer un événement + lier un événement à un contact/entreprise/opportunité | ✅ fait côté code — en attente de déploiement Edge Function + test navigateur réel |
+| S20 | Listes statiques de contacts | ✅ fait côté code — en attente de migration + test navigateur réel |
+| S21 | Rappel des tâches du jour (en-tête, toujours visible) | ✅ fait |
+| S22 | Compacter les blocs de connexion calendrier | ✅ fait |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -419,3 +424,96 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - UI : `components/CalendarEventGrid.tsx` (grille mensuelle réutilisant `buildMonthGrid`, badges colorés par fournisseur), `components/EditCalendarEventDialog.tsx` (titre + horaires en `datetime-local`, validation fin > début). `pages/CalendarSettings.tsx` : la carte "Prochains événements" (liste texte) est **remplacée** par la grille ; `hooks/useUpcomingCalendarEvents.ts` étendu avec `updateEvent`/`reload`. Conteneur élargi (`max-w-2xl` → `max-w-4xl`) pour laisser respirer la grille.
 - Vérifié : `pnpm --filter @dmh/calendar typecheck`/`test` verts (27 tests, +6), `pnpm --filter @dmh/crm typecheck`/`test` verts (284 tests, +6), `deno check` propre sur les 6 fonctions calendrier (les 5 existantes + la nouvelle).
 - **Point de reprise** : déploiement de `calendar-update-event` sur le vrai projet Supabase nécessaire avant que Loïc puisse tester (confirmation à demander avant le `functions deploy`, comme pour toute action sur un système distant). Puis lui demander de recharger `/settings/calendar`, vérifier que la grille affiche ses événements Google/Outlook au bon jour, cliquer sur un événement, modifier le titre ou l'horaire, enregistrer, et confirmer que le changement apparaît bien dans son vrai Google Calendar / Outlook.
+- **Confirmé par Loïc** : le calendrier fonctionne (grille affichée, redirection OK, événements Google/Outlook visibles).
+
+### 2026-09-03 (suite) — S19 à S22, planifiés en mode Plan puis exécutés
+
+Loïc a demandé 4 choses en une fois après validation de S18 : (1) créer un
+événement + le lier à un contact/entreprise/opportunité, (2) une
+fonctionnalité de "liste" — recherchée dans tout le repo/PROGRESS.md/le
+code, introuvable, ni construite ni planifiée ; confirmé avec Loïc qu'il
+s'agit d'une **liste statique de contacts** (différent des segments,
+dynamiques), (3) un rappel des tâches du jour **toujours visible dans
+l'en-tête** (pas caché dans un onglet Dashboard), (4) compacter les blocs
+de connexion calendrier (trop de place à l'écran une fois connecté).
+Passage en mode Plan (3 agents Explore en parallèle sur le schéma
+`meetings`/le flux `calendar-book-meeting`, la recherche de "liste" dans
+le repo, et les patterns Dashboard/Header) avant d'écrire un plan détaillé
+(`bubbly-watching-crescent.md`), approuvé par Loïc.
+
+**S19 — créer/lier un événement** :
+- Constat clé de l'exploration : la table `meetings` (migration 022,
+  jusqu'ici écrite seulement par `calendar-book-meeting`, jamais lue par
+  le CRM) avait déjà toutes les colonnes nécessaires
+  (`contact_id`/`company_id`/`deal_id`/`external_calendar_provider`/
+  `external_event_id`) — pas de refonte de schéma nécessaire, juste
+  l'exploiter.
+- Migration `023_meetings_unique_external_event.sql` : index unique
+  partiel `(external_calendar_provider, external_event_id) where
+  external_event_id is not null`, nécessaire pour un upsert propre lors
+  de la liaison d'un événement déjà existant.
+- Nouvelle Edge Function **`calendar-create-event`** (même structure que
+  `calendar-update-event` : CORS + `OPTIONS` gérés dès le départ,
+  `--no-verify-jwt` prévu au déploiement dès l'écriture — la leçon du bug
+  `calendar-my-events` appliquée directement, pas redécouverte). Ne crée
+  que l'événement côté fournisseur externe ; contrairement à
+  `calendar-book-meeting` (accès anonyme, doit passer par service_role),
+  l'insertion de la ligne `meetings` se fait **côté client** — RLS
+  `staff_full_access` l'autorise déjà pour un membre staff authentifié.
+- `services/meetings.ts` (nouveau) : `createMeeting`, `upsertMeetingLink`
+  (upsert sur `(provider, external_event_id)`), `getMeetingLink`,
+  `listMeetings`. `hooks/useMeetings.ts` + `hooks/useUpcomingCalendarEvents.ts`
+  étendu avec `addEvent` (orchestration : crée côté externe puis insère
+  `meetings`).
+- UI : `components/AddCalendarEventDialog.tsx` (nouveau, pattern cascade
+  façon `AddDealDialog` : client → contact/entreprise/opportunité filtrés
+  côté client), `EditCalendarEventDialog.tsx` étendu avec une section
+  "Lier à" (pré-remplie via `getMeetingLink` à l'ouverture si un lien
+  existe déjà), `components/MeetingsCard.tsx` (carte "Rendez-vous"
+  réutilisée sur `ContactDetail.tsx`/`CompanyDetail.tsx`/
+  `OpportunityDetail.tsx` — ces fiches n'affichaient jusqu'ici aucun
+  rendez-vous, lecture seule, l'édition reste sur le calendrier pour ne
+  pas dupliquer la logique de synchro).
+
+**S20 — listes statiques de contacts** : migration `024_contact_lists.sql`
+(`contact_lists` + `contact_list_members`, RLS identique au template
+`contact_segments` — `client_id` dupliqué sur la table de jointure comme
+`contact_companies`, migration 013, pour garder la RLS à 3 politiques
+simples plutôt qu'une sous-requête jointe). `ContactList` ajouté à
+`@dmh/types`. `services/contactLists.ts` + `hooks/useContactLists.ts`
+(même structure que segments). UI sur `/contacts` : sélecteur "Liste" à
+côté du sélecteur "Segment" existant, "+ Nouvelle liste", **sélection
+multiple de lignes** (état local `Set<string>`, pas de nouvelle
+dépendance react-table pour un simple besoin de sélection) + barre
+d'action "N sélectionné(s) → Ajouter à une liste". `ContactDetail.tsx` :
+action "Ajouter à une liste" pour un contact à la fois.
+
+**S21 — rappel des tâches du jour** : `lib/taskStats.ts` étendu avec
+`computeTasksDueToday` (même forme que `computeOverdueTasks` déjà
+existant, égalité avec la date du jour au lieu de `<`). `Header.tsx` :
+nouveau bouton cloche (même style que le bouton de thème existant) avec
+badge numérique si des tâches sont dues aujourd'hui, `DropdownMenu` (déjà
+utilisé pour le menu utilisateur) listant les tâches du jour + lien vers
+`/tasks` — toujours visible, sur toutes les pages protégées.
+
+**S22 — compacter les blocs de connexion calendrier** : `CalendarSettings.tsx`
+— une fois connecté, le badge + lien de réservation toujours affiché +
+bouton copier + bouton déconnecter (empilés) sont remplacés par une seule
+ligne compacte (badge + email + "Copier le lien" + "Déconnecter"). Le
+lien de réservation n'est plus affiché en clair, seulement copiable.
+
+Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 305
+tests côté `@dmh/crm`, +21 depuis S18), `deno check` propre sur les 7
+fonctions calendrier (5 existantes + `calendar-update-event` +
+`calendar-create-event`).
+
+**Point de reprise** : migrations `023`/`024` et déploiement de
+`calendar-create-event` nécessaires sur le vrai projet Supabase avant que
+Loïc puisse tester S19/S20 en conditions réelles (confirmation à demander
+avant `db push`/`functions deploy`). S21/S22 sont déjà pleinement
+fonctionnels dès le prochain rechargement du CRM (aucune action serveur
+requise). Demander à Loïc de tester : créer un événement lié à un contact
+(vérifier qu'il apparaît sur la fiche contact ET dans son vrai calendrier
+externe), créer une liste et y ajouter des contacts, vérifier le badge de
+tâches du jour dans l'en-tête, et confirmer que les blocs de connexion
+calendrier sont bien compacts.
