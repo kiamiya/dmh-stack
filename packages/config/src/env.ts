@@ -12,12 +12,24 @@ const smartleadApiKey = requiredString;
 const smartleadWebhookSecret = requiredString;
 const lemlistApiKey = requiredString;
 const baseDomain = requiredString;
+// Client ID OAuth : public par nature (visible dans toute URL d'autorisation),
+// jamais un secret — contrairement au client secret ci-dessous.
+const googleCalendarClientId = requiredString;
+const googleCalendarClientSecret = requiredString;
+const microsoftClientId = requiredString;
+const microsoftClientSecret = requiredString;
+// Identifiant du tenant Azure AD : public lui aussi (fait partie de l'URL
+// d'autorisation Microsoft), pas un secret.
+const microsoftTenantId = requiredString;
 
 // Variables sûres pour un bundle frontend (dashboard client) : jamais de secret ici.
 const publicEnvSchema = z.object({
   SUPABASE_URL: supabaseUrl,
   SUPABASE_ANON_KEY: supabaseAnonKey,
   BASE_DOMAIN: baseDomain,
+  GOOGLE_CALENDAR_CLIENT_ID: googleCalendarClientId,
+  MICROSOFT_CLIENT_ID: microsoftClientId,
+  MICROSOFT_TENANT_ID: microsoftTenantId,
 });
 
 // Toutes les clés secrètes : utile pour un contexte qui a besoin de tout
@@ -34,6 +46,8 @@ const serverEnvSchema = publicEnvSchema.extend({
   SMARTLEAD_API_KEY: smartleadApiKey,
   SMARTLEAD_WEBHOOK_SECRET: smartleadWebhookSecret,
   LEMLIST_API_KEY: lemlistApiKey,
+  GOOGLE_CALENDAR_CLIENT_SECRET: googleCalendarClientSecret,
+  MICROSOFT_CLIENT_SECRET: microsoftClientSecret,
   // Injecté automatiquement par Vercel en production, absent en local.
   VERCEL_URL: z.string().optional(),
 });
@@ -81,6 +95,19 @@ const lemlistSyncEnvSchema = z.object({
   LEMLIST_API_KEY: lemlistApiKey,
 });
 
+// Ce dont les Edge Functions de synchro calendrier (OAuth + freebusy +
+// réservation) ont réellement besoin.
+const calendarFunctionEnvSchema = z.object({
+  SUPABASE_URL: supabaseUrl,
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+  GOOGLE_CALENDAR_CLIENT_ID: googleCalendarClientId,
+  GOOGLE_CALENDAR_CLIENT_SECRET: googleCalendarClientSecret,
+  MICROSOFT_CLIENT_ID: microsoftClientId,
+  MICROSOFT_CLIENT_SECRET: microsoftClientSecret,
+  MICROSOFT_TENANT_ID: microsoftTenantId,
+});
+
+export type CalendarFunctionEnv = z.infer<typeof calendarFunctionEnvSchema>;
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
@@ -186,4 +213,13 @@ export function loadWebhookSmartleadFunctionEnv(
  */
 export function loadLemlistSyncEnv(source: EnvSource): LemlistSyncEnv {
   return parseOrThrow(lemlistSyncEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour les Edge Functions de synchro calendrier
+ * (OAuth Google/Microsoft + freebusy + réservation) : Supabase +
+ * identifiants OAuth des deux fournisseurs uniquement.
+ */
+export function loadCalendarFunctionEnv(source: EnvSource): CalendarFunctionEnv {
+  return parseOrThrow(calendarFunctionEnvSchema, source);
 }

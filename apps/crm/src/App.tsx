@@ -15,6 +15,8 @@ import { OpportunityDetailPage } from "./pages/OpportunityDetail";
 import { TasksPage } from "./pages/Tasks";
 import { CustomFieldSettingsPage } from "./pages/CustomFieldSettings";
 import { AutomationsPage } from "./pages/Automations";
+import { CalendarSettingsPage } from "./pages/CalendarSettings";
+import { PublicBookingPage } from "./pages/PublicBooking";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
 import { CommandPalette } from "./components/CommandPalette";
@@ -48,6 +50,7 @@ export default function App() {
     <>
       <Routes location={backgroundLocation ?? location}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/book/:token" element={<PublicBookingPage />} />
         <Route
           path="/"
           element={
@@ -149,6 +152,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <AutomationsPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/settings/calendar"
+          element={
+            <ProtectedLayout>
+              <CalendarSettingsPage />
             </ProtectedLayout>
           }
         />

@@ -48,6 +48,9 @@ importers:
 
   apps/crm:
     dependencies:
+      '@dmh/calendar':
+        specifier: workspace:*
+        version: link:../../packages/calendar
       '@dmh/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -167,6 +170,15 @@ importers:
       vite:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@22.20.1)(jiti@1.21.7)(tsx@4.23.1)
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(tsx@4.23.1)
+
+  packages/calendar:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(tsx@4.23.1)

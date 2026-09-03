@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { to: "/opportunities", label: "Opportunités" },
   { to: "/tasks", label: "Tâches" },
   { to: "/automations", label: "Automatisations" },
+  { to: "/settings/calendar", label: "Mon calendrier" },
   { to: "/settings/custom-fields", label: "Réglages" },
 ];
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EnvValidationError,
+  loadCalendarFunctionEnv,
   loadDropcontactFunctionEnv,
   loadGenerateMessagesFunctionEnv,
   loadPappersFunctionEnv,
@@ -22,6 +23,11 @@ const validSource = {
   SMARTLEAD_WEBHOOK_SECRET: "fake-smartlead-webhook-secret",
   LEMLIST_API_KEY: "fake-lemlist-key",
   BASE_DOMAIN: "dashboard.dmh.fr",
+  GOOGLE_CALENDAR_CLIENT_ID: "fake-google-client-id",
+  GOOGLE_CALENDAR_CLIENT_SECRET: "fake-google-client-secret",
+  MICROSOFT_CLIENT_ID: "fake-microsoft-client-id",
+  MICROSOFT_CLIENT_SECRET: "fake-microsoft-client-secret",
+  MICROSOFT_TENANT_ID: "fake-microsoft-tenant-id",
 };
 
 describe("loadServerEnv", () => {
@@ -82,6 +88,9 @@ describe("loadPublicEnv", () => {
       SUPABASE_URL: validSource.SUPABASE_URL,
       SUPABASE_ANON_KEY: validSource.SUPABASE_ANON_KEY,
       BASE_DOMAIN: validSource.BASE_DOMAIN,
+      GOOGLE_CALENDAR_CLIENT_ID: validSource.GOOGLE_CALENDAR_CLIENT_ID,
+      MICROSOFT_CLIENT_ID: validSource.MICROSOFT_CLIENT_ID,
+      MICROSOFT_TENANT_ID: validSource.MICROSOFT_TENANT_ID,
     });
 
     // Aucune clé secrète ne doit fuiter dans l'objet retourné, même si elle
@@ -89,7 +98,16 @@ describe("loadPublicEnv", () => {
     expect(env).not.toHaveProperty("ANTHROPIC_API_KEY");
     expect(env).not.toHaveProperty("SUPABASE_SERVICE_ROLE_KEY");
     expect(env).not.toHaveProperty("SMARTLEAD_WEBHOOK_SECRET");
-    expect(Object.keys(env).sort()).toEqual(["BASE_DOMAIN", "SUPABASE_ANON_KEY", "SUPABASE_URL"]);
+    expect(env).not.toHaveProperty("GOOGLE_CALENDAR_CLIENT_SECRET");
+    expect(env).not.toHaveProperty("MICROSOFT_CLIENT_SECRET");
+    expect(Object.keys(env).sort()).toEqual([
+      "BASE_DOMAIN",
+      "GOOGLE_CALENDAR_CLIENT_ID",
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_TENANT_ID",
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_URL",
+    ]);
   });
 
   it("lève une erreur si une variable publique manque, même avec tous les secrets présents", () => {
@@ -270,5 +288,32 @@ describe("loadLemlistSyncEnv", () => {
         SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
       }),
     ).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadCalendarFunctionEnv", () => {
+  const calendarSource = {
+    SUPABASE_URL: validSource.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
+    GOOGLE_CALENDAR_CLIENT_ID: validSource.GOOGLE_CALENDAR_CLIENT_ID,
+    GOOGLE_CALENDAR_CLIENT_SECRET: validSource.GOOGLE_CALENDAR_CLIENT_SECRET,
+    MICROSOFT_CLIENT_ID: validSource.MICROSOFT_CLIENT_ID,
+    MICROSOFT_CLIENT_SECRET: validSource.MICROSOFT_CLIENT_SECRET,
+    MICROSOFT_TENANT_ID: validSource.MICROSOFT_TENANT_ID,
+  };
+
+  it("ne requiert que Supabase + les identifiants OAuth des deux fournisseurs", () => {
+    const env = loadCalendarFunctionEnv(calendarSource);
+    expect(env.GOOGLE_CALENDAR_CLIENT_ID).toBe("fake-google-client-id");
+    expect(env.MICROSOFT_TENANT_ID).toBe("fake-microsoft-tenant-id");
+  });
+
+  it("n'est pas bloqué par l'absence de clés d'autres intégrations", () => {
+    expect(() => loadCalendarFunctionEnv(calendarSource)).not.toThrow();
+  });
+
+  it("lève EnvValidationError si un identifiant OAuth manque", () => {
+    const { MICROSOFT_TENANT_ID: _omit, ...incomplete } = calendarSource;
+    expect(() => loadCalendarFunctionEnv(incomplete)).toThrow(EnvValidationError);
   });
 });
