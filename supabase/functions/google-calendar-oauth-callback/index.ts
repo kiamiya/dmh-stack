@@ -4,12 +4,12 @@
 // (GET ?code=...&state=<staff_id>), pas un appel programmatique — d'où une
 // réponse HTML directe plutôt qu'un JSON, et pas de vérification CORS.
 //
-// `state` porte le staff_id en clair (pas signé) — limite assumée pour une
-// v1 avec une poignée d'utilisateurs internes de confiance, voir
-// PROGRESS.md. Pas de redirection automatique vers le CRM après connexion
-// (l'app n'est pas encore déployée publiquement) — une page de
-// confirmation statique suffit, l'utilisateur revient à l'onglet CRM
-// manuellement.
+// `state` porte `<staff_id>::<origine du CRM>` en clair (pas signé) —
+// limite assumée pour une v1 avec une poignée d'utilisateurs internes de
+// confiance, voir PROGRESS.md. L'origine sert à rediriger directement
+// vers `/settings/calendar` une fois la connexion faite plutôt que de
+// laisser le staff sur cette URL de fonction — cf. apps/crm/src/lib/
+// calendarOAuthLinks.ts pour la construction du state.
 
 import { createClient } from "@supabase/supabase-js";
 import { loadCalendarFunctionEnv } from "../../../packages/config/src/env.ts";
@@ -34,14 +34,23 @@ function errorPage(message: string): string {
   </body></html>`;
 }
 
+/** Redirige vers l'onglet CRM d'origine si connu et sûr (http/https), sinon retombe sur la page HTML statique. */
+function redirectOrHtml(appOrigin: string | null, query: string, fallbackHtml: string, status: number): Response {
+  if (appOrigin && /^https?:\/\//.test(appOrigin)) {
+    return new Response(null, { status: 302, headers: { Location: `${appOrigin}/settings/calendar?${query}` } });
+  }
+  return htmlResponse(fallbackHtml, status);
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const staffId = url.searchParams.get("state");
+  const rawState = url.searchParams.get("state");
+  const [staffId, appOrigin] = rawState ? rawState.split("::") : [null, null];
   const oauthError = url.searchParams.get("error");
 
   if (oauthError) {
-    return htmlResponse(errorPage(`Google a renvoyé une erreur : ${oauthError}`), 400);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage(`Google a renvoyé une erreur : ${oauthError}`), 400);
   }
   if (!code || !staffId) {
     return htmlResponse(errorPage("Paramètres manquants (code/state)."), 400);
@@ -51,7 +60,7 @@ Deno.serve(async (req) => {
   try {
     env = loadCalendarFunctionEnv(Deno.env.toObject());
   } catch (err) {
-    return htmlResponse(errorPage(`Configuration serveur invalide : ${(err as Error).message}`), 500);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage(`Configuration serveur invalide : ${(err as Error).message}`), 500);
   }
 
   const redirectUri = `${env.SUPABASE_URL}/functions/v1/google-calendar-oauth-callback`;
@@ -89,7 +98,9 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     } else {
       if (!tokens.refresh_token) {
-        return htmlResponse(
+        return redirectOrHtml(
+          appOrigin,
+          "calendar_error=1",
           errorPage("Google n'a pas renvoyé de refresh_token (reconnecte-toi en révoquant l'accès existant d'abord)."),
           400,
         );
@@ -107,8 +118,8 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     }
 
-    return htmlResponse(successPage(email), 200);
+    return redirectOrHtml(appOrigin, "calendar_connected=google", successPage(email), 200);
   } catch (err) {
-    return htmlResponse(errorPage((err as Error).message), 500);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage((err as Error).message), 500);
   }
 });

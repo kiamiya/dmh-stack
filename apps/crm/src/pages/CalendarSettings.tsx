@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "../lib/useSession";
 import { useCalendarConnections } from "../hooks/useCalendarConnections";
 import { useUpcomingCalendarEvents } from "../hooks/useUpcomingCalendarEvents";
@@ -22,6 +22,21 @@ export function CalendarSettingsPage() {
   const googleConnection = connections.find((c) => c.provider === "google");
   const microsoftConnection = connections.find((c) => c.provider === "microsoft");
   const hasAnyConnection = connections.length > 0;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("calendar_connected");
+    const failed = params.get("calendar_error");
+    if (connected) {
+      toast(`${PROVIDER_LABELS[connected] ?? connected} connecté avec succès.`, "success");
+    } else if (failed) {
+      toast("Échec de la connexion du calendrier — réessaie.", "destructive");
+    }
+    if (connected || failed) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function bookingUrl(token: string): string {
     return `${window.location.origin}/book/${token}`;
@@ -78,7 +93,7 @@ export function CalendarSettingsPage() {
               </Button>
             </>
           ) : (
-            <a href={buildGoogleConnectUrl(calendarOAuthConfig, staffId)}>
+            <a href={buildGoogleConnectUrl(calendarOAuthConfig, staffId, window.location.origin)}>
               <Button size="sm">Connecter Google Calendar</Button>
             </a>
           )}
@@ -111,7 +126,7 @@ export function CalendarSettingsPage() {
               </Button>
             </>
           ) : (
-            <a href={buildMicrosoftConnectUrl(calendarOAuthConfig, staffId)}>
+            <a href={buildMicrosoftConnectUrl(calendarOAuthConfig, staffId, window.location.origin)}>
               <Button size="sm">Connecter Outlook</Button>
             </a>
           )}

@@ -1,7 +1,7 @@
 // Edge Function Supabase (Deno) — S16 : callback OAuth Microsoft/Outlook.
 // Même structure que google-calendar-oauth-callback/index.ts (voir ses
-// commentaires pour le détail des choix : state non signé, pas de
-// redirection automatique vers le CRM).
+// commentaires pour le détail des choix : state non signé porte aussi
+// l'origine du CRM pour permettre la redirection automatique).
 
 import { createClient } from "@supabase/supabase-js";
 import { loadCalendarFunctionEnv } from "../../../packages/config/src/env.ts";
@@ -26,14 +26,23 @@ function errorPage(message: string): string {
   </body></html>`;
 }
 
+/** Redirige vers l'onglet CRM d'origine si connu et sûr (http/https), sinon retombe sur la page HTML statique. */
+function redirectOrHtml(appOrigin: string | null, query: string, fallbackHtml: string, status: number): Response {
+  if (appOrigin && /^https?:\/\//.test(appOrigin)) {
+    return new Response(null, { status: 302, headers: { Location: `${appOrigin}/settings/calendar?${query}` } });
+  }
+  return htmlResponse(fallbackHtml, status);
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const staffId = url.searchParams.get("state");
+  const rawState = url.searchParams.get("state");
+  const [staffId, appOrigin] = rawState ? rawState.split("::") : [null, null];
   const oauthError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
   if (oauthError) {
-    return htmlResponse(errorPage(`Microsoft a renvoyé une erreur : ${oauthError}`), 400);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage(`Microsoft a renvoyé une erreur : ${oauthError}`), 400);
   }
   if (!code || !staffId) {
     return htmlResponse(errorPage("Paramètres manquants (code/state)."), 400);
@@ -43,7 +52,7 @@ Deno.serve(async (req) => {
   try {
     env = loadCalendarFunctionEnv(Deno.env.toObject());
   } catch (err) {
-    return htmlResponse(errorPage(`Configuration serveur invalide : ${(err as Error).message}`), 500);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage(`Configuration serveur invalide : ${(err as Error).message}`), 500);
   }
 
   const redirectUri = `${env.SUPABASE_URL}/functions/v1/microsoft-calendar-oauth-callback`;
@@ -82,7 +91,7 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     } else {
       if (!tokens.refresh_token) {
-        return htmlResponse(errorPage("Microsoft n'a pas renvoyé de refresh_token."), 400);
+        return redirectOrHtml(appOrigin, "calendar_error=1", errorPage("Microsoft n'a pas renvoyé de refresh_token."), 400);
       }
       const bookingToken = crypto.randomUUID().replace(/-/g, "");
       const { error } = await supabase.from("staff_calendar_connections").insert({
@@ -97,8 +106,8 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     }
 
-    return htmlResponse(successPage(email), 200);
+    return redirectOrHtml(appOrigin, "calendar_connected=microsoft", successPage(email), 200);
   } catch (err) {
-    return htmlResponse(errorPage((err as Error).message), 500);
+    return redirectOrHtml(appOrigin, "calendar_error=1", errorPage((err as Error).message), 500);
   }
 });
