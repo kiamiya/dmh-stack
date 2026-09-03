@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createTask, listTasks, updateTaskStatus } from "./tasks";
+import { createTask, listTasks, updateTask, updateTaskStatus } from "./tasks";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -56,5 +56,17 @@ describe("updateTaskStatus", () => {
   it("lève une erreur avec le message Supabase en cas d'échec", async () => {
     const client = makeStubClient({ data: null, error: { message: "update refusé" } });
     await expect(updateTaskStatus(client, "task-1", "done")).rejects.toThrow("update refusé");
+  });
+});
+
+describe("updateTask", () => {
+  it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(updateTask(client, "task-1", { title: "Nouveau titre", dueDate: "2026-09-20" })).resolves.toBeUndefined();
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "update refusé" } });
+    await expect(updateTask(client, "task-1", { title: "x" })).rejects.toThrow("update refusé");
   });
 });

@@ -5,6 +5,8 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { AddTaskDialog } from "../components/AddTaskDialog";
+import { EditTaskDialog } from "../components/EditTaskDialog";
+import { TaskCalendarView } from "../components/TaskCalendarView";
 import { ALL_TASK_STATUSES, getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 import type { TaskRow } from "../services/tasks";
 import type { TaskStatus } from "@dmh/types";
@@ -18,10 +20,12 @@ function relatedRecordLabel(task: TaskRow): string {
 }
 
 export function TasksPage() {
-  const { tasks, loading, error, create, changeStatus } = useTasks();
+  const { tasks, loading, error, create, changeStatus, update } = useTasks();
   const staff = useStaffMembers();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   async function handleStatusChange(id: string, status: TaskStatus) {
     try {
@@ -35,15 +39,37 @@ export function TasksPage() {
     <div className="mx-auto max-w-5xl space-y-3 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">Tâches</h1>
-        <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-          + Tâche
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Liste
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("calendar")}
+              className={`rounded px-2 py-1 text-xs font-medium ${view === "calendar" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Calendrier
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            + Tâche
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {loading && <p className="text-sm text-muted-foreground">Chargement…</p>}
 
-      {!loading && !error && (
+      {!loading && !error && view === "calendar" && (
+        <TaskCalendarView tasks={tasks} onSelectTask={setEditingTask} />
+      )}
+
+      {!loading && !error && view === "list" && (
         <Table>
           <TableHeader>
             <TableRow>
@@ -57,7 +83,11 @@ export function TasksPage() {
           <TableBody>
             {tasks.map((t) => (
               <TableRow key={t.id}>
-                <TableCell className="font-medium text-foreground">{t.title}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  <button type="button" onClick={() => setEditingTask(t)} className="hover:underline">
+                    {t.title}
+                  </button>
+                </TableCell>
                 <TableCell>{t.due_date ? new Date(t.due_date).toLocaleDateString("fr-FR") : "—"}</TableCell>
                 <TableCell>{staff.find((s) => s.id === t.assigned_to)?.name ?? "—"}</TableCell>
                 <TableCell>{relatedRecordLabel(t)}</TableCell>
@@ -91,6 +121,11 @@ export function TasksPage() {
       )}
 
       <AddTaskDialog open={addOpen} onOpenChange={setAddOpen} onCreated={create} />
+      <EditTaskDialog
+        task={editingTask}
+        onOpenChange={(open) => !open && setEditingTask(null)}
+        onUpdated={update}
+      />
     </div>
   );
 }

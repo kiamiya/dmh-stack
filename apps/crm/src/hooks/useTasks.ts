@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TaskStatus } from "@dmh/types";
 import { supabase } from "../lib/supabase";
-import { createTask, listTasks, updateTaskStatus } from "../services/tasks";
-import type { TaskInsert, TaskRow } from "../services/tasks";
+import { createTask, listTasks, updateTask, updateTaskStatus } from "../services/tasks";
+import type { TaskInsert, TaskRow, TaskUpdate } from "../services/tasks";
 
 export function useTasks() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
@@ -31,5 +31,10 @@ export function useTasks() {
     await load();
   }
 
-  return { tasks, loading, error, create, changeStatus, reload: load };
+  async function update(id: string, patch: TaskUpdate): Promise<void> {
+    await updateTask(supabase, id, patch);
+    await load();
+  }
+
+  return { tasks, loading, error, create, changeStatus, update, reload: load };
 }
