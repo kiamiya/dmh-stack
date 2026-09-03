@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useContactDetail } from "../hooks/useContactDetail";
 import { useCompanies } from "../hooks/useCompanies";
+import { useContacts } from "../hooks/useContacts";
+import { supabase } from "../lib/supabase";
+import { mergeContacts } from "../services/mergeContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useTasks } from "../hooks/useTasks";
 import { Button } from "../components/ui/button";
@@ -16,11 +19,16 @@ import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { contact, companies, loading, error, save, linkCompany, unlinkCompany } = useContactDetail(id!);
   const allCompanies = useCompanies();
+  const allContacts = useContacts();
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
   const { toast } = useToast();
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [mergeConfirming, setMergeConfirming] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -69,6 +77,24 @@ export function ContactDetailPage() {
   const linkableCompanies = allCompanies.companies.filter((c) => !linkedCompanyIds.has(c.id));
   const relatedDeals = deals.filter((d) => d.contact_id === contact.id);
   const relatedTasks = tasks.filter((t) => t.contact_id === contact.id);
+  const mergeCandidates = allContacts.contacts.filter(
+    (c) => c.id !== contact.id && c.client_id === contact.client_id,
+  );
+
+  async function handleMerge() {
+    if (!mergeTargetId) return;
+    setMerging(true);
+    try {
+      await mergeContacts(supabase, contact!.id, mergeTargetId);
+      toast("Contacts fusionnés.", "success");
+      navigate("/contacts");
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    } finally {
+      setMerging(false);
+      setMergeConfirming(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
@@ -217,6 +243,55 @@ export function ContactDetailPage() {
             </div>
           ))}
           {relatedTasks.length === 0 && <p className="text-sm text-muted-foreground">Aucune tâche liée.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Fusionner avec un autre contact</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Le contact sélectionné sera supprimé, ses entreprises/opportunités/tâches liées seront réassignées
+            à celui-ci.
+          </p>
+          <div className="flex gap-2">
+            <select
+              value={mergeTargetId}
+              onChange={(e) => {
+                setMergeTargetId(e.target.value);
+                setMergeConfirming(false);
+              }}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <option value="">Choisir un contact en double…</option>
+              {mergeCandidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.first_name} {c.last_name}
+                </option>
+              ))}
+            </select>
+            {!mergeConfirming ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!mergeTargetId}
+                onClick={() => setMergeConfirming(true)}
+                className="shrink-0"
+              >
+                Fusionner
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                disabled={merging}
+                onClick={handleMerge}
+                className="shrink-0 bg-red-600 text-white hover:bg-red-700"
+              >
+                {merging ? "…" : "Confirmer la fusion"}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

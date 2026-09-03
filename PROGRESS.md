@@ -71,7 +71,7 @@ Dernière mise à jour : 2026-09-02
 | S11 | Kanban drag-and-drop + propriétés de deal enrichies | ✅ fait — validé en navigateur réel le 2026-09-02 |
 | S12 | Moteur d'automatisation générique (déclencheur/condition/action) | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S13 | Segments dynamiques sur Contacts | ✅ fait — validé en navigateur réel le 2026-09-03 |
-| S14 | Fusion/dédoublonnage de contacts | ⬜ à faire |
+| S14 | Fusion/dédoublonnage de contacts | ✅ fait — validé en navigateur réel le 2026-09-03 |
 | S15 | Dashboards pipeline Opportunités/Tâches | ⬜ à faire |
 | S16 | Rendez-vous / synchro calendrier (Google/Outlook) | ⬜ à faire — **bloqué** tant que les comptes développeur Google Cloud/Microsoft Entra n'existent pas (action Loïc) |
 
@@ -362,3 +362,9 @@ Compte `staff_members` de test créé le 2026-07-30 pour valider le CRM : ton co
 - **Test fonctionnel exécuté** en navigateur réel : création d'une entreprise + 2 contacts (un "Directeur Commercial", un "Assistante"), création d'un segment avec la condition `job_title contains "Directeur"`, sélection du segment → seul le bon contact reste affiché, retour à "Tous les contacts" → les deux réapparaissent. Données de test nettoyées après coup.
 - `pnpm typecheck`/`pnpm test` racine verts (245 tests côté `@dmh/crm`).
 - **Point de reprise** : S13 fait. Prochaine étape dans l'ordre du plan = S14 (fusion/dédoublonnage de contacts).
+- **S14 terminé.** Fonction Postgres `merge_contacts(keep_id, remove_id)` (`security definer`, migration `020_merge_contacts.sql`) plutôt qu'une séquence d'updates séparés depuis le navigateur — garantit l'atomicité. Réassigne `contact_companies`/`custom_field_values` (avec dédoublonnage explicite sur leurs contraintes uniques avant réassignation, sinon violation de contrainte) puis `deals`/`tasks`/`prospects.contact_id` (pas de contrainte unique, réassignation directe), supprime le contact fusionné. Garde-fou : refuse de fusionner deux contacts de clients DMH différents.
+- **Bug réel trouvé en testant la fonction avec un script jetable** (avant même l'UI) : la vérification `is_staff_member(auth.uid())` ne prenait pas en compte le rôle `service_role` (`auth.uid()` vaut `null` pour ce rôle) — incohérent avec le reste du schéma où chaque contrôle d'accès autorise explicitement `service_role` en plus. Corrigé par la migration `021_merge_contacts_allow_service_role.sql`.
+- Backend : `services/mergeContacts.ts` (wrapper `.rpc()`). UI sur `/contacts/:id` : carte "Fusionner avec un autre contact" (liste des contacts du même client, confirmation en 2 étapes avant l'appel — action destructive).
+- **Test fonctionnel exécuté** en deux temps : (1) script jetable contre le vrai Supabase confirmant dédoublonnage correct des relations + réassignation deals/tasks + rejet cross-client ; (2) navigateur réel — la première tentative avec le compte client de test a été **correctement rejetée** (`merge_contacts` est réservée au staff, comportement voulu, pas un bug), donc un compte staff jetable a été créé spécifiquement pour valider le flux UI complet (sélection du doublon → confirmation → fusion → redirection vers `/contacts` → contact fusionné absent de la liste). Compte staff jetable et données de test supprimés après coup.
+- `pnpm typecheck`/`pnpm test` racine verts (247 tests côté `@dmh/crm`).
+- **Point de reprise** : S14 fait. Reste S15 (dashboards pipeline Opportunités/Tâches) et S16 (RDV/calendrier — **bloqué** tant que les comptes développeur Google/Microsoft n'existent pas).
