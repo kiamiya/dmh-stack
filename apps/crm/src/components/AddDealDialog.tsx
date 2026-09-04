@@ -11,6 +11,7 @@ import type { ContactRelationRow } from "../services/contactCompanies";
 import { validateDealForm } from "../lib/dealForm";
 import { useToast } from "./ui/toast";
 import { usePipelineStages } from "../hooks/usePipelineStages";
+import { SearchableSelect } from "./ui/searchable-select";
 
 export interface AddDealDialogProps {
   open: boolean;
@@ -155,39 +156,28 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-company">
               Entreprise
             </label>
-            <select
-              id="deal-company"
+            <SearchableSelect
               value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
+              onChange={setCompanyId}
               disabled={!clientId}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
-            >
-              <option value="">{clientId ? "Sélectionner…" : "Choisir un client d'abord"}</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              placeholder={clientId ? "Sélectionner…" : "Choisir un client d'abord"}
+              options={companies.map((c) => ({ value: c.id, label: c.name }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-contact">
               Contact (optionnel)
             </label>
-            <select
-              id="deal-contact"
+            <SearchableSelect
               value={contactId}
-              onChange={(e) => setContactId(e.target.value)}
+              onChange={setContactId}
               disabled={!companyId}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
-            >
-              <option value="">Aucun</option>
-              {contacts.map((rel) => (
-                <option key={rel.contact_id} value={rel.contact_id}>
-                  {rel.contacts ? `${rel.contacts.first_name} ${rel.contacts.last_name}` : rel.contact_id}
-                </option>
-              ))}
-            </select>
+              placeholder="Aucun"
+              options={contacts.map((rel) => ({
+                value: rel.contact_id,
+                label: rel.contacts ? `${rel.contacts.first_name} ${rel.contacts.last_name}` : rel.contact_id,
+              }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-stage">

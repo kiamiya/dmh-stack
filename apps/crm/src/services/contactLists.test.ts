@@ -42,6 +42,31 @@ describe("createList", () => {
     const client = makeStubClient({ data: null, error: { message: "insert refusé" } });
     await expect(createList(client, { clientId: "client-1", name: "x" })).rejects.toThrow("insert refusé");
   });
+
+  it("passe rules=null si non fourni (liste statique)", async () => {
+    const insertSpy = vi.fn(() => query);
+    const query = {
+      select: () => query,
+      insert: insertSpy,
+      single: () => Promise.resolve({ data: { id: "list-42" }, error: null }),
+    };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await createList(client, { clientId: "client-1", name: "VIP" });
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ rules: null }));
+  });
+
+  it("passe les groupes de règles fournis (liste dynamique)", async () => {
+    const rules = [{ conditions: [{ field: "job_title", operator: "eq" as const, value: "Directeur" }] }];
+    const insertSpy = vi.fn(() => query);
+    const query = {
+      select: () => query,
+      insert: insertSpy,
+      single: () => Promise.resolve({ data: { id: "list-42" }, error: null }),
+    };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await createList(client, { clientId: "client-1", name: "VIP", rules });
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ rules }));
+  });
 });
 
 describe("deleteList", () => {

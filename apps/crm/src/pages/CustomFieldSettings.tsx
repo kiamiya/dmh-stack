@@ -16,6 +16,7 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   date: "Date",
   boolean: "Case à cocher",
   select: "Liste déroulante",
+  multiselect: "Choix multiples (tags)",
 };
 
 const ENTITY_TYPE_LABELS: Record<CustomFieldEntityType, string> = {
@@ -60,7 +61,9 @@ export function CustomFieldSettingsPage() {
         label: label.trim(),
         fieldType,
         selectOptions:
-          fieldType === "select" ? selectOptionsRaw.split(",").map((o) => o.trim()).filter(Boolean) : null,
+          fieldType === "select" || fieldType === "multiselect"
+            ? selectOptionsRaw.split(",").map((o) => o.trim()).filter(Boolean)
+            : null,
       });
       toast(`Champ "${label.trim()}" ajouté.`, "success");
       setLabel("");
@@ -126,7 +129,7 @@ export function CustomFieldSettingsPage() {
                 </option>
               ))}
             </select>
-            {fieldType === "select" && (
+            {(fieldType === "select" || fieldType === "multiselect") && (
               <input
                 value={selectOptionsRaw}
                 onChange={(e) => setSelectOptionsRaw(e.target.value)}

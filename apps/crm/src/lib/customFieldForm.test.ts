@@ -53,4 +53,14 @@ describe("validateCustomFieldForm", () => {
   it("accepte un champ de type liste avec au moins une option", () => {
     expect(validateCustomFieldForm({ ...base, fieldType: "select", selectOptionsRaw: "A, B" })).toBeNull();
   });
+
+  it("refuse un champ de type choix multiples sans options", () => {
+    expect(validateCustomFieldForm({ ...base, fieldType: "multiselect", selectOptionsRaw: "" })).toMatch(
+      /option/i,
+    );
+  });
+
+  it("accepte un champ de type choix multiples avec au moins une option", () => {
+    expect(validateCustomFieldForm({ ...base, fieldType: "multiselect", selectOptionsRaw: "VIP, Chaud" })).toBeNull();
+  });
 });

@@ -16,6 +16,7 @@ import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
+import { SearchableSelect } from "../components/ui/searchable-select";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -217,18 +218,12 @@ export function ContactDetailPage() {
           {companies.length === 0 && <p className="text-sm text-muted-foreground">Aucune entreprise liée.</p>}
 
           <div className="flex gap-2 pt-2">
-            <select
+            <SearchableSelect
               value={linkCompanyId}
-              onChange={(e) => setLinkCompanyId(e.target.value)}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm"
-            >
-              <option value="">Lier une entreprise existante…</option>
-              {linkableCompanies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setLinkCompanyId}
+              placeholder="Lier une entreprise existante…"
+              options={linkableCompanies.map((c) => ({ value: c.id, label: c.name }))}
+            />
             <Button
               variant="outline"
               disabled={!linkCompanyId}
@@ -292,18 +287,12 @@ export function ContactDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
-            <select
+            <SearchableSelect
               value={addToListId}
-              onChange={(e) => setAddToListId(e.target.value)}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm"
-            >
-              <option value="">Choisir une liste…</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAddToListId}
+              placeholder="Choisir une liste…"
+              options={lists.map((l) => ({ value: l.id, label: l.name }))}
+            />
             <Button variant="outline" disabled={!addToListId || addingToList} onClick={handleAddToList} className="shrink-0">
               {addingToList ? "…" : "Ajouter"}
             </Button>
@@ -339,21 +328,15 @@ export function ContactDetailPage() {
             à celui-ci.
           </p>
           <div className="flex gap-2">
-            <select
+            <SearchableSelect
               value={mergeTargetId}
-              onChange={(e) => {
-                setMergeTargetId(e.target.value);
+              onChange={(v) => {
+                setMergeTargetId(v);
                 setMergeConfirming(false);
               }}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm"
-            >
-              <option value="">Choisir un contact en double…</option>
-              {mergeCandidates.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.first_name} {c.last_name}
-                </option>
-              ))}
-            </select>
+              placeholder="Choisir un contact en double…"
+              options={mergeCandidates.map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}` }))}
+            />
             {!mergeConfirming ? (
               <Button
                 type="button"

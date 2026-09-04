@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
-import { cn } from "../lib/cn";
 import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { useTheme } from "../hooks/useTheme";
@@ -12,28 +11,13 @@ import { computeTasksDueToday } from "../lib/taskStats";
 
 const THEME_ICON = { light: "☀", dark: "☾", system: "◐" } as const;
 
-const NAV_ITEMS = [
-  { to: "/", label: "Prospects" },
-  { to: "/pipeline", label: "Pipeline" },
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/contacts", label: "Contacts" },
-  { to: "/companies", label: "Entreprises" },
-  { to: "/opportunities", label: "Opportunités" },
-  { to: "/tasks", label: "Tâches" },
-  { to: "/automations", label: "Automatisations" },
-  { to: "/settings/calendar", label: "Mon calendrier" },
-  { to: "/settings/custom-fields", label: "Réglages" },
-];
-
 /**
- * Header commun aux pages protégées du CRM (staff interne — pas de
- * branding client ici, contrairement à apps/dashboard). `NAV_ITEMS` reste
- * un tableau même avec une seule entrée pour accueillir de futures
- * sections sans réécrire le composant.
+ * Barre fine au-dessus du contenu — compte/notifications uniquement.
+ * La navigation de page est passée dans `Sidebar.tsx` en S28 (disposition
+ * façon HubSpot/Brevo : nav à gauche, compte/notifications en haut).
  */
 export function Header() {
   const { session } = useSession();
-  const location = useLocation();
   const navigate = useNavigate();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const { theme, cycleTheme } = useTheme();
@@ -46,80 +30,61 @@ export function Header() {
 
   return (
     <header className="border-b border-border bg-card">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-        <span className="text-sm font-semibold text-foreground">DMH CRM</span>
+      <div className="flex items-center justify-end gap-1 px-6 py-3">
+        <DropdownMenu
+          align="end"
+          trigger={
+            <button
+              type="button"
+              title="Tâches du jour"
+              aria-label="Tâches du jour"
+              className="relative rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+            >
+              🔔
+              {dueToday.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium leading-none text-white">
+                  {dueToday.length}
+                </span>
+              )}
+            </button>
+          }
+        >
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Tâches du jour</div>
+          {dueToday.length === 0 && (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">Rien de prévu aujourd'hui.</div>
+          )}
+          {dueToday.map((t) => (
+            <div key={t.id} className="truncate px-2 py-1.5 text-sm text-foreground">
+              {t.title}
+            </div>
+          ))}
+          <DropdownMenuItem onClick={() => navigate("/tasks")}>Voir toutes les tâches →</DropdownMenuItem>
+        </DropdownMenu>
 
-        <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map((item) => {
-            const active = location.pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium",
-                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+        <button
+          type="button"
+          onClick={cycleTheme}
+          title={`Thème : ${themeLabel(theme)} (cliquer pour changer)`}
+          aria-label={`Thème : ${themeLabel(theme)}`}
+          className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+        >
+          {THEME_ICON[theme]}
+        </button>
+        {session?.user.email && (
           <DropdownMenu
             align="end"
             trigger={
-              <button
-                type="button"
-                title="Tâches du jour"
-                aria-label="Tâches du jour"
-                className="relative rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
-              >
-                🔔
-                {dueToday.length > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium leading-none text-white">
-                    {dueToday.length}
-                  </span>
-                )}
+              <button className="cursor-pointer rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary">
+                {session.user.email}
               </button>
             }
           >
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Tâches du jour</div>
-            {dueToday.length === 0 && (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">Rien de prévu aujourd'hui.</div>
-            )}
-            {dueToday.map((t) => (
-              <div key={t.id} className="truncate px-2 py-1.5 text-sm text-foreground">
-                {t.title}
-              </div>
-            ))}
-            <DropdownMenuItem onClick={() => navigate("/tasks")}>Voir toutes les tâches →</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+              Changer le mot de passe
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
           </DropdownMenu>
-
-          <button
-            type="button"
-            onClick={cycleTheme}
-            title={`Thème : ${themeLabel(theme)} (cliquer pour changer)`}
-            aria-label={`Thème : ${themeLabel(theme)}`}
-            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
-          >
-            {THEME_ICON[theme]}
-          </button>
-          {session?.user.email && (
-            <DropdownMenu
-              align="end"
-              trigger={
-                <button className="cursor-pointer rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary">
-                  {session.user.email}
-                </button>
-              }
-            >
-              <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
-                Changer le mot de passe
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
-            </DropdownMenu>
-          )}
-        </nav>
+        )}
       </div>
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </header>

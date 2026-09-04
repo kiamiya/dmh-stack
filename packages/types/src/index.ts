@@ -229,7 +229,7 @@ export interface PipelineStage {
 
 /** Champs personnalisés (migration 014, étendu aux Opportunités en migration 016) — S9/S10 de la roadmap "parité Brevo". */
 export type CustomFieldEntityType = "contact" | "company" | "opportunity";
-export type CustomFieldType = "text" | "number" | "date" | "boolean" | "select";
+export type CustomFieldType = "text" | "number" | "date" | "boolean" | "select" | "multiselect";
 
 export interface CustomFieldDefinition {
   id: string;
@@ -248,7 +248,7 @@ export interface CustomFieldValue {
   entity_type: CustomFieldEntityType;
   entity_id: string;
   field_definition_id: string;
-  value: string | number | boolean | null;
+  value: string | number | boolean | string[] | null;
   created_at: string;
 }
 
@@ -348,11 +348,29 @@ export interface ContactSegment {
   created_at: string;
 }
 
-/** Ensemble figé de contacts choisis à la main — différent de ContactSegment (dynamique, basé sur des règles). */
+/**
+ * S26 : critère d'une liste dynamique — même forme que `SegmentRule`
+ * (réutilisée telle quelle, pas de duplication).
+ */
+export type RuleCondition = SegmentRule;
+
+/** Un groupe de conditions combinées en ET — les groupes eux-mêmes sont combinés en OU (modèle HubSpot à 2 niveaux). */
+export interface RuleGroup {
+  conditions: RuleCondition[];
+}
+
+/**
+ * Ensemble de contacts — soit figé (adhésion stockée dans
+ * `contact_list_members`, `rules` = null), soit dynamique (`rules` non
+ * null, évalué à la volée comme un ancien ContactSegment). Fusionne les
+ * deux concepts depuis S26 — ContactSegment reste en base pour l'historique
+ * mais n'est plus utilisée par le code.
+ */
 export interface ContactList {
   id: string;
   client_id: string;
   name: string;
+  rules: RuleGroup[] | null;
   created_at: string;
 }
 
@@ -361,6 +379,7 @@ export interface CompanyList {
   id: string;
   client_id: string;
   name: string;
+  rules: RuleGroup[] | null;
   created_at: string;
 }
 
@@ -369,5 +388,6 @@ export interface OpportunityList {
   id: string;
   client_id: string;
   name: string;
+  rules: RuleGroup[] | null;
   created_at: string;
 }

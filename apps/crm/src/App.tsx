@@ -19,15 +19,22 @@ import { CalendarSettingsPage } from "./pages/CalendarSettings";
 import { PublicBookingPage } from "./pages/PublicBooking";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
+import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
 
+/** Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche (Sidebar), compte/notifications dans une barre fine au-dessus du contenu (Header). */
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <Header />
-      <CommandPalette />
-      {children}
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header />
+          <CommandPalette />
+          <main className="flex-1">{children}</main>
+        </div>
+      </div>
     </ProtectedRoute>
   );
 }

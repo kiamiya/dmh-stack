@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { OpportunityList } from "@dmh/types";
+import type { OpportunityList, RuleGroup } from "@dmh/types";
 
 export async function listLists(client: SupabaseClient, clientId: string): Promise<OpportunityList[]> {
   const { data, error } = await client
     .from("opportunity_lists")
-    .select("id, client_id, name, created_at")
+    .select("id, client_id, name, rules, created_at")
     .eq("client_id", clientId)
     .order("name");
   if (error) throw new Error(error.message);
@@ -14,12 +14,14 @@ export async function listLists(client: SupabaseClient, clientId: string): Promi
 export interface OpportunityListInsert {
   clientId: string;
   name: string;
+  /** Non fourni ou undefined = liste statique. Un tableau (même vide) = liste dynamique. */
+  rules?: RuleGroup[] | null;
 }
 
 export async function createList(client: SupabaseClient, input: OpportunityListInsert): Promise<{ id: string }> {
   const { data, error } = await client
     .from("opportunity_lists")
-    .insert({ client_id: input.clientId, name: input.name })
+    .insert({ client_id: input.clientId, name: input.name, rules: input.rules ?? null })
     .select("id")
     .single();
   if (error) throw new Error(error.message);

@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-04
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -80,7 +80,12 @@ Dernière mise à jour : 2026-09-03
 | S20 | Listes statiques de contacts | ✅ fait côté code — en attente de migration + test navigateur réel |
 | S21 | Rappel des tâches du jour (en-tête, toujours visible) | ✅ fait |
 | S22 | Compacter les blocs de connexion calendrier | ✅ fait |
-| S23 | Généraliser les listes (Contacts/Entreprises/Opportunités) + assignation croisée | ✅ fait côté code — en attente de migration + test navigateur réel |
+| S23 | Généraliser les listes (Contacts/Entreprises/Opportunités) + assignation croisée | ✅ fait — déployé, un hint de découvrabilité ajouté suite au retour de Loïc ("je ne vois pas les listes" → sélecteur caché tant qu'aucun client n'est choisi) |
+| S24 | Bouton "+ Nouveau contact" sur /contacts | ✅ fait |
+| S25 | Tags = nouveau type de champ personnalisé "Choix multiples" | ✅ fait côté code — en attente de migration |
+| S26 | Listes dynamiques (critères ET/OU) + fusion des segments dans les listes | ✅ fait côté code — en attente de migration + test navigateur réel |
+| S27 | Dropdowns avec recherche (contacts/entreprises/listes) | ✅ fait |
+| S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -575,3 +580,105 @@ many-to-many).
   liste de contacts, l'assigner à une opportunité, vérifier l'affichage ;
   vérifier aussi que `/companies` et `/opportunities` (vue Liste)
   affichent bien le nouveau sélecteur de liste.
+- **Retour de Loïc** : "je ne vois pas les listes" — le sélecteur "Liste"
+  (comme "Segment" avant lui) reste caché tant qu'aucun client DMH n'est
+  choisi, sans aucun indice visuel. Corrigé par un texte d'aide sur
+  `/contacts`, `/companies`, `/opportunities` (vue Liste) quand aucun
+  client n'est sélectionné. Serveur de dev vérifié à jour au passage
+  (un seul processus, code servi confirmé identique au dépôt).
+
+### 2026-09-04 — S24 à S28 : bouton contact, tags, listes dynamiques (booléens), dropdowns cherchables, nav latérale
+
+Nouvelle demande de Loïc en une fois : (1) bouton "+ Nouveau contact" sur
+`/contacts` (absent), (2) des tags ("aka attributs, aka propriété"), (3)
+un système de création de segments/listes sur la base de critères de
+filtrage avec opérateurs booléens ("cf HubSpot"), (4) un champ de
+recherche sur les dropdowns, (5, ajoutée pendant la planification) :
+déplacer la navigation en barre latérale gauche avec menus/sous-menus
+comme HubSpot/Brevo. Passage en mode Plan (3 agents Explore en parallèle)
+avant d'écrire un plan détaillé, approuvé par Loïc (dont une confirmation
+explicite sur la décision de fusionner Segments et Listes).
+
+**Décisions de conception actées dans le plan** :
+- **Tags = extension des champs personnalisés**, pas un système séparé —
+  Loïc les nomme lui-même "aka attributs, aka propriété", exactement ce
+  que les champs personnalisés (S9) sont déjà. Nouveau `field_type`
+  `'multiselect'` plutôt qu'un nouveau système parallèle.
+- **Segments et Listes fusionnent** en un seul concept ("Listes",
+  statiques ou dynamiques) — confirmé explicitement par Loïc avant
+  exécution, pour éviter la redondance déjà présente sur `/contacts`
+  (deux sélecteurs côte à côte) et coller à HubSpot qui n'a qu'un concept.
+- **Booléens = modèle HubSpot à 2 niveaux** (groupes en OU, conditions
+  d'un groupe en ET) plutôt qu'un arbre récursif — plus simple à
+  construire, couvre le besoin réel.
+- **Recherche dans les dropdowns** : réutilise `cmdk`, déjà une
+  dépendance (jusqu'ici seulement `CommandPalette.tsx`) — pas de
+  nouvelle lib, cohérent avec le refus déjà documenté de Radix.
+
+**S24** : trivial — `AddContactDialog.tsx` existait déjà (utilisé par
+`ProspectsList.tsx`) mais n'était jamais câblé sur `/contacts`. Même
+pattern que `Companies.tsx` (`+ Entreprise`).
+
+**S25** : migration `028_custom_field_multiselect.sql` — contrainte CHECK
+sur `field_type` étendue avec `'multiselect'` (retrouvée/recréée
+dynamiquement via `pg_constraint`, comme déjà fait en migration 016).
+`CustomFieldsCard.tsx` gagne une branche cases à cocher (valeur stockée
+comme tableau JSON dans la même colonne `value`) ; `CustomFieldSettings.tsx`
+propose la saisie d'options pour ce type aussi. **Note** : l'exploration
+avait signalé une incohérence supposée sur `entity_type` (CHECK limité à
+contact/company) — vérification directe du fichier a montré qu'elle était
+déjà corrigée depuis la migration 016 (l'exploration avait lu une version
+non à jour) ; rien à changer de ce côté.
+
+**S26** (le plus gros morceau) : migration `029_dynamic_lists.sql` —
+colonne `rules jsonb` nullable ajoutée à `contact_lists`/`company_lists`/
+`opportunity_lists` (`null` = statique, tableau de groupes = dynamique) ;
+les segments existants sont migrés en DONNÉES vers `contact_lists` (une
+liste dynamique à un seul groupe par segment, équivalent exact,
+`contact_segments` reste en base mais n'est plus utilisée par le code).
+`@dmh/types` : `RuleCondition` (= `SegmentRule`, réutilisé), `RuleGroup`.
+`lib/segmentEvaluator.ts` : `matchesRuleGroups` (OU entre groupes, ET dans
+un groupe). `services/customFields.ts` : `listValuesByEntityForClient`
+(gap réel comblé — les listes/segments ne pouvaient filtrer que sur les
+colonnes déjà chargées, jamais sur les valeurs de champs personnalisés/
+tags, qui vivent dans une table séparée). Nouveau
+`components/RuleGroupsEditor.tsx` (éditeur à 2 niveaux, champ en menu
+déroulant plutôt qu'en saisie libre — distinct de `ConditionRowsEditor`
+pour ne pas casser les Automatisations, qui restent ET-uniquement côté
+serveur en plpgsql). `Contacts.tsx`/`Companies.tsx`/`Opportunities.tsx` :
+formulaire "+ Nouvelle liste" gagne un choix Statique/Dynamique ; le
+sélecteur bulk "Ajouter à la liste" est filtré aux listes statiques
+uniquement (une liste dynamique n'a pas d'adhésion à modifier
+manuellement).
+
+**S27** : `components/ui/searchable-select.tsx` (nouveau, sur `cmdk`) —
+remplacement 1:1 d'un `<select>`. Appliqué aux dropdowns qui grandissent
+avec le volume de données : `AddDealDialog.tsx` (contact/entreprise),
+`AddContactDialog.tsx` (entreprise), `ContactDetail.tsx` (lier entreprise,
+fusionner, ajouter à une liste), `CompanyDetail.tsx` (lier contact),
+`AssignedListCard.tsx` (sélecteur de liste, réutilisé 4 fois).
+
+**S28** : `components/Sidebar.tsx` (nouveau) — navigation regroupée
+(Dashboard seul ; groupes "Prospection" et "CRM" repliables, ouverts
+automatiquement si une route enfant est active sans jamais se refermer
+seuls ; Automatisations/Mon calendrier/Réglages seuls). `Header.tsx`
+allégé — ne garde que compte/notifications (thème, cloche tâches du
+jour, menu utilisateur), la nav de page part dans `Sidebar.tsx`.
+`App.tsx` : `ProtectedLayout` passe d'un empilement vertical à une
+disposition `flex` (sidebar à gauche, colonne Header+contenu à droite) —
+aucune page modifiée, leurs conteneurs `mx-auto max-w-*` se recentrent
+naturellement dans la zone réduite.
+
+Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 335
+tests côté `@dmh/crm`, +12 depuis S23), build du serveur de dev confirmé
+propre sur tous les fichiers touchés (compilation curl).
+
+**Point de reprise** : migrations `028`/`029` nécessaires sur le vrai
+projet Supabase avant test réel de S25/S26 (confirmation à demander avant
+`db push`). S24/S27/S28 sont déjà pleinement fonctionnels dès le
+prochain rechargement (aucune action serveur requise). Demander à Loïc de
+tester : bouton "+ Nouveau contact", ajouter un tag multiselect sur un
+contact, créer une liste dynamique avec 2 groupes (OU) filtrant sur un
+tag, confirmer qu'un ancien segment apparaît maintenant comme liste
+dynamique équivalente, chercher dans un dropdown contact/entreprise,
+naviguer via la nouvelle barre latérale.

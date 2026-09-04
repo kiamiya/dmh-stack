@@ -41,8 +41,8 @@ export function validateCustomFieldForm({
   if (!key) return "Le libellé doit contenir au moins une lettre ou un chiffre.";
   if (existingKeys.includes(key)) return "Un champ avec cette clé existe déjà pour ce type d'objet.";
 
-  if (fieldType === "select" && parseSelectOptions(selectOptionsRaw).length === 0) {
-    return "Au moins une option est requise pour un champ de type liste.";
+  if ((fieldType === "select" || fieldType === "multiselect") && parseSelectOptions(selectOptionsRaw).length === 0) {
+    return "Au moins une option est requise pour un champ de type liste ou choix multiples.";
   }
 
   return null;

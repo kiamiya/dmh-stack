@@ -19,7 +19,7 @@ export function CustomFieldsCard({ entityType, entityId, clientId }: CustomField
   if (definitionsLoading) return null;
   if (definitions.length === 0) return null;
 
-  async function handleChange(fieldDefinitionId: string, value: string | number | boolean | null) {
+  async function handleChange(fieldDefinitionId: string, value: string | number | boolean | string[] | null) {
     setSavingId(fieldDefinitionId);
     try {
       await save({ clientId, entityType, entityId, fieldDefinitionId, value });
@@ -49,6 +49,37 @@ export function CustomFieldsCard({ entityType, entityId, clientId }: CustomField
                 />
                 {def.label}
               </label>
+            );
+          }
+
+          if (def.field_type === "multiselect") {
+            const currentTags = Array.isArray(current) ? current : [];
+            function toggleTag(option: string) {
+              const next = currentTags.includes(option)
+                ? currentTags.filter((t) => t !== option)
+                : [...currentTags, option];
+              handleChange(def.id, next);
+            }
+            return (
+              <div key={def.id}>
+                <label className="mb-1 block text-xs text-muted-foreground">{def.label}</label>
+                <div className="flex flex-wrap gap-2">
+                  {(def.select_options ?? []).map((opt) => (
+                    <label
+                      key={opt}
+                      className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-foreground"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={currentTags.includes(opt)}
+                        disabled={saving}
+                        onChange={() => toggleTag(opt)}
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
             );
           }
 

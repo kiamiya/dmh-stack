@@ -7,15 +7,22 @@ import { useOpportunities } from "../hooks/useOpportunities";
 import { useClients } from "../hooks/useClients";
 import { usePipelineStages } from "../hooks/usePipelineStages";
 import { useDealLists } from "../hooks/useDealLists";
+import { matchesRuleGroups } from "../lib/segmentEvaluator";
+import { listValuesByEntityForClient } from "../services/customFields";
+import { supabase } from "../lib/supabase";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { AddDealDialog } from "../components/AddDealDialog";
 import { OpportunityKanbanBoardShell, OpportunityKanbanColumn } from "../components/OpportunityKanbanColumn";
+import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
+import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
 import { useToast } from "../components/ui/toast";
+
+const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "status", operator: "eq", value: "" }] }];
 
 export function OpportunitiesPage() {
   const { deals, loading, error, create, changeStage } = useOpportunities();
@@ -34,26 +41,49 @@ export function OpportunitiesPage() {
   const { lists: dealLists, create: createDealList, remove: removeDealList, addDeals: addDealsToList, listMemberIds: listDealMemberIds } = useDealLists(listViewClientId);
   const [listId, setListId] = useState("");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
+  const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
+  const [newListGroups, setNewListGroups] = useState<RuleGroupDraft[]>(EMPTY_GROUPS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkListId, setBulkListId] = useState("");
 
+  const activeList = dealLists.find((l) => l.id === listId) ?? null;
+
   useEffect(() => {
-    if (!listId) {
+    if (!activeList || activeList.rules) {
       setListMemberIdSet(null);
       return;
     }
-    listDealMemberIds(listId).then((ids) => setListMemberIdSet(new Set(ids)));
+    listDealMemberIds(activeList.id).then((ids) => setListMemberIdSet(new Set(ids)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+  }, [activeList?.id, activeList?.rules]);
+
+  useEffect(() => {
+    if (!listViewClientId) {
+      setCustomFieldValuesById({});
+      return;
+    }
+    listValuesByEntityForClient(supabase, "opportunity", listViewClientId)
+      .then(setCustomFieldValuesById)
+      .catch(() => setCustomFieldValuesById({}));
+  }, [listViewClientId]);
 
   const listViewDeals = useMemo(() => {
     let rows = deals;
     if (listViewClientId) rows = rows.filter((d) => d.client_id === listViewClientId);
-    if (listMemberIdSet) rows = rows.filter((d) => listMemberIdSet.has(d.id));
+    if (activeList) {
+      if (activeList.rules) {
+        rows = rows.filter((d) =>
+          matchesRuleGroups({ ...d, ...customFieldValuesById[d.id] } as unknown as Record<string, unknown>, activeList.rules!),
+        );
+      } else if (listMemberIdSet) {
+        rows = rows.filter((d) => listMemberIdSet.has(d.id));
+      }
+    }
     return rows;
-  }, [deals, listViewClientId, listMemberIdSet]);
+  }, [deals, listViewClientId, activeList, listMemberIdSet, customFieldValuesById]);
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -68,13 +98,29 @@ export function OpportunitiesPage() {
     setSelectedIds((prev) => (prev.size === listViewDeals.length ? new Set() : new Set(listViewDeals.map((d) => d.id))));
   }
 
+  function resetNewListForm() {
+    setNewListName("");
+    setNewListMode("static");
+    setNewListGroups(EMPTY_GROUPS);
+    setNewListOpen(false);
+  }
+
   async function handleCreateDealList(e: FormEvent) {
     e.preventDefault();
     if (!newListName.trim()) return;
-    await createDealList({ clientId: listViewClientId, name: newListName.trim() });
+    const rules =
+      newListMode === "dynamic"
+        ? newListGroups
+            .map((g) => ({
+              conditions: g.conditions
+                .filter((c) => c.field.trim())
+                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" ? true : c.value })),
+            }))
+            .filter((g) => g.conditions.length > 0)
+        : undefined;
+    await createDealList({ clientId: listViewClientId, name: newListName.trim(), rules });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
-    setNewListName("");
-    setNewListOpen(false);
+    resetNewListForm();
   }
 
   async function handleAddSelectedToList() {
@@ -181,10 +227,10 @@ export function OpportunitiesPage() {
                     onChange={(e) => setListId(e.target.value)}
                     className="rounded-md border border-border px-2 py-1 text-sm"
                   >
-                    <option value="">Toutes les listes</option>
+                    <option value="">Toutes les opportunités</option>
                     {dealLists.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.name}
+                        {l.name} {l.rules ? "(dynamique)" : ""}
                       </option>
                     ))}
                   </select>
@@ -205,13 +251,32 @@ export function OpportunitiesPage() {
           </div>
 
           {newListOpen && listViewClientId && (
-            <form onSubmit={handleCreateDealList} className="flex items-end gap-2 rounded-md border border-border p-3">
+            <form onSubmit={handleCreateDealList} className="space-y-3 rounded-md border border-border p-3">
               <input
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
                 placeholder="Nom de la liste"
-                className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
+              <div className="flex w-fit gap-1 rounded-md border border-border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setNewListMode("static")}
+                  className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+                >
+                  Statique
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewListMode("dynamic")}
+                  className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+                >
+                  Dynamique (critères)
+                </button>
+              </div>
+              {newListMode === "dynamic" && (
+                <RuleGroupsEditor entityType="opportunity" clientId={listViewClientId} groups={newListGroups} onChange={setNewListGroups} />
+              )}
               <Button type="submit" size="sm" disabled={!newListName.trim()}>
                 Créer la liste
               </Button>
@@ -227,7 +292,7 @@ export function OpportunitiesPage() {
                 className="rounded-md border border-border px-2 py-1 text-sm"
               >
                 <option value="">Choisir une liste…</option>
-                {dealLists.map((l) => (
+                {dealLists.filter((l) => !l.rules).map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>

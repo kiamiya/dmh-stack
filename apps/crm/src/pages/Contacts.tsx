@@ -3,52 +3,72 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useContacts } from "../hooks/useContacts";
 import { useClients } from "../hooks/useClients";
-import { useContactSegments } from "../hooks/useContactSegments";
 import { useContactLists } from "../hooks/useContactLists";
-import { matchesSegment } from "../lib/segmentEvaluator";
+import { matchesRuleGroups } from "../lib/segmentEvaluator";
+import { listValuesByEntityForClient } from "../services/customFields";
+import { supabase } from "../lib/supabase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Button } from "../components/ui/button";
-import { ConditionRowsEditor } from "../components/ConditionRowsEditor";
-import type { ConditionDraft } from "../components/ConditionRowsEditor";
+import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
+import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
+import { AddContactDialog } from "../components/AddContactDialog";
 import { useToast } from "../components/ui/toast";
 
+const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "job_title", operator: "eq", value: "" }] }];
+
 export function ContactsPage() {
-  const { contacts, loading, error } = useContacts();
+  const { contacts, loading, error, reload } = useContacts();
   const clients = useClients();
   const { toast } = useToast();
+  const [addOpen, setAddOpen] = useState(false);
   const [clientId, setClientId] = useState("");
-  const { segments, create: createSegment, remove: removeSegment } = useContactSegments(clientId);
-  const [segmentId, setSegmentId] = useState("");
-  const [newSegmentOpen, setNewSegmentOpen] = useState(false);
-  const [newSegmentName, setNewSegmentName] = useState("");
-  const [newSegmentRules, setNewSegmentRules] = useState<ConditionDraft[]>([]);
 
   const { lists, create: createList, remove: removeList, addContacts: addContactsToList, listMemberIds } = useContactLists(clientId);
   const [listId, setListId] = useState("");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
+  const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
+  const [newListGroups, setNewListGroups] = useState<RuleGroupDraft[]>(EMPTY_GROUPS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkListId, setBulkListId] = useState("");
 
-  const activeSegment = segments.find((s) => s.id === segmentId) ?? null;
+  const activeList = lists.find((l) => l.id === listId) ?? null;
 
   useEffect(() => {
-    if (!listId) {
+    if (!activeList || activeList.rules) {
       setListMemberIdSet(null);
       return;
     }
-    listMemberIds(listId).then((ids) => setListMemberIdSet(new Set(ids)));
+    listMemberIds(activeList.id).then((ids) => setListMemberIdSet(new Set(ids)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+  }, [activeList?.id, activeList?.rules]);
+
+  useEffect(() => {
+    if (!clientId) {
+      setCustomFieldValuesById({});
+      return;
+    }
+    listValuesByEntityForClient(supabase, "contact", clientId)
+      .then(setCustomFieldValuesById)
+      .catch(() => setCustomFieldValuesById({}));
+  }, [clientId]);
 
   const filtered = useMemo(() => {
     let rows = contacts;
     if (clientId) rows = rows.filter((c) => c.client_id === clientId);
-    if (activeSegment) rows = rows.filter((c) => matchesSegment(c as unknown as Record<string, unknown>, activeSegment.rules));
-    if (listMemberIdSet) rows = rows.filter((c) => listMemberIdSet.has(c.id));
+    if (activeList) {
+      if (activeList.rules) {
+        rows = rows.filter((c) =>
+          matchesRuleGroups({ ...c, ...customFieldValuesById[c.id] } as unknown as Record<string, unknown>, activeList.rules!),
+        );
+      } else if (listMemberIdSet) {
+        rows = rows.filter((c) => listMemberIdSet.has(c.id));
+      }
+    }
     return rows;
-  }, [contacts, clientId, activeSegment, listMemberIdSet]);
+  }, [contacts, clientId, activeList, listMemberIdSet, customFieldValuesById]);
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -63,29 +83,29 @@ export function ContactsPage() {
     setSelectedIds((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id))));
   }
 
-  async function handleCreateSegment(e: FormEvent) {
-    e.preventDefault();
-    if (!newSegmentName.trim()) return;
-    await createSegment({
-      clientId,
-      name: newSegmentName.trim(),
-      rules: newSegmentRules
-        .filter((r) => r.field.trim())
-        .map((r) => ({ field: r.field.trim(), operator: r.operator, value: r.operator === "is_set" ? true : r.value })),
-    });
-    toast(`Segment "${newSegmentName.trim()}" créé.`, "success");
-    setNewSegmentName("");
-    setNewSegmentRules([]);
-    setNewSegmentOpen(false);
+  function resetNewListForm() {
+    setNewListName("");
+    setNewListMode("static");
+    setNewListGroups(EMPTY_GROUPS);
+    setNewListOpen(false);
   }
 
   async function handleCreateList(e: FormEvent) {
     e.preventDefault();
     if (!newListName.trim()) return;
-    await createList({ clientId, name: newListName.trim() });
+    const rules =
+      newListMode === "dynamic"
+        ? newListGroups
+            .map((g) => ({
+              conditions: g.conditions
+                .filter((c) => c.field.trim())
+                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" ? true : c.value })),
+            }))
+            .filter((g) => g.conditions.length > 0)
+        : undefined;
+    await createList({ clientId, name: newListName.trim(), rules });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
-    setNewListName("");
-    setNewListOpen(false);
+    resetNewListForm();
   }
 
   async function handleAddSelectedToList() {
@@ -101,7 +121,12 @@ export function ContactsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-3 p-6">
-      <h1 className="text-lg font-semibold text-foreground">Contacts</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">Contacts</h1>
+        <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+          + Nouveau contact
+        </Button>
+      </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
         <div>
@@ -110,7 +135,6 @@ export function ContactsPage() {
             value={clientId}
             onChange={(e) => {
               setClientId(e.target.value);
-              setSegmentId("");
               setListId("");
               setSelectedIds(new Set());
             }}
@@ -125,89 +149,64 @@ export function ContactsPage() {
           </select>
         </div>
         {clientId && (
-          <>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Segment</label>
-              <div className="flex gap-2">
-                <select
-                  value={segmentId}
-                  onChange={(e) => setSegmentId(e.target.value)}
-                  className="rounded-md border border-border px-2 py-1 text-sm"
-                >
-                  <option value="">Tous les contacts</option>
-                  {segments.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                {segmentId && (
-                  <Button variant="ghost" size="sm" onClick={() => { removeSegment(segmentId); setSegmentId(""); }}>
-                    Supprimer le segment
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => setNewSegmentOpen((v) => !v)}>
-                  + Nouveau segment
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Liste</label>
+            <div className="flex gap-2">
+              <select
+                value={listId}
+                onChange={(e) => setListId(e.target.value)}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous les contacts</option>
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} {l.rules ? "(dynamique)" : ""}
+                  </option>
+                ))}
+              </select>
+              {listId && (
+                <Button variant="ghost" size="sm" onClick={() => { removeList(listId); setListId(""); }}>
+                  Supprimer la liste
                 </Button>
-              </div>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setNewListOpen((v) => !v)}>
+                + Nouvelle liste
+              </Button>
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Liste</label>
-              <div className="flex gap-2">
-                <select
-                  value={listId}
-                  onChange={(e) => setListId(e.target.value)}
-                  className="rounded-md border border-border px-2 py-1 text-sm"
-                >
-                  <option value="">Toutes les listes</option>
-                  {lists.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                {listId && (
-                  <Button variant="ghost" size="sm" onClick={() => { removeList(listId); setListId(""); }}>
-                    Supprimer la liste
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => setNewListOpen((v) => !v)}>
-                  + Nouvelle liste
-                </Button>
-              </div>
-            </div>
-          </>
+          </div>
         )}
         {!clientId && (
-          <p className="text-xs text-muted-foreground">
-            Choisis un client DMH pour créer/filtrer des segments et des listes.
-          </p>
+          <p className="text-xs text-muted-foreground">Choisis un client DMH pour créer/filtrer des listes.</p>
         )}
       </div>
 
-      {newSegmentOpen && clientId && (
-        <form onSubmit={handleCreateSegment} className="space-y-3 rounded-md border border-border p-3">
-          <input
-            value={newSegmentName}
-            onChange={(e) => setNewSegmentName(e.target.value)}
-            placeholder="Nom du segment"
-            className="w-full rounded-md border border-border px-3 py-2 text-sm"
-          />
-          <ConditionRowsEditor conditions={newSegmentRules} onChange={setNewSegmentRules} />
-          <Button type="submit" size="sm" disabled={!newSegmentName.trim()}>
-            Créer le segment
-          </Button>
-        </form>
-      )}
-
       {newListOpen && clientId && (
-        <form onSubmit={handleCreateList} className="flex items-end gap-2 rounded-md border border-border p-3">
+        <form onSubmit={handleCreateList} className="space-y-3 rounded-md border border-border p-3">
           <input
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             placeholder="Nom de la liste"
-            className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm"
           />
+          <div className="flex gap-1 rounded-md border border-border p-0.5 w-fit">
+            <button
+              type="button"
+              onClick={() => setNewListMode("static")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Statique
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewListMode("dynamic")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Dynamique (critères)
+            </button>
+          </div>
+          {newListMode === "dynamic" && (
+            <RuleGroupsEditor entityType="contact" clientId={clientId} groups={newListGroups} onChange={setNewListGroups} />
+          )}
           <Button type="submit" size="sm" disabled={!newListName.trim()}>
             Créer la liste
           </Button>
@@ -223,7 +222,7 @@ export function ContactsPage() {
             className="rounded-md border border-border px-2 py-1 text-sm"
           >
             <option value="">Choisir une liste…</option>
-            {lists.map((l) => (
+            {lists.filter((l) => !l.rules).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
@@ -284,6 +283,8 @@ export function ContactsPage() {
           </TableBody>
         </Table>
       )}
+
+      <AddContactDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => reload()} />
     </div>
   );
 }

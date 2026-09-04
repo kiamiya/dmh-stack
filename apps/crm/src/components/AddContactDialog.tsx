@@ -11,6 +11,7 @@ import { createProspect } from "../services/prospects";
 import { validateContactForm } from "../lib/contactForm";
 import { useToast } from "./ui/toast";
 import { AddCompanyDialog } from "./AddCompanyDialog";
+import { SearchableSelect } from "./ui/searchable-select";
 
 export interface AddContactDialogProps {
   open: boolean;
@@ -137,20 +138,13 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
                 Entreprise
               </label>
               <div className="flex gap-2">
-                <select
-                  id="contact-company"
+                <SearchableSelect
                   value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
+                  onChange={setCompanyId}
                   disabled={!clientId}
-                  className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  <option value="">{clientId ? "Sélectionner…" : "Choisir un client d'abord"}</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={clientId ? "Sélectionner…" : "Choisir un client d'abord"}
+                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                />
                 <Button
                   type="button"
                   variant="outline"

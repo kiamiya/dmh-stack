@@ -12,6 +12,7 @@ import { useToast } from "../components/ui/toast";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
+import { SearchableSelect } from "../components/ui/searchable-select";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -154,18 +155,12 @@ export function CompanyDetailPage() {
           {contacts.length === 0 && <p className="text-sm text-muted-foreground">Aucun contact lié.</p>}
 
           <div className="flex gap-2 pt-2">
-            <select
+            <SearchableSelect
               value={linkContactId}
-              onChange={(e) => setLinkContactId(e.target.value)}
-              className="w-full rounded-md border border-border px-3 py-2 text-sm"
-            >
-              <option value="">Lier un contact existant…</option>
-              {linkableContacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.first_name} {c.last_name}
-                </option>
-              ))}
-            </select>
+              onChange={setLinkContactId}
+              placeholder="Lier un contact existant…"
+              options={linkableContacts.map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}` }))}
+            />
             <Button
               variant="outline"
               disabled={!linkContactId}

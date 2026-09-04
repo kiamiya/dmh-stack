@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesSegment } from "./segmentEvaluator";
+import { matchesRuleGroups, matchesSegment } from "./segmentEvaluator";
 
 const contact = { job_title: "Directeur Commercial", email: "a@b.fr", linkedin_url: null, revenue: 50000 };
 
@@ -43,5 +43,41 @@ describe("matchesSegment", () => {
     ];
     expect(matchesSegment(contact, rules)).toBe(true);
     expect(matchesSegment(contact, [...rules, { field: "email", operator: "eq" as const, value: "autre" }])).toBe(false);
+  });
+});
+
+describe("matchesRuleGroups", () => {
+  it("retourne false sans groupe (aucun groupe = personne ne correspond)", () => {
+    expect(matchesRuleGroups(contact, [])).toBe(false);
+  });
+
+  it("un seul groupe se comporte comme un ET pur (équivalent matchesSegment)", () => {
+    const groups = [
+      { conditions: [{ field: "job_title", operator: "contains" as const, value: "commercial" }, { field: "revenue", operator: "gt" as const, value: 10000 }] },
+    ];
+    expect(matchesRuleGroups(contact, groups)).toBe(true);
+  });
+
+  it("plusieurs groupes sont combinés en OU — un seul groupe qui matche suffit", () => {
+    const groups = [
+      { conditions: [{ field: "job_title", operator: "eq" as const, value: "Autre poste" }] },
+      { conditions: [{ field: "revenue", operator: "gt" as const, value: 10000 }] },
+    ];
+    expect(matchesRuleGroups(contact, groups)).toBe(true);
+  });
+
+  it("retourne false si aucun groupe ne matche entièrement", () => {
+    const groups = [
+      { conditions: [{ field: "job_title", operator: "eq" as const, value: "Autre poste" }] },
+      { conditions: [{ field: "revenue", operator: "lt" as const, value: 10000 }] },
+    ];
+    expect(matchesRuleGroups(contact, groups)).toBe(false);
+  });
+
+  it("un groupe avec plusieurs conditions doit toutes les satisfaire (ET) pour compter", () => {
+    const groups = [
+      { conditions: [{ field: "job_title", operator: "contains" as const, value: "commercial" }, { field: "revenue", operator: "lt" as const, value: 10000 }] },
+    ];
+    expect(matchesRuleGroups(contact, groups)).toBe(false);
   });
 });

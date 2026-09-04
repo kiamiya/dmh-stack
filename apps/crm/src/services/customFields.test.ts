@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createFieldDefinition, listFieldDefinitions, listValuesForEntity, upsertValue } from "./customFields";
+import { createFieldDefinition, listFieldDefinitions, listValuesByEntityForClient, listValuesForEntity, upsertValue } from "./customFields";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -69,6 +69,32 @@ describe("listValuesForEntity", () => {
     const rows = [{ id: "value-1", field_definition_id: "field-1", value: "Industrie" }];
     const client = makeStubClient({ data: rows, error: null });
     await expect(listValuesForEntity(client, "contact", "contact-1")).resolves.toEqual(rows);
+  });
+});
+
+describe("listValuesByEntityForClient", () => {
+  it("regroupe les valeurs par entity_id -> {field_key: value}", async () => {
+    const rows = [
+      { entity_id: "c1", value: "Directeur", custom_field_definitions: { field_key: "poste" } },
+      { entity_id: "c1", value: ["VIP"], custom_field_definitions: { field_key: "tags" } },
+      { entity_id: "c2", value: "Autre", custom_field_definitions: { field_key: "poste" } },
+    ];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listValuesByEntityForClient(client, "contact", "client-1")).resolves.toEqual({
+      c1: { poste: "Directeur", tags: ["VIP"] },
+      c2: { poste: "Autre" },
+    });
+  });
+
+  it("ignore les lignes sans définition liée", async () => {
+    const rows = [{ entity_id: "c1", value: "x", custom_field_definitions: null }];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listValuesByEntityForClient(client, "contact", "client-1")).resolves.toEqual({});
+  });
+
+  it("retourne un objet vide si data est null", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(listValuesByEntityForClient(client, "contact", "client-1")).resolves.toEqual({});
   });
 });
 

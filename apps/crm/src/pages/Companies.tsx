@@ -4,12 +4,19 @@ import type { FormEvent } from "react";
 import { useCompanies } from "../hooks/useCompanies";
 import { useClients } from "../hooks/useClients";
 import { useCompanyLists } from "../hooks/useCompanyLists";
+import { matchesRuleGroups } from "../lib/segmentEvaluator";
+import { listValuesByEntityForClient } from "../services/customFields";
+import { supabase } from "../lib/supabase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
+import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { formatScore, getScoreColor } from "../lib/score";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { useToast } from "../components/ui/toast";
+
+const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "name", operator: "contains", value: "" }] }];
 
 export function CompaniesPage() {
   const { companies, loading, error, reload } = useCompanies();
@@ -21,26 +28,49 @@ export function CompaniesPage() {
   const { lists, create: createList, remove: removeList, addCompanies: addCompaniesToList, listMemberIds } = useCompanyLists(clientId);
   const [listId, setListId] = useState("");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
+  const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
+  const [newListGroups, setNewListGroups] = useState<RuleGroupDraft[]>(EMPTY_GROUPS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkListId, setBulkListId] = useState("");
 
+  const activeList = lists.find((l) => l.id === listId) ?? null;
+
   useEffect(() => {
-    if (!listId) {
+    if (!activeList || activeList.rules) {
       setListMemberIdSet(null);
       return;
     }
-    listMemberIds(listId).then((ids) => setListMemberIdSet(new Set(ids)));
+    listMemberIds(activeList.id).then((ids) => setListMemberIdSet(new Set(ids)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+  }, [activeList?.id, activeList?.rules]);
+
+  useEffect(() => {
+    if (!clientId) {
+      setCustomFieldValuesById({});
+      return;
+    }
+    listValuesByEntityForClient(supabase, "company", clientId)
+      .then(setCustomFieldValuesById)
+      .catch(() => setCustomFieldValuesById({}));
+  }, [clientId]);
 
   const filtered = useMemo(() => {
     let rows = companies;
     if (clientId) rows = rows.filter((c) => c.client_id === clientId);
-    if (listMemberIdSet) rows = rows.filter((c) => listMemberIdSet.has(c.id));
+    if (activeList) {
+      if (activeList.rules) {
+        rows = rows.filter((c) =>
+          matchesRuleGroups({ ...c, ...customFieldValuesById[c.id] } as unknown as Record<string, unknown>, activeList.rules!),
+        );
+      } else if (listMemberIdSet) {
+        rows = rows.filter((c) => listMemberIdSet.has(c.id));
+      }
+    }
     return rows;
-  }, [companies, clientId, listMemberIdSet]);
+  }, [companies, clientId, activeList, listMemberIdSet, customFieldValuesById]);
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -55,13 +85,29 @@ export function CompaniesPage() {
     setSelectedIds((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id))));
   }
 
+  function resetNewListForm() {
+    setNewListName("");
+    setNewListMode("static");
+    setNewListGroups(EMPTY_GROUPS);
+    setNewListOpen(false);
+  }
+
   async function handleCreateList(e: FormEvent) {
     e.preventDefault();
     if (!newListName.trim()) return;
-    await createList({ clientId, name: newListName.trim() });
+    const rules =
+      newListMode === "dynamic"
+        ? newListGroups
+            .map((g) => ({
+              conditions: g.conditions
+                .filter((c) => c.field.trim())
+                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" ? true : c.value })),
+            }))
+            .filter((g) => g.conditions.length > 0)
+        : undefined;
+    await createList({ clientId, name: newListName.trim(), rules });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
-    setNewListName("");
-    setNewListOpen(false);
+    resetNewListForm();
   }
 
   async function handleAddSelectedToList() {
@@ -113,10 +159,10 @@ export function CompaniesPage() {
                 onChange={(e) => setListId(e.target.value)}
                 className="rounded-md border border-border px-2 py-1 text-sm"
               >
-                <option value="">Toutes les listes</option>
+                <option value="">Toutes les entreprises</option>
                 {lists.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.name}
+                    {l.name} {l.rules ? "(dynamique)" : ""}
                   </option>
                 ))}
               </select>
@@ -137,13 +183,32 @@ export function CompaniesPage() {
       </div>
 
       {newListOpen && clientId && (
-        <form onSubmit={handleCreateList} className="flex items-end gap-2 rounded-md border border-border p-3">
+        <form onSubmit={handleCreateList} className="space-y-3 rounded-md border border-border p-3">
           <input
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             placeholder="Nom de la liste"
-            className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm"
           />
+          <div className="flex gap-1 rounded-md border border-border p-0.5 w-fit">
+            <button
+              type="button"
+              onClick={() => setNewListMode("static")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Statique
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewListMode("dynamic")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Dynamique (critères)
+            </button>
+          </div>
+          {newListMode === "dynamic" && (
+            <RuleGroupsEditor entityType="company" clientId={clientId} groups={newListGroups} onChange={setNewListGroups} />
+          )}
           <Button type="submit" size="sm" disabled={!newListName.trim()}>
             Créer la liste
           </Button>
@@ -159,7 +224,7 @@ export function CompaniesPage() {
             className="rounded-md border border-border px-2 py-1 text-sm"
           >
             <option value="">Choisir une liste…</option>
-            {lists.map((l) => (
+            {lists.filter((l) => !l.rules).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
