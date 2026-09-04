@@ -3,30 +3,35 @@
 @tailwind utilities;
 
 /*
- * Design tokens (variables CSS) — palette professionnelle sobre : neutre
- * slate + un accent indigo utilisé avec parcimonie (liens, focus, états
- * actifs). Indirection par variable pour permettre un mode sombre plus
- * tard (Phase 6 de la refonte CRM) sans retoucher les composants.
+ * Design tokens (variables CSS) — identité "Relais" (S29, mockup Claude
+ * Design importé par Loïc) : ardoise/bleu acier, esthétique "blueprint"
+ * (coins carrés, repères d'angle — voir blueprint-corners.tsx). Valeurs
+ * hex du mockup (ds-industry.css) converties en HSL pour rester
+ * compatibles avec la syntaxe `hsl(var(--x) / <alpha-value>)` déjà
+ * utilisée par tailwind.config.ts — aucun changement des RÔLES de
+ * tokens, seulement de leurs valeurs. `--sidebar-bg`/`--sidebar-fg` sont
+ * nouveaux et volontairement non redéfinis dans le bloc sombre plus bas :
+ * le panneau latéral reste "encre" en permanence, comme dans le mockup.
  */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: 240 4% 95%;
+    --foreground: 200 5% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: 240 2% 92%;
+    --card-foreground: 200 5% 12%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 210 30% 50%;
+    --primary-foreground: 240 4% 95%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 7% 91%;
+    --secondary-foreground: 200 5% 12%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 7% 91%;
+    --muted-foreground: 240 2% 37%;
 
-    --accent: 238 75% 59%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 30% 50%;
+    --accent-foreground: 240 4% 95%;
 
     --destructive: 0 72.2% 50.6%;
     --destructive-foreground: 210 40% 98%;
@@ -37,38 +42,46 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 9%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 238 75% 59%;
+    --border: 240 1% 82%;
+    --input: 240 1% 82%;
+    --ring: 210 30% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0rem;
+
+    --sidebar-bg: 210 36% 18%;
+    --sidebar-fg: 240 4% 95%;
+
+    --font-heading: "Barlow Condensed", system-ui, sans-serif;
+    --font-body: "Barlow", system-ui, sans-serif;
   }
 
   /*
-   * Mode sombre (Phase 6) — mêmes rôles de tokens, valeurs adaptées pour
-   * le contraste sur fond sombre. `data-theme="dark"` est posé sur <html>
-   * par lib/theme.ts (choix explicite ou préférence système résolue),
-   * jamais laissé au seul CSS — voir index.html pour le script anti-flash
-   * qui l'applique avant le premier rendu.
+   * Mode sombre — mêmes rôles de tokens, valeurs adaptées pour le
+   * contraste sur fond sombre (le mockup n'a pas de variante sombre :
+   * approximation à partir de la rampe neutre de ds-industry.css).
+   * `data-theme="dark"` est posé sur <html> par lib/theme.ts (choix
+   * explicite ou préférence système résolue), jamais laissé au seul CSS
+   * — voir index.html pour le script anti-flash qui l'applique avant le
+   * premier rendu.
    */
   :root[data-theme="dark"] {
-    --background: 222.2 47% 8%;
-    --foreground: 210 40% 96%;
+    --background: 240 2% 17%;
+    --foreground: 240 18% 97%;
 
-    --card: 222.2 40% 11%;
-    --card-foreground: 210 40% 96%;
+    --card: 240 1% 26%;
+    --card-foreground: 240 18% 97%;
 
-    --primary: 210 40% 96%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 210 30% 60%;
+    --primary-foreground: 240 2% 17%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
+    --secondary: 240 2% 26%;
+    --secondary-foreground: 240 18% 97%;
 
-    --muted: 217 33% 17%;
+    --muted: 240 2% 26%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 238 75% 67%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 30% 60%;
+    --accent-foreground: 240 2% 17%;
 
     --destructive: 0 62.8% 40%;
     --destructive-foreground: 210 40% 98%;
@@ -79,12 +92,51 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 9%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 238 75% 67%;
+    --border: 240 2% 37%;
+    --input: 240 2% 37%;
+    --ring: 210 30% 60%;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-body);
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+/*
+ * Repères d'angle "blueprint" (S29) — voir components/ui/blueprint-corners.tsx.
+ * Traduction des classes `.blueprint`/`.corner` du mockup en évitant les
+ * noms génériques `.corner`/`.blueprint` seuls (risque de collision avec
+ * une lib tierce) et `color-mix()` (support navigateur plus incertain que
+ * les tokens HSL déjà utilisés partout ailleurs dans ce fichier).
+ */
+@layer components {
+  .blueprint {
+    position: relative;
+  }
+  .blueprint-corner {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    color: hsl(var(--foreground) / 0.55);
+    pointer-events: none;
+  }
+  .blueprint-corner::before,
+  .blueprint-corner::after {
+    content: "";
+    position: absolute;
+    background: currentColor;
+  }
+  .blueprint-corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
+  .blueprint-corner::after { top: 5px; left: 0; width: 100%; height: 1px; }
+  .blueprint-corner-tl { top: -6px; left: -6px; }
+  .blueprint-corner-tr { top: -6px; right: -6px; }
+  .blueprint-corner-bl { bottom: -6px; left: -6px; }
+  .blueprint-corner-br { bottom: -6px; right: -6px; }
 }

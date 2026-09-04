@@ -14,6 +14,7 @@ import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { formatScore, getScoreColor } from "../lib/score";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
+import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "name", operator: "contains", value: "" }] }];
@@ -123,12 +124,15 @@ export function CompaniesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-3 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">Entreprises</h1>
-        <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-          + Entreprise
-        </Button>
-      </div>
+      <PageHeader
+        kicker="Prospection · base d'entreprises"
+        title="Entreprises"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            + Entreprise
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
         <div>

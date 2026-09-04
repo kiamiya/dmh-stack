@@ -17,6 +17,7 @@ import { AddDealDialog } from "../components/AddDealDialog";
 import { OpportunityKanbanBoardShell, OpportunityKanbanColumn } from "../components/OpportunityKanbanColumn";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
+import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
@@ -168,30 +169,33 @@ export function OpportunitiesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-3 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">Opportunités</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-border p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
-            >
-              Liste
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("kanban")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
-            >
-              Kanban
-            </button>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            + Opportunité
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Prospection · affaires en cours"
+        title="Opportunités"
+        actions={
+          <>
+            <div className="flex rounded-md border border-border p-0.5">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("kanban")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Kanban
+              </button>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              + Opportunité
+            </Button>
+          </>
+        }
+      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {loading && <p className="text-sm text-muted-foreground">Chargement…</p>}

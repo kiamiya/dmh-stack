@@ -43,11 +43,19 @@ export default {
           DEFAULT: "hsl(var(--card) / <alpha-value>)",
           foreground: "hsl(var(--card-foreground) / <alpha-value>)",
         },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-bg) / <alpha-value>)",
+          foreground: "hsl(var(--sidebar-fg) / <alpha-value>)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        heading: ["Barlow Condensed", "system-ui", "sans-serif"],
+        body: ["Barlow", "system-ui", "sans-serif"],
       },
     },
   },

@@ -14,6 +14,7 @@ import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { PageHeader } from "../components/ui/page-header";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
@@ -272,64 +273,67 @@ export function ProspectsListPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-3 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-foreground">Prospects</h1>
-        <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => setAddCompanyOpen(true)}>
-          + Entreprise
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
-          + Contact
-        </Button>
-        <DropdownMenu
-          align="end"
-          trigger={
-            <Button variant="outline" size="sm">
-              Colonnes
+      <PageHeader
+        kicker="Prospection · pipeline d'enrichissement"
+        title="Prospects"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setAddCompanyOpen(true)}>
+              + Entreprise
             </Button>
-          }
-        >
-          {columnOrder.map((id, index) => (
-            <div key={id} className="flex items-center gap-2 px-2 py-1.5 text-sm" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={columnVisibility[id] !== false}
-                onChange={(e) => {
-                  const next = { ...columnVisibility, [id]: e.target.checked };
-                  setColumnVisibility(next);
-                  persistColumnPrefs(columnOrder, next);
-                }}
-              />
-              <span className="flex-1 text-foreground">{COLUMN_LABELS[id]}</span>
-              <button
-                type="button"
-                disabled={index === 0}
-                onClick={() => {
-                  const next = moveColumn(columnOrder, id, -1);
-                  setColumnOrder(next);
-                  persistColumnPrefs(next, columnVisibility);
-                }}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                disabled={index === columnOrder.length - 1}
-                onClick={() => {
-                  const next = moveColumn(columnOrder, id, 1);
-                  setColumnOrder(next);
-                  persistColumnPrefs(next, columnVisibility);
-                }}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-              >
-                ↓
-              </button>
-            </div>
-          ))}
-        </DropdownMenu>
-        </div>
-      </div>
+            <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
+              + Contact
+            </Button>
+            <DropdownMenu
+              align="end"
+              trigger={
+                <Button variant="outline" size="sm">
+                  Colonnes
+                </Button>
+              }
+            >
+              {columnOrder.map((id, index) => (
+                <div key={id} className="flex items-center gap-2 px-2 py-1.5 text-sm" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={columnVisibility[id] !== false}
+                    onChange={(e) => {
+                      const next = { ...columnVisibility, [id]: e.target.checked };
+                      setColumnVisibility(next);
+                      persistColumnPrefs(columnOrder, next);
+                    }}
+                  />
+                  <span className="flex-1 text-foreground">{COLUMN_LABELS[id]}</span>
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => {
+                      const next = moveColumn(columnOrder, id, -1);
+                      setColumnOrder(next);
+                      persistColumnPrefs(next, columnVisibility);
+                    }}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === columnOrder.length - 1}
+                    onClick={() => {
+                      const next = moveColumn(columnOrder, id, 1);
+                      setColumnOrder(next);
+                      persistColumnPrefs(next, columnVisibility);
+                    }}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                </div>
+              ))}
+            </DropdownMenu>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-1 border-b border-border">
         <button

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { AddTaskDialog } from "../components/AddTaskDialog";
 import { EditTaskDialog } from "../components/EditTaskDialog";
 import { TaskCalendarView } from "../components/TaskCalendarView";
+import { PageHeader } from "../components/ui/page-header";
 import { ALL_TASK_STATUSES, getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 import type { TaskRow } from "../services/tasks";
 import type { TaskStatus } from "@dmh/types";
@@ -37,30 +38,33 @@ export function TasksPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-3 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">Tâches</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-border p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
-            >
-              Liste
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("calendar")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "calendar" ? "bg-secondary" : "text-muted-foreground"}`}
-            >
-              Calendrier
-            </button>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            + Tâche
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Prospection · suivi des relances"
+        title="Tâches"
+        actions={
+          <>
+            <div className="flex rounded-md border border-border p-0.5">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("calendar")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "calendar" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Calendrier
+              </button>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              + Tâche
+            </Button>
+          </>
+        }
+      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {loading && <p className="text-sm text-muted-foreground">Chargement…</p>}

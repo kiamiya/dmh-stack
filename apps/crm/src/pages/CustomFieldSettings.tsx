@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { slugifyFieldKey, validateCustomFieldForm } from "../lib/customFieldForm";
 
@@ -77,7 +78,7 @@ export function CustomFieldSettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold text-foreground">Champs personnalisés</h1>
+      <PageHeader kicker="Données & réglages · propriétés" title="Champs personnalisés" />
 
       <div className="flex gap-1 border-b border-border">
         {(Object.keys(ENTITY_TYPE_LABELS) as CustomFieldEntityType[]).map((type) => (

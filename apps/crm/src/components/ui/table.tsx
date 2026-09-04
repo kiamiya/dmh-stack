@@ -18,13 +18,16 @@ export function TableBody(props: HTMLAttributes<HTMLTableSectionElement>) {
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("border-b border-border hover:bg-secondary/50", className)} {...props} />;
+  return <tr className={cn("border-b border-border hover:bg-accent/10", className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("h-10 px-2 text-left align-middle font-medium text-muted-foreground", className)}
+      className={cn(
+        "h-10 px-2 text-left align-middle text-[11px] font-medium uppercase tracking-wider text-muted-foreground",
+        className,
+      )}
       {...props}
     />
   );

@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { useToast } from "../components/ui/toast";
 import { ConditionRowsEditor } from "../components/ConditionRowsEditor";
 import type { ConditionDraft } from "../components/ConditionRowsEditor";
+import { PageHeader } from "../components/ui/page-header";
 
 const ENTITY_LABELS: Record<AutomationEntityType, string> = {
   contact: "Contact",
@@ -117,7 +118,7 @@ export function AutomationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold text-foreground">Automatisations</h1>
+      <PageHeader kicker="Marketing · règles automatiques" title="Automatisations" />
 
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>

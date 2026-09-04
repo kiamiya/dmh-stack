@@ -5,6 +5,7 @@ import { useKanbanProspects } from "../hooks/useKanbanProspects";
 import { groupProspectsByStatus } from "../lib/kanban";
 import { KanbanBoardShell, KanbanColumn } from "../components/KanbanColumn";
 import { Skeleton } from "../components/ui/skeleton";
+import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 
 export function PipelinePage() {
@@ -27,23 +28,24 @@ export function PipelinePage() {
 
   if (error) return <div className="p-8 text-sm text-destructive">{error}</div>;
 
-  if (loading) {
-    return (
-      <div className="flex gap-3 overflow-x-auto p-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-64 w-72 shrink-0" />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      <KanbanBoardShell>
-        {groups.map((group) => (
-          <KanbanColumn key={group.column.status} column={group.column} prospects={group.prospects} />
-        ))}
-      </KanbanBoardShell>
-    </DndContext>
+    <div className="flex flex-col gap-3 p-6">
+      <PageHeader kicker="Prospection · vue Kanban" title="Pipeline" />
+      {loading ? (
+        <div className="flex gap-3 overflow-x-auto">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-72 shrink-0" />
+          ))}
+        </div>
+      ) : (
+        <DndContext onDragEnd={handleDragEnd}>
+          <KanbanBoardShell>
+            {groups.map((group) => (
+              <KanbanColumn key={group.column.status} column={group.column} prospects={group.prospects} />
+            ))}
+          </KanbanBoardShell>
+        </DndContext>
+      )}
+    </div>
   );
 }

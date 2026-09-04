@@ -86,6 +86,8 @@ Dernière mise à jour : 2026-09-04
 | S26 | Listes dynamiques (critères ET/OU) + fusion des segments dans les listes | ✅ fait côté code — en attente de migration + test navigateur réel |
 | S27 | Dropdowns avec recherche (contacts/entreprises/listes) | ✅ fait |
 | S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
+| S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
+| S29-2..6 | Reporting, Intégrations, Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -683,3 +685,72 @@ créer une liste dynamique avec 2 groupes (OU) filtrant sur un tag,
 confirmer qu'un ancien segment apparaît maintenant comme liste dynamique
 équivalente, chercher dans un dropdown contact/entreprise, naviguer via
 la nouvelle barre latérale.
+
+### 2026-09-04 (suite) — S29 : design "Relais" importé via Claude Design
+
+Loïc a partagé un lien `claude.ai/design/p/...` (pas un artifact
+classique — accès direct impossible). Import fait via le MCP
+`claude_design` (`DesignSync`, autorisation `/design-login`) : projet
+"Application SaaS CRM Brevo", fichier `Relais CRM.dc.html` + ses imports
+(`ds-industry.css`, `support.js`) lus intégralement (10 écrans : Dashboard,
+Contacts, Fiche contact, Pipeline, Campagnes, Automatisations,
+Intégrations, Mapping enrichissement, Reporting, Paramètres).
+
+Le mockup n'est pas qu'un thème de couleurs : identité "blueprint"
+(cartes/boutons à coins carrés + repères d'angle façon plan technique),
+typographie Barlow/Barlow Condensed, palette ardoise/bleu acier, ET 5
+écrans absents de notre app. Confirmé avec Loïc (AskUserQuestion) :
+relooker l'existant **et** construire les nouveaux écrans — traité comme
+une roadmap à étapes (plan écrit, `bubbly-watching-crescent.md`),
+**principe non négociable acté dans le plan** : jamais de chiffres
+fabriqués (le mockup a des données d'exemple inventées — crédits,
+quotas — qui ne doivent jamais apparaître comme réelles dans le produit).
+
+**S29 étape 1 (système de design) — fait** :
+- `index.css` : couleurs hex du mockup converties en HSL et réinjectées
+  dans les tokens existants (mêmes rôles, `--background`/`--foreground`/
+  `--accent`/`--border`/etc. — aucun changement de `tailwind.config.ts`
+  pour ces rôles). Nouveaux tokens additifs `--sidebar-bg`/`--sidebar-fg`
+  (panneau latéral "encre", ne suit pas le thème clair/sombre — non
+  redéfinis dans le bloc `:root[data-theme="dark"]`, exprès).
+  `--radius: 0` (esthétique carrée, se propage automatiquement partout
+  où les composants utilisent déjà `rounded-md`/`rounded-lg`).
+- Typographie : Google Fonts Barlow/Barlow Condensed ajoutées à
+  `index.html`, `fontFamily.heading`/`.body` dans `tailwind.config.ts`,
+  `h1-h6` stylés globalement dans `index.css`.
+- `components/ui/blueprint-corners.tsx` (nouveau) : les 4 repères
+  d'angle du mockup, traduits en classes CSS `.blueprint-corner-*`
+  (noms non génériques pour éviter toute collision) plutôt que
+  `color-mix()` (moins sûr côté support navigateur que les tokens HSL
+  déjà utilisés partout ailleurs). `Card`/`Button` gagnent une prop
+  `blueprint?: boolean`.
+- `components/ui/page-header.tsx` (nouveau) : motif "kicker + titre"
+  du mockup, remplace le `<h1>` sur les 10 pages existantes
+  (`ProspectsList`, `Pipeline` — qui n'avait jusqu'ici aucun titre du
+  tout —, `Dashboard`, `Contacts`, `Companies`, `Opportunities`, `Tasks`,
+  `Automations`, `CalendarSettings`, `CustomFieldSettings`).
+- `components/Sidebar.tsx` (S28) restylée : fond "encre" fixe
+  (`bg-sidebar`), regroupement des routes sous les intitulés du mockup
+  (Pilotage/Prospection/Marketing/Données & réglages) — notre CRM a des
+  objets que le mockup n'a pas (Entreprises/Opportunités/Tâches), tous
+  rejoignent "Prospection" faute d'équivalent plus précis dans le
+  mockup ; mapping ajustable si Loïc préfère un autre découpage une fois
+  vu en réel.
+- `ui/badge.tsx` : `rounded-full` → `rounded-md` (tags carrés, pas des
+  pastilles). `ui/table.tsx` : en-têtes en majuscules espacées, survol
+  de ligne teinté avec l'accent.
+- Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 335
+  tests côté `@dmh/crm`, inchangé — étape 100% visuelle, aucune nouvelle
+  logique testable). Compilation confirmée sur tous les fichiers touchés
+  (dev server), présence des nouvelles classes/tokens vérifiée dans le
+  CSS transformé servi par Vite. **Pas de vérification visuelle en
+  navigateur réel possible côté Claude** (pas d'accès à un compte staff
+  réel ni possibilité d'en créer un jetable — `SUPABASE_SERVICE_ROLE_KEY`
+  de `.env.local` toujours périmée, cf. note S17) — à valider par Loïc.
+
+**Point de reprise** : demander à Loïc de recharger le CRM et donner un
+retour visuel (couleurs, typographie, coins carrés/repères d'angle,
+regroupement de la nav) avant d'enchaîner sur les étapes 2-6 (Reporting,
+Intégrations, Mapping enrichissement, Automatisations en canvas,
+Campagnes email) — chacune sera cadrée en détail à son tour, la
+roadmap complète est dans le plan de session.

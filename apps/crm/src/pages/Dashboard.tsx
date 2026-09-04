@@ -27,6 +27,7 @@ import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useTasks } from "../hooks/useTasks";
 import { computeConversionRate, computePipelineValueByStatus } from "../lib/opportunityStats";
 import { computeOverdueTasks, computeTaskCountsByStatus } from "../lib/taskStats";
+import { PageHeader } from "../components/ui/page-header";
 
 export function DashboardPage() {
   const location = useLocation();
@@ -94,7 +95,7 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
+      <PageHeader kicker="Pilotage · vue d'ensemble" title="Dashboard" />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>

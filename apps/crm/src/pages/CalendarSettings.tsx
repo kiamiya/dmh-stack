@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { CalendarEventGrid } from "../components/CalendarEventGrid";
 import { EditCalendarEventDialog } from "../components/EditCalendarEventDialog";
 import { AddCalendarEventDialog } from "../components/AddCalendarEventDialog";
+import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import type { UpcomingCalendarEvent } from "../services/calendarEvents";
 
@@ -67,7 +68,7 @@ export function CalendarSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold text-foreground">Mon calendrier</h1>
+      <PageHeader kicker="Données & réglages · RDV" title="Mon calendrier" />
 
       {hasAnyConnection && (
         <Card>
