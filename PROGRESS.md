@@ -566,10 +566,12 @@ many-to-many).
   `ContactDetail.tsx` (1 carte : entreprises).
 - Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 323
   tests côté `@dmh/crm`, +18 depuis S22).
-- **Point de reprise** : migrations `025`-`027` nécessaires sur le vrai
-  projet Supabase avant test réel (confirmation à demander avant `db
-  push` — aucune nouvelle Edge Function pour cette étape). Demander à
-  Loïc de tester : créer une liste d'entreprises, l'assigner à un
-  contact, vérifier l'affichage des entreprises membres sur la fiche
-  contact ; créer une liste de contacts, l'assigner à une opportunité,
-  vérifier l'affichage.
+- Migrations `025`-`027` appliquées sur le vrai projet Supabase (confirmé
+  avec Loïc avant exécution). Aucune Edge Function à redéployer pour
+  cette étape.
+- **Point de reprise** : demander à Loïc de tester en conditions réelles
+  — créer une liste d'entreprises, l'assigner à un contact, vérifier
+  l'affichage des entreprises membres sur la fiche contact ; créer une
+  liste de contacts, l'assigner à une opportunité, vérifier l'affichage ;
+  vérifier aussi que `/companies` et `/opportunities` (vue Liste)
+  affichent bien le nouveau sélecteur de liste.
