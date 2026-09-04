@@ -131,6 +131,9 @@ export function CompaniesPage() {
             </div>
           </div>
         )}
+        {!clientId && (
+          <p className="text-xs text-muted-foreground">Choisis un client DMH pour créer/filtrer des listes.</p>
+        )}
       </div>
 
       {newListOpen && clientId && (

@@ -178,6 +178,11 @@ export function ContactsPage() {
             </div>
           </>
         )}
+        {!clientId && (
+          <p className="text-xs text-muted-foreground">
+            Choisis un client DMH pour créer/filtrer des segments et des listes.
+          </p>
+        )}
       </div>
 
       {newSegmentOpen && clientId && (
