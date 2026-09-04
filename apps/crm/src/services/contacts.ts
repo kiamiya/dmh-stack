@@ -32,11 +32,12 @@ export interface ContactDetailRow {
   linkedin_url: string | null;
   phone: string | null;
   company_id: string;
+  company_list_id: string | null;
   companies: { id: string; name: string } | null;
 }
 
 const CONTACT_DETAIL_SELECT =
-  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, company_id, companies(id, name)";
+  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, company_id, company_list_id, companies(id, name)";
 
 export async function getContact(client: SupabaseClient, id: string): Promise<ContactDetailRow> {
   const { data, error } = await client.from("contacts").select(CONTACT_DETAIL_SELECT).eq("id", id).single();
@@ -51,6 +52,7 @@ export interface ContactUpdate {
   email?: string | null;
   linkedinUrl?: string | null;
   phone?: string | null;
+  companyListId?: string | null;
 }
 
 export async function updateContact(client: SupabaseClient, id: string, patch: ContactUpdate): Promise<void> {
@@ -63,6 +65,7 @@ export async function updateContact(client: SupabaseClient, id: string, patch: C
       ...(patch.email !== undefined && { email: patch.email }),
       ...(patch.linkedinUrl !== undefined && { linkedin_url: patch.linkedinUrl }),
       ...(patch.phone !== undefined && { phone: patch.phone }),
+      ...(patch.companyListId !== undefined && { company_list_id: patch.companyListId }),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

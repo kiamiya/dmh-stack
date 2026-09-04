@@ -4,12 +4,14 @@ import { useCompanyDetail } from "../hooks/useCompanyDetail";
 import { useContacts } from "../hooks/useContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useTasks } from "../hooks/useTasks";
+import { useContactLists } from "../hooks/useContactLists";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../components/ui/toast";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
+import { AssignedListCard } from "../components/AssignedListCard";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -22,6 +24,8 @@ export function CompanyDetailPage() {
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
   const { toast } = useToast();
+  const { lists: contactLists, listMemberIds: listContactListMemberIds } = useContactLists(company?.client_id ?? "");
+  const [contactListMemberIds, setContactListMemberIds] = useState<string[]>([]);
 
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -36,9 +40,26 @@ export function CompanyDetailPage() {
     setWebsite(company.website ?? "");
   }, [company]);
 
+  useEffect(() => {
+    if (!company?.contact_list_id) {
+      setContactListMemberIds([]);
+      return;
+    }
+    listContactListMemberIds(company.contact_list_id).then(setContactListMemberIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.contact_list_id]);
+
   if (loading) return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
   if (error) return <div className="p-8 text-sm text-destructive">{error}</div>;
   if (!company) return <div className="p-8 text-sm text-muted-foreground">Entreprise introuvable.</div>;
+
+  async function handleAssignContactList(listId: string | null) {
+    try {
+      await save({ contactListId: listId });
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -191,6 +212,17 @@ export function CompanyDetailPage() {
           {relatedTasks.length === 0 && <p className="text-sm text-muted-foreground">Aucune tâche liée.</p>}
         </CardContent>
       </Card>
+
+      <AssignedListCard
+        title="Liste de contacts assignée"
+        lists={contactLists}
+        selectedListId={company.contact_list_id ?? ""}
+        onAssign={handleAssignContactList}
+        memberNames={contactListMemberIds
+          .map((cid) => allContacts.contacts.find((c) => c.id === cid))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+          .map((c) => `${c.first_name} ${c.last_name}`)}
+      />
 
       <MeetingsCard companyId={company.id} />
     </div>

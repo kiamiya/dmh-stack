@@ -8,12 +8,14 @@ import { mergeContacts } from "../services/mergeContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useTasks } from "../hooks/useTasks";
 import { useContactLists } from "../hooks/useContactLists";
+import { useCompanyLists } from "../hooks/useCompanyLists";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
+import { AssignedListCard } from "../components/AssignedListCard";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -31,6 +33,8 @@ export function ContactDetailPage() {
   const { lists, addContacts: addContactToList } = useContactLists(contact?.client_id ?? "");
   const [addToListId, setAddToListId] = useState("");
   const [addingToList, setAddingToList] = useState(false);
+  const { lists: companyLists, listMemberIds: listCompanyListMemberIds } = useCompanyLists(contact?.client_id ?? "");
+  const [companyListMemberIds, setCompanyListMemberIds] = useState<string[]>([]);
   const [mergeTargetId, setMergeTargetId] = useState("");
   const [mergeConfirming, setMergeConfirming] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -55,9 +59,26 @@ export function ContactDetailPage() {
     setLinkedinUrl(contact.linkedin_url ?? "");
   }, [contact]);
 
+  useEffect(() => {
+    if (!contact?.company_list_id) {
+      setCompanyListMemberIds([]);
+      return;
+    }
+    listCompanyListMemberIds(contact.company_list_id).then(setCompanyListMemberIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact?.company_list_id]);
+
   if (loading) return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
   if (error) return <div className="p-8 text-sm text-destructive">{error}</div>;
   if (!contact) return <div className="p-8 text-sm text-muted-foreground">Contact introuvable.</div>;
+
+  async function handleAssignCompanyList(listId: string | null) {
+    try {
+      await save({ companyListId: listId });
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -294,6 +315,17 @@ export function ContactDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <AssignedListCard
+        title="Liste d'entreprises assignée"
+        lists={companyLists}
+        selectedListId={contact.company_list_id ?? ""}
+        onAssign={handleAssignCompanyList}
+        memberNames={companyListMemberIds
+          .map((cid) => allCompanies.companies.find((c) => c.id === cid))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+          .map((c) => c.name)}
+      />
 
       <MeetingsCard contactId={contact.id} />
 

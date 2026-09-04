@@ -355,3 +355,19 @@ export interface ContactList {
   name: string;
   created_at: string;
 }
+
+/** Même principe que ContactList, pour les entreprises. */
+export interface CompanyList {
+  id: string;
+  client_id: string;
+  name: string;
+  created_at: string;
+}
+
+/** Même principe que ContactList, pour les opportunités (table `deals`). */
+export interface OpportunityList {
+  id: string;
+  client_id: string;
+  name: string;
+  created_at: string;
+}

@@ -18,12 +18,14 @@ export interface DealRow {
   probability: number | null;
   expected_close_date: string | null;
   updated_at: string;
+  contact_list_id: string | null;
+  company_list_id: string | null;
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
 }
 
 const DEAL_SELECT =
-  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, updated_at, contacts(first_name, last_name), companies(name)";
+  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, updated_at, contact_list_id, company_list_id, contacts(first_name, last_name), companies(name)";
 
 export async function listDeals(client: SupabaseClient): Promise<DealRow[]> {
   const { data, error } = await client.from("deals").select(DEAL_SELECT).order("signed_at", { ascending: false });
@@ -98,6 +100,8 @@ export interface DealUpdate {
   expectedCloseDate?: string | null;
   contactId?: string | null;
   companyId?: string | null;
+  contactListId?: string | null;
+  companyListId?: string | null;
 }
 
 export async function updateDeal(client: SupabaseClient, id: string, patch: DealUpdate): Promise<void> {
@@ -109,6 +113,8 @@ export async function updateDeal(client: SupabaseClient, id: string, patch: Deal
       ...(patch.expectedCloseDate !== undefined && { expected_close_date: patch.expectedCloseDate }),
       ...(patch.contactId !== undefined && { contact_id: patch.contactId }),
       ...(patch.companyId !== undefined && { company_id: patch.companyId }),
+      ...(patch.contactListId !== undefined && { contact_list_id: patch.contactListId }),
+      ...(patch.companyListId !== undefined && { company_list_id: patch.companyListId }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

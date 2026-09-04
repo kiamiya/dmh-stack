@@ -80,6 +80,7 @@ Dernière mise à jour : 2026-09-03
 | S20 | Listes statiques de contacts | ✅ fait côté code — en attente de migration + test navigateur réel |
 | S21 | Rappel des tâches du jour (en-tête, toujours visible) | ✅ fait |
 | S22 | Compacter les blocs de connexion calendrier | ✅ fait |
+| S23 | Généraliser les listes (Contacts/Entreprises/Opportunités) + assignation croisée | ✅ fait côté code — en attente de migration + test navigateur réel |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -517,3 +518,58 @@ créer un événement lié à un contact (vérifier qu'il apparaît sur la fiche
 contact ET dans son vrai calendrier externe), créer une liste et y
 ajouter des contacts, vérifier le badge de tâches du jour dans l'en-tête,
 et confirmer que les blocs de connexion calendrier sont bien compacts.
+
+### 2026-09-04 — S23 : Loïc précise "listes" (S20 insuffisant)
+
+Retour de Loïc sur S20 : "je crois que tu n'as toujours pas compris...
+l'utilisateur doit pouvoir faire des listes custom de : contacts /
+entreprises / opportunités [...] pouvoir assigner une liste de contacts
+ou d'entreprises à une opportunité, ou une liste de contact pour une
+entreprise, ou une liste d'entreprises pour un contact". Passage en mode
+Plan pour cadrer précisément avant de recoder (deuxième malentendu
+consécutif sur ce sujet, éviter un troisième).
+
+**Décision de conception** : plutôt qu'une relation polymorphe générique
+(`entity_type`/`entity_id` libres), garder la convention déjà établie
+dans tout ce schéma — `deals.contact_id`/`company_id`,
+`tasks.contact_id`/`company_id`/`deal_id` ("trois liens optionnels plutôt
+qu'une relation polymorphe générique", migration 013) : chaque
+combinaison liste→fiche est une **colonne FK nullable explicite**, une
+seule liste assignée par type et par fiche (pas une relation
+many-to-many).
+
+- Migrations `025_company_lists.sql`/`026_opportunity_lists.sql` : copie
+  exacte du template `contact_lists`/`contact_list_members` (S20) pour
+  les entreprises et les opportunités (`opportunity_list_members.deal_id`
+  — "opportunité" = table `deals` dans ce schéma).
+- Migration `027_list_assignments.sql` : 4 colonnes FK nullables —
+  `deals.contact_list_id`/`company_list_id`, `companies.contact_list_id`,
+  `contacts.company_list_id`.
+- Backend : `services/companyLists.ts`/`dealLists.ts` +
+  `hooks/useCompanyLists.ts`/`useDealLists.ts` (copie exacte de
+  `contactLists.ts`/`useContactLists.ts`, S20). `CompanyList`/
+  `OpportunityList` ajoutés à `@dmh/types`. **L'assignation ne crée aucune
+  fonction dédiée** : simple extension des `DealUpdate`/`CompanyUpdate`/
+  `ContactUpdate` déjà existants (`+contactListId`/`+companyListId`) — les
+  hooks `useOpportunityDetail`/`useCompanyDetail`/`useContactDetail`
+  exposent déjà `save(patch)`, aucun changement de hook nécessaire.
+- UI : `Companies.tsx` n'avait **aucun sélecteur de client** jusqu'ici —
+  ajouté comme prérequis (mirroring `Contacts.tsx`), puis le bloc liste
+  complet (sélecteur "Liste", "+ Nouvelle liste", sélection multiple +
+  bulk "Ajouter à une liste"). `Opportunities.tsx` (vue "Liste"
+  uniquement) : même bloc, avec un `listViewClientId` **indépendant** de
+  `kanbanClientId` pour ne pas toucher au Kanban déjà validé.
+  `components/AssignedListCard.tsx` (nouveau, réutilisé 4 fois) :
+  sélecteur de liste existante + affichage en lecture seule de ses
+  membres. Câblé sur `OpportunityDetail.tsx` (2 cartes : contacts ET
+  entreprises), `CompanyDetail.tsx` (1 carte : contacts),
+  `ContactDetail.tsx` (1 carte : entreprises).
+- Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 323
+  tests côté `@dmh/crm`, +18 depuis S22).
+- **Point de reprise** : migrations `025`-`027` nécessaires sur le vrai
+  projet Supabase avant test réel (confirmation à demander avant `db
+  push` — aucune nouvelle Edge Function pour cette étape). Demander à
+  Loïc de tester : créer une liste d'entreprises, l'assigner à un
+  contact, vérifier l'affichage des entreprises membres sur la fiche
+  contact ; créer une liste de contacts, l'assigner à une opportunité,
+  vérifier l'affichage.

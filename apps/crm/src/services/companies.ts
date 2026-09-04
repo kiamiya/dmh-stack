@@ -47,10 +47,11 @@ export interface CompanyDetailRow {
   revenue: number | null;
   ai_score: number | null;
   ai_score_reason: string | null;
+  contact_list_id: string | null;
 }
 
 const COMPANY_DETAIL_SELECT =
-  "id, client_id, name, siren, legal_form, naf_label, employee_range, city, website, revenue, ai_score, ai_score_reason";
+  "id, client_id, name, siren, legal_form, naf_label, employee_range, city, website, revenue, ai_score, ai_score_reason, contact_list_id";
 
 export async function getCompany(client: SupabaseClient, id: string): Promise<CompanyDetailRow> {
   const { data, error } = await client.from("companies").select(COMPANY_DETAIL_SELECT).eq("id", id).single();
@@ -62,6 +63,7 @@ export interface CompanyUpdate {
   name?: string;
   city?: string | null;
   website?: string | null;
+  contactListId?: string | null;
 }
 
 export async function updateCompany(client: SupabaseClient, id: string, patch: CompanyUpdate): Promise<void> {
@@ -71,6 +73,7 @@ export async function updateCompany(client: SupabaseClient, id: string, patch: C
       ...(patch.name !== undefined && { name: patch.name }),
       ...(patch.city !== undefined && { city: patch.city }),
       ...(patch.website !== undefined && { website: patch.website }),
+      ...(patch.contactListId !== undefined && { contact_list_id: patch.contactListId }),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
