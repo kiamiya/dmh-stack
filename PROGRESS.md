@@ -673,12 +673,13 @@ Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 335
 tests côté `@dmh/crm`, +12 depuis S23), build du serveur de dev confirmé
 propre sur tous les fichiers touchés (compilation curl).
 
-**Point de reprise** : migrations `028`/`029` nécessaires sur le vrai
-projet Supabase avant test réel de S25/S26 (confirmation à demander avant
-`db push`). S24/S27/S28 sont déjà pleinement fonctionnels dès le
-prochain rechargement (aucune action serveur requise). Demander à Loïc de
-tester : bouton "+ Nouveau contact", ajouter un tag multiselect sur un
-contact, créer une liste dynamique avec 2 groupes (OU) filtrant sur un
-tag, confirmer qu'un ancien segment apparaît maintenant comme liste
-dynamique équivalente, chercher dans un dropdown contact/entreprise,
-naviguer via la nouvelle barre latérale.
+Migrations `028`/`029` appliquées sur le vrai projet Supabase (confirmé
+avec Loïc avant exécution). Aucune Edge Function à redéployer pour ces
+étapes.
+
+**Point de reprise** : demander à Loïc de tester en conditions réelles —
+bouton "+ Nouveau contact", ajouter un tag multiselect sur un contact,
+créer une liste dynamique avec 2 groupes (OU) filtrant sur un tag,
+confirmer qu'un ancien segment apparaît maintenant comme liste dynamique
+équivalente, chercher dans un dropdown contact/entreprise, naviguer via
+la nouvelle barre latérale.
