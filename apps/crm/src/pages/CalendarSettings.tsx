@@ -68,6 +68,25 @@ export function CalendarSettingsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <h1 className="text-lg font-semibold text-foreground">Mon calendrier</h1>
+
+      {hasAnyConnection && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Calendrier</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setAddEventOpen(true)}>
+              + Événement
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {eventsLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
+            {eventsError && <p className="text-sm text-destructive">{eventsError}</p>}
+            {!eventsLoading && !eventsError && (
+              <CalendarEventGrid events={events} onSelectEvent={setEditingEvent} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <p className="text-sm text-muted-foreground">
         Connecte ton calendrier pour obtenir un lien de prise de RDV que tu peux partager avec un prospect — il
         verra tes disponibilités réelles et un événement sera créé automatiquement des deux côtés.
@@ -128,24 +147,6 @@ export function CalendarSettingsPage() {
           )}
         </CardContent>
       </Card>
-
-      {hasAnyConnection && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Calendrier</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setAddEventOpen(true)}>
-              + Événement
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {eventsLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
-            {eventsError && <p className="text-sm text-destructive">{eventsError}</p>}
-            {!eventsLoading && !eventsError && (
-              <CalendarEventGrid events={events} onSelectEvent={setEditingEvent} />
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <p className="text-xs text-muted-foreground">
         Astuce : ajoute <code>?client=&lt;id du client DMH&gt;</code> à la fin du lien pour l'associer au bon
