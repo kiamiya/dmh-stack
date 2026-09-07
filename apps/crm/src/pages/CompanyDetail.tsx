@@ -13,6 +13,7 @@ import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
 import { SearchableSelect } from "../components/ui/searchable-select";
+import { PageHeader } from "../components/ui/page-header";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -84,10 +85,11 @@ export function CompanyDetailPage() {
       <Link to="/companies" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux entreprises
       </Link>
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold text-foreground">{company.name}</h1>
-        <Badge variant={getScoreColor(company.ai_score)}>{formatScore(company.ai_score)}</Badge>
-      </div>
+      <PageHeader
+        kicker="Prospection · fiche entreprise"
+        title={company.name}
+        actions={<Badge variant={getScoreColor(company.ai_score)}>{formatScore(company.ai_score)}</Badge>}
+      />
 
       <Card>
         <CardHeader>

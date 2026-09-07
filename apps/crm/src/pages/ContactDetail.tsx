@@ -17,6 +17,7 @@ import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
 import { SearchableSelect } from "../components/ui/searchable-select";
+import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
@@ -142,9 +143,7 @@ export function ContactDetailPage() {
       <Link to="/contacts" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux contacts
       </Link>
-      <h1 className="text-lg font-semibold text-foreground">
-        {contact.first_name} {contact.last_name}
-      </h1>
+      <PageHeader kicker="Prospection · fiche contact" title={`${contact.first_name} ${contact.last_name}`} />
 
       <Card>
         <CardHeader>
@@ -169,12 +168,19 @@ export function ContactDetailPage() {
             placeholder="Poste"
             className="rounded-md border border-border px-3 py-2 text-sm"
           />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="rounded-md border border-border px-3 py-2 text-sm"
-          />
+          <div className="flex flex-col gap-1">
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            />
+            {contact.email_confidence && (
+              <span className="text-xs text-muted-foreground">
+                Confiance email (Dropcontact) : {contact.email_confidence}
+              </span>
+            )}
+          </div>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}

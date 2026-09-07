@@ -12,6 +12,7 @@ import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
 import { useToast } from "../components/ui/toast";
+import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 
@@ -107,10 +108,11 @@ export function OpportunityDetailPage() {
       <Link to="/opportunities" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux opportunités
       </Link>
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold text-foreground">{deal.company_name}</h1>
-        <Badge variant={getDealStatusColor(deal.status)}>{getDealStatusLabel(deal.status)}</Badge>
-      </div>
+      <PageHeader
+        kicker="Prospection · fiche opportunité"
+        title={deal.company_name}
+        actions={<Badge variant={getDealStatusColor(deal.status)}>{getDealStatusLabel(deal.status)}</Badge>}
+      />
 
       <Card>
         <CardHeader>
