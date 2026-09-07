@@ -87,7 +87,8 @@ Dernière mise à jour : 2026-09-04
 | S27 | Dropdowns avec recherche (contacts/entreprises/listes) | ✅ fait |
 | S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
 | S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-2..6 | Reporting, Intégrations, Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
+| S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
+| S29-3..6 | Intégrations, Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -748,9 +749,41 @@ quotas — qui ne doivent jamais apparaître comme réelles dans le produit).
   réel ni possibilité d'en créer un jetable — `SUPABASE_SERVICE_ROLE_KEY`
   de `.env.local` toujours périmée, cf. note S17) — à valider par Loïc.
 
-**Point de reprise** : demander à Loïc de recharger le CRM et donner un
-retour visuel (couleurs, typographie, coins carrés/repères d'angle,
-regroupement de la nav) avant d'enchaîner sur les étapes 2-6 (Reporting,
-Intégrations, Mapping enrichissement, Automatisations en canvas,
-Campagnes email) — chacune sera cadrée en détail à son tour, la
-roadmap complète est dans le plan de session.
+**Point de reprise (étape 1)** : demander à Loïc de recharger le CRM et
+donner un retour visuel (couleurs, typographie, coins carrés/repères
+d'angle, regroupement de la nav) — pas bloquant, la roadmap a continué
+sur l'étape 2 pendant l'attente de ce retour (CLAUDE.md règle 6 : ne
+jamais s'arrêter entre étapes déjà ordonnées).
+
+**S29 étape 2 (page Reporting) — fait** :
+- `lib/reportingStats.ts` (nouveau) : `computeClientPerformance` — pure,
+  regroupe opportunités (`useDeals`) et RDV (`useMeetings`, S19) par
+  client DMH (`useClients`), un client sans donnée apparaît quand même à
+  0 plutôt que d'être absent. Uniquement des chiffres réels (nombre
+  d'opportunités, gagnées, valeur de pipeline, RDV) — pas de "coût/RDV"
+  ni d'"apport enrichissement" comme dans le mockup, faute de suivi
+  existant en base (conforme au principe non négociable du plan).
+  3 tests vitest (`reportingStats.test.ts`).
+- `pages/Reporting.tsx` (nouveau) : `PageHeader kicker="Pilotage ·
+  performance"`, 4 cartes KPI `blueprint` (total prospects, deals
+  gagnés, taux de conversion, RDV planifiés — toutes déjà calculées par
+  `opportunityStats.ts`/déjà chargées via les hooks existants, aucune
+  nouvelle requête), entonnoir (`FunnelChart`, même fonction que
+  Dashboard), pipeline par statut (réutilise
+  `computePipelineValueByStatus`), tableau "Performance par client"
+  (nouveau, alimenté par `computeClientPerformance`).
+- Route `/reporting` ajoutée dans `App.tsx`, entrée nav sous "Pilotage"
+  dans `Sidebar.tsx` (à côté de Dashboard, comme dans le mockup).
+- Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (338 tests,
+  +3 nouveaux), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
+  Compilation confirmée via le dev server (200 sur `Reporting.tsx` et
+  `/`). **Pas de vérification visuelle en navigateur réel possible côté
+  Claude** (même limitation qu'étape 1, cf. note S17 sur la clé service
+  role périmée) — à valider par Loïc, en même temps que l'étape 1.
+
+**Point de reprise (étape 2)** : demander à Loïc de valider visuellement
+`/reporting` (KPI, entonnoir, tableau par client) en même temps que le
+reskin général. Aucune migration ni déploiement nécessaire pour cette
+étape (lecture seule via hooks/RLS existants). Prochaine étape : S29-3
+(Intégrations) — voir roadmap dans le plan de session
+(`bubbly-watching-crescent.md`).

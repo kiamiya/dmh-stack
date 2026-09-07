@@ -28,7 +28,10 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 const NAV_ENTRIES: NavEntry[] = [
   {
     label: "Pilotage",
-    items: [{ to: "/dashboard", label: "Dashboard" }],
+    items: [
+      { to: "/dashboard", label: "Dashboard" },
+      { to: "/reporting", label: "Reporting" },
+    ],
   },
   {
     label: "Prospection",

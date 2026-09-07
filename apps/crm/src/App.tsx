@@ -6,6 +6,7 @@ import { ProspectsListPage } from "./pages/ProspectsList";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
 import { PipelinePage } from "./pages/Pipeline";
 import { DashboardPage } from "./pages/Dashboard";
+import { ReportingPage } from "./pages/Reporting";
 import { ContactsPage } from "./pages/Contacts";
 import { ContactDetailPage } from "./pages/ContactDetail";
 import { CompaniesPage } from "./pages/Companies";
@@ -87,6 +88,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <DashboardPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/reporting"
+          element={
+            <ProtectedLayout>
+              <ReportingPage />
             </ProtectedLayout>
           }
         />
