@@ -36,20 +36,20 @@ Dernière mise à jour : 2026-09-04
 | S1 | Infrastructure | Définir et implémenter le schéma complet des tables | ✅ fait (`supabase/migrations/001_initial_schema.sql`) |
 | S1 | Infrastructure | Souscrire aux outils (Smartlead, Pharow, Dropcontact, Lemlist) | ⬜ à faire — voir checklist ci-dessous |
 | S1 | Infrastructure | Configurer les variables d'environnement | ✅ toutes les clés bloquantes réunies (Anthropic, Pappers, Dropcontact, Smartlead, Lemlist) ; il ne manque que `SMARTLEAD_WEBHOOK_SECRET` (non bloquant, généré à la config du webhook S4) |
-| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | ✅ fait — validée end-to-end le 2026-07-30 contre le vrai Supabase + la vraie API Pappers (voir Journal) |
+| S2 | Pipeline Pappers | Intégrer l'API Pappers (Edge Function Supabase) | ✅ fait — validée end-to-end le 2026-07-30 contre le vrai Supabase + la vraie API Pappers (voir Journal) ; **redéployée le 2026-09-07** après avoir constaté qu'elle avait disparu du projet distant, voir Journal |
 | S2 | Pipeline Pappers | Tester l'enrichissement sur 50 entreprises tests | ⬜ à faire — 1 entreprise réelle validée (PM MECANIQUE INDUSTRIE, SIREN 481838852) ; passage à l'échelle (50) reste à faire, dépend d'un vrai export Pharow avec un vrai client |
 | S2 | Pipeline Pappers | Développer le script d'import CSV Pharow → Supabase | ✅ fait — validé end-to-end le 2026-07-30 (voir Journal), y compris la déduplication d'entreprise |
 | S3 | Email + Claude | Intégrer l'API Dropcontact | ✅ fait — validée end-to-end le 2026-07-30 (API asynchrone, voir Journal) |
-| S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ✅ fait — **pipeline complet validé end-to-end le 2026-07-30** (to_enrich → enriched_pappers → enriched_contact → ready), voir Journal |
+| S3 | Email + Claude | Développer le pipeline complet Pappers → Dropcontact → Claude API | ✅ fait — **pipeline complet validé end-to-end le 2026-07-30** (to_enrich → enriched_pappers → enriched_contact → ready), voir Journal ; **`enrich-dropcontact` et `generate-messages` redéployées le 2026-09-07** après avoir disparu du projet distant, voir Journal |
 | S3 | Email + Claude | Tester la génération de messages sur 100 prospects réels | ⬜ à faire — 1 message réel généré et conforme aux contraintes du brief ; passage à l'échelle dépend d'un vrai export Pharow avec un vrai client |
 | S4 | CRM v1 | Interface CRM basique (liste prospects, statut, messages, export Smartlead) | ✅ fait — validée end-to-end le 2026-07-30 (voir Journal), `apps/crm` |
-| S4 | CRM v1 | Configurer les webhooks Smartlead → Supabase | ✅ fait côté code — validé end-to-end le 2026-07-30 (voir Journal) ; reste la config réelle côté Smartlead (compte + campagne pilote), hors périmètre dev |
+| S4 | CRM v1 | Configurer les webhooks Smartlead → Supabase | ✅ fait côté code — validé end-to-end le 2026-07-30 (voir Journal) ; reste la config réelle côté Smartlead (compte + campagne pilote), hors périmètre dev ; **`webhook-smartlead` redéployée le 2026-09-07** après avoir disparu du projet distant, voir Journal |
 | S5 | Dashboard v1 | Dashboard client React (vue d'ensemble, pipeline Kanban, interactions) | ✅ fait — validé end-to-end le 2026-07-30 (voir Journal), `apps/dashboard` |
 | S5 | Dashboard v1 | Déployer sur Vercel avec custom domain (premier client) | ⬜ à faire — reporté, dépend d'un vrai client pilote (même logique que le déploiement réel du webhook Smartlead) |
 | S6 | Attribution | Implémenter le module d'attribution (trigger PostgreSQL) | ✅ fait en avance — trigger `calculate_attribution` livré avec le schéma initial (S1), 2 bugs corrigés le 2026-07-31 (voir Journal) |
 | S6 | Attribution | Tester le trigger sur des scénarios simulés | ✅ fait — 8 scénarios validés le 2026-07-31 contre le vrai Supabase (`scripts/test-attribution.ts`), voir Journal |
 | S6 | Attribution | Développer la vue Deals dans le dashboard | ✅ fait — validée end-to-end le 2026-07-31 (voir Journal), `apps/dashboard/src/pages/Deals.tsx` |
-| S7 | Scoring IA | Intégrer le scoring Claude API | ✅ fait — validé end-to-end le 2026-07-31 (voir Journal), `packages/scoring` + `supabase/functions/score-prospect` |
+| S7 | Scoring IA | Intégrer le scoring Claude API | ✅ fait — validé end-to-end le 2026-07-31 (voir Journal), `packages/scoring` + `supabase/functions/score-prospect` ; **redéployée le 2026-09-07** après avoir disparu du projet distant, voir Journal |
 | S7 | Scoring IA | Afficher le score dans le CRM et le dashboard | ✅ fait — badge + justification dans `apps/crm` (liste + détail) et `apps/dashboard` (Kanban) |
 | S7 | Scoring IA | Configurer les webhooks Lemlist → Supabase (synchro manuelle) | ✅ fait — validé end-to-end le 2026-07-31 (voir Journal). **Précision** : le brief §1.2.4 décrit en réalité une synchro manuelle par export/import (comme Pharow), pas un webhook temps réel — implémenté comme `scripts/sync-lemlist.ts` (appel API réel, déclenché à la main) |
 | S8 | Tests & pilote | Tests complets de la stack end-to-end | ✅ fait — validé le 2026-07-31 (voir Journal), un seul prospect testé de bout en bout à travers toute la chaîne |
@@ -933,3 +933,45 @@ séparées. Aucune migration ni déploiement nécessaire pour cette
 dernière étape. La roadmap "design Relais" (plan de session
 `bubbly-watching-crescent.md`) est maintenant complète ; prochaine
 tâche à définir avec Loïc une fois son retour visuel obtenu.
+
+### 2026-09-07 (suite) — Bug de production découvert et corrigé : 5 Edge Functions du pipeline Phase 1 absentes du projet distant
+
+En réponse à "quel est la suite ?", vérification de l'état réel du
+projet Supabase distant (`hkonylfpcstbvxswyxyh`) plutôt que de se fier
+au tableau ci-dessus : `supabase migration list --linked` confirme les
+migrations 001-029 à jour, mais `supabase functions list` ne renvoyait
+que 8 fonctions sur les 13 attendues. **`enrich-pappers`,
+`enrich-dropcontact`, `generate-messages`, `score-prospect` et
+`webhook-smartlead` — le cœur du pipeline d'enrichissement + le webhook
+de réponse Smartlead — étaient absentes du projet distant**, malgré un
+statut "✅ fait — validé end-to-end" dans ce fichier depuis fin juillet.
+Confirmé par `curl` : `404` brut sur les 5 (passerelle Supabase, aucune
+fonction à ce nom), alors qu'une fonction réellement déployée répond
+toujours avec un corps JSON même en erreur (comparaison faite avec
+`calendar-freebusy`/`integrations-status`, bien déployées). Cause
+probable, non confirmée : le projet a été mis en pause pour inactivité
+puis réactivé le 2026-07-30 (note S1) — les Edge Functions n'ont
+apparemment pas survécu à ce cycle, contrairement à la base de données.
+
+**Corrigé** : les 5 fonctions redéployées avec `--no-verify-jwt` (aucune
+n'est appelée par un utilisateur Supabase authentifié — `webhook-smartlead`
+vérifie sa propre signature HMAC, les 4 autres sont déclenchées
+manuellement/par script avec la clé service role, pas de webhook DB
+automatique dans les migrations) — même leçon que le bug
+`calendar-my-events` documenté plus haut. Tous les secrets nécessaires
+étaient déjà présents côté Supabase (`supabase secrets list`) — aucun
+changement de code ni de secret requis, un problème de déploiement pur.
+Chaque redéploiement vérifié par `curl` : réponse applicative (400
+"prospect_id requis" pour les 4 premières, 401 "Signature invalide" pour
+`webhook-smartlead`), plus de `404`. `supabase functions list` confirme
+les 13 fonctions désormais toutes en ligne.
+
+**Point de reprise** : le pipeline d'enrichissement et le webhook
+Smartlead sont de nouveau opérationnels en production. Pas de test de
+bout en bout avec un vrai prospect fait à ce stade (aurait modifié de
+vraies données sans demande explicite) — à faire si Loïc veut confirmer
+le pipeline complet sur un prospect réel. Sinon, reprendre la
+validation visuelle de la roadmap S29 (design "Relais") ou une autre
+tâche du planning Phase 1 encore ouverte (S1 "souscrire aux outils",
+tests à l'échelle S2/S3, déploiement Vercel S5 — toutes dépendent d'un
+client pilote réel, hors périmètre dev pur).
