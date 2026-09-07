@@ -1,10 +1,21 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/ui/page-header";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Skeleton } from "../components/ui/skeleton";
+import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
+import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { useListsOverview } from "../hooks/useListsOverview";
+import { useClients } from "../hooks/useClients";
+import { useContactLists } from "../hooks/useContactLists";
+import { useCompanyLists } from "../hooks/useCompanyLists";
+import { useDealLists } from "../hooks/useDealLists";
+import { toCsv } from "../lib/csv";
+import { useToast } from "../components/ui/toast";
 import type { ListEntityType } from "../lib/listsOverview";
 
 const ENTITY_LABELS: Record<ListEntityType, string> = {
@@ -19,18 +30,177 @@ const ENTITY_ROUTES: Record<ListEntityType, string> = {
   opportunity: "/opportunities",
 };
 
+const DEFAULT_FIELD: Record<ListEntityType, string> = {
+  contact: "first_name",
+  company: "name",
+  opportunity: "status",
+};
+
+function emptyGroups(entityType: ListEntityType): RuleGroupDraft[] {
+  return [{ conditions: [{ field: DEFAULT_FIELD[entityType], operator: "eq", value: "" }] }];
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function ListsPage() {
-  const { rows, loading } = useListsOverview();
+  const { rows, loading, reload } = useListsOverview();
+  const clients = useClients();
+  const { toast } = useToast();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newClientId, setNewClientId] = useState("");
+  const [newEntityType, setNewEntityType] = useState<ListEntityType>("contact");
+  const [newName, setNewName] = useState("");
+  const [newMode, setNewMode] = useState<"static" | "dynamic">("static");
+  const [newGroups, setNewGroups] = useState<RuleGroupDraft[]>(emptyGroups("contact"));
+  const [submitting, setSubmitting] = useState(false);
+
+  const contactLists = useContactLists(newClientId);
+  const companyLists = useCompanyLists(newClientId);
+  const dealLists = useDealLists(newClientId);
+
+  function handleEntityTypeChange(entityType: ListEntityType) {
+    setNewEntityType(entityType);
+    setNewGroups(emptyGroups(entityType));
+  }
+
+  async function handleCreateList(e: FormEvent) {
+    e.preventDefault();
+    if (!newClientId || !newName.trim()) return;
+
+    const rules =
+      newMode === "dynamic"
+        ? newGroups
+            .map((g) => ({
+              conditions: g.conditions
+                .filter((c) => c.field.trim())
+                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" ? true : c.value })),
+            }))
+            .filter((g) => g.conditions.length > 0)
+        : undefined;
+
+    setSubmitting(true);
+    try {
+      const input = { clientId: newClientId, name: newName.trim(), rules };
+      if (newEntityType === "contact") await contactLists.create(input);
+      else if (newEntityType === "company") await companyLists.create(input);
+      else await dealLists.create(input);
+
+      toast(`Liste "${newName.trim()}" créée.`, "success");
+      setNewName("");
+      setNewGroups(emptyGroups(newEntityType));
+      setCreateOpen(false);
+      await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleExport() {
+    const csv = toCsv(rows, [
+      { header: "Nom", value: (r) => r.name },
+      { header: "Type", value: (r) => ENTITY_LABELS[r.entityType] },
+      { header: "Mode", value: (r) => (r.mode === "dynamic" ? "Dynamique" : "Statique") },
+      { header: "Client", value: (r) => r.clientName },
+      { header: "Membres", value: (r) => String(r.memberCount) },
+      { header: "Créée le", value: (r) => r.createdAt.slice(0, 10) },
+    ]);
+    downloadCsv(csv, `segments-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <PageHeader kicker="Prospection · toutes les listes" title="Segments" />
+      <PageHeader
+        kicker="Prospection · toutes les listes"
+        title="Segments"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              Exporter
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen((v) => !v)}>
+              + Créer une liste
+            </Button>
+          </>
+        }
+      />
 
       <p className="text-sm text-muted-foreground">
         Toutes les listes de Contacts, Entreprises et Opportunités, tous clients confondus — statiques ou
         dynamiques. Les effectifs sont réels (comptage direct pour les statiques, évaluation des critères pour
         les dynamiques).
       </p>
+
+      {createOpen && (
+        <form onSubmit={handleCreateList} className="space-y-3 rounded-md border border-border p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <select
+              value={newClientId}
+              onChange={(e) => setNewClientId(e.target.value)}
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <option value="">Client DMH…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={newEntityType}
+              onChange={(e) => handleEntityTypeChange(e.target.value as ListEntityType)}
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            >
+              {(Object.keys(ENTITY_LABELS) as ListEntityType[]).map((t) => (
+                <option key={t} value={t}>
+                  {ENTITY_LABELS[t]}
+                </option>
+              ))}
+            </select>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Nom de la liste"
+              className="rounded-md border border-border px-3 py-2 text-sm sm:col-span-2"
+            />
+          </div>
+
+          <div className="flex w-fit gap-1 rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setNewMode("static")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Statique
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewMode("dynamic")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Dynamique (critères)
+            </button>
+          </div>
+
+          {newMode === "dynamic" && newClientId && (
+            <RuleGroupsEditor entityType={newEntityType} clientId={newClientId} groups={newGroups} onChange={setNewGroups} />
+          )}
+
+          <Button type="submit" size="sm" disabled={!newClientId || !newName.trim() || submitting}>
+            {submitting ? "…" : "Créer la liste"}
+          </Button>
+        </form>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -49,6 +219,7 @@ export function ListsPage() {
                   <TableHead>Mode</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead className="text-right">Membres</TableHead>
+                  <TableHead>Créée le</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -62,6 +233,7 @@ export function ListsPage() {
                     <TableCell>{row.mode === "dynamic" ? "Dynamique" : "Statique"}</TableCell>
                     <TableCell className="text-muted-foreground">{row.clientName}</TableCell>
                     <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.createdAt.slice(0, 10)}</TableCell>
                     <TableCell>
                       <Link to={ENTITY_ROUTES[row.entityType]} className="text-sm text-accent hover:underline">
                         Voir
@@ -71,7 +243,7 @@ export function ListsPage() {
                 ))}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Aucune liste pour l'instant.
                     </TableCell>
                   </TableRow>

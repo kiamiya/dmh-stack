@@ -11,6 +11,8 @@ export interface ListOverviewRow {
   clientId: string;
   clientName: string;
   memberCount: number;
+  /** Date de création réelle (`created_at`) — pas de vraie date de "dernière modification" en base (`*_lists` n'a pas d'`updated_at`), donc jamais présentée comme telle. */
+  createdAt: string;
 }
 
 interface ListLike {
@@ -18,6 +20,7 @@ interface ListLike {
   client_id: string;
   name: string;
   rules: RuleGroup[] | null;
+  created_at: string;
 }
 
 interface EntityLike {
@@ -46,6 +49,7 @@ function buildRows(
       clientId: list.client_id,
       clientName: clients.find((c) => c.id === list.client_id)?.name ?? "—",
       memberCount,
+      createdAt: list.created_at,
     };
   });
 }

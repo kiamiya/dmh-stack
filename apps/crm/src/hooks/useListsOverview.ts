@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CompanyList, ContactList, OpportunityList } from "@dmh/types";
 import { supabase } from "../lib/supabase";
 import { useClients } from "./useClients";
@@ -29,11 +29,11 @@ export function useListsOverview() {
   const [staticMemberCounts, setStaticMemberCounts] = useState<Map<string, number>>(new Map());
   const [listsLoading, setListsLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
     setListsLoading(true);
 
-    Promise.all([listAllContactLists(supabase), listAllCompanyLists(supabase), listAllOpportunityLists(supabase)])
+    const promise = Promise.all([listAllContactLists(supabase), listAllCompanyLists(supabase), listAllOpportunityLists(supabase)])
       .then(async ([cLists, coLists, oLists]) => {
         if (cancelled) return;
         setContactLists(cLists);
@@ -68,15 +68,27 @@ export function useListsOverview() {
         if (!cancelled) setListsLoading(false);
       });
 
-    return () => {
-      cancelled = true;
+    return {
+      promise,
+      cancel: () => {
+        cancelled = true;
+      },
     };
   }, []);
+
+  useEffect(() => {
+    const { cancel } = load();
+    return cancel;
+  }, [load]);
 
   const rows = useMemo(
     () => computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberCounts),
     [contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberCounts],
   );
 
-  return { rows, loading: listsLoading || contactsLoading || companiesLoading || dealsLoading };
+  return {
+    rows,
+    loading: listsLoading || contactsLoading || companiesLoading || dealsLoading,
+    reload: () => load().promise,
+  };
 }

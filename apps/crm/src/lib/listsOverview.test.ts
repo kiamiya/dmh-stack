@@ -55,4 +55,9 @@ describe("computeListOverviewRows", () => {
     const rows = computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, opportunities, new Map());
     expect(rows).toHaveLength(3);
   });
+
+  it("reporte la date de création réelle de la liste", () => {
+    const rows = computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, opportunities, new Map());
+    expect(rows.find((r) => r.id === "cl-static")?.createdAt).toBe("2026-01-01");
+  });
 });
