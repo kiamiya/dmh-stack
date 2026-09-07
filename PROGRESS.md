@@ -93,6 +93,7 @@ Dernière mise à jour : 2026-09-04
 | S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
+| S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1048,3 +1049,63 @@ correctifs (`/pipeline` sans scroll, fiches détail restylées, `/lists`,
 `/opportunities`). Prochaine tâche à redéfinir avec Loïc une fois son
 retour obtenu — le planning Phase 1 reste bloqué sur l'absence de
 client pilote réel (S1/S2/S3/S5).
+
+### 2026-09-07 (suite) — S31 : audit design "Relais" v3 — fondations CSS + layout partagé
+
+Loïc a redemandé un check complet ("il manque des éléments... menu...
+pages"), en citant explicitement `_ds_bundle.js`. Le mockup principal
+n'avait pas changé (118 471 octets, identique au dernier audit) — donc
+cette fois, lecture complète de `ds-industry.css` **et** de
+`_ds/.../readme.md` (jamais lu avant), qui énonce des règles qu'on ne
+respectait pas :
+
+> "Do not round cards, figures or buttons, and do not give cards or
+> figures a surface fill — they are line drawings."
+> "Use Lucide icons (…), at stroke-width 1.5."
+
+**4 écarts réels trouvés et corrigés** :
+1. **Cartes toujours remplies + ombrées** — `Card` (`ui/card.tsx`)
+   appliquait `bg-card shadow-sm` partout, contrairement à l'intention
+   "line drawing transparente". Un seul fichier changé
+   (`bg-card shadow-sm` → `bg-transparent`), impact visuel sur
+   littéralement toutes les pages — **le correctif le plus visible de
+   cet audit**.
+2. **Icônes en emoji au lieu de Lucide** — ajout de `lucide-react`,
+   remplacement dans 7 fichiers (`Header.tsx` — cloche/thème,
+   `ProspectCard`/`ProspectsList`/`OpportunityCard`/`ProspectDetailPanel`
+   — avertissement stagnation, `RuleGroupsEditor`/`ConditionRowsEditor`
+   — supprimer une ligne).
+3. **Aucun badge de comptage dans le menu** — ajouté
+   (`hooks/useSidebarCounts.ts` + `useListsCount.ts`), mais nécessitait
+   un préalable : `Sidebar`/`Header` remontaient à chaque navigation
+   (chaque route enveloppait sa page dans son propre
+   `<ProtectedLayout>`) — `Header` refaisait déjà `useTasks()` à chaque
+   clic. **Refactor `App.tsx` en layout de route parent React Router
+   (`<Outlet/>`)** — Sidebar/Header ne montent plus qu'une fois par
+   session, gain de perf général en plus de rendre les badges
+   raisonnables. Badges ajoutés uniquement là où un compte réel bon
+   marché existe (Prospects/Contacts/Entreprises/Opportunités/Tâches
+   ouvertes/Listes/Intégrations) — pas sur Pipeline/Automatisations/
+   Campagnes/Mapping (ferait doublon ou nécessiterait une nouvelle
+   requête "tous clients" non justifiée pour un simple badge).
+4. **Aucune barre de recherche visible dans le Header** — on avait déjà
+   une vraie recherche (`CommandPalette`, Cmd+K) mais invisible sans
+   connaître le raccourci, et limitée aux prospects. Ajouté un champ
+   visible dans le Header, état de la palette levé dans
+   `ProtectedLayout` (`useCommandPaletteState`) pour être piloté par les
+   deux. Recherche élargie aux contacts (nom/email) et entreprises
+   (nom/SIREN, comme le placeholder du mockup le promet) — `siren`
+   ajouté à `CompanyListRow`/`listAllCompanies` (absent du select liste
+   jusqu'ici).
+
+Vérifié à chaque étape : `pnpm --filter @dmh/crm typecheck`/`test`
+verts (370 tests, +6 sur ce lot), `pnpm typecheck`/`pnpm test` racine
+verts (12 packages). Compilation confirmée via le dev server sur de
+nombreuses routes après le refactor `<Outlet/>` (y compris le routing
+modal `backgroundLocation` du panneau prospect). Pas de vérification
+visuelle en navigateur réel possible côté Claude — à valider par Loïc,
+en particulier l'item 1 (cartes transparentes) qui se voit sur toute
+l'app d'un coup.
+
+**Point de reprise** : demander à Loïc de valider visuellement ces 4
+correctifs. Prochaine tâche à redéfinir une fois son retour obtenu.
