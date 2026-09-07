@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Location } from "react-router-dom";
 import { LoginPage } from "./pages/Login";
 import { ProspectsListPage } from "./pages/ProspectsList";
@@ -28,8 +27,15 @@ import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
 
-/** Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche (Sidebar), compte/notifications dans une barre fine au-dessus du contenu (Header). */
-function ProtectedLayout({ children }: { children: ReactNode }) {
+/**
+ * Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche
+ * (Sidebar), compte/notifications dans une barre fine au-dessus du contenu
+ * (Header). Rendue comme layout de route parent (`<Outlet/>`, S30) plutôt
+ * qu'enveloppant chaque page individuellement : Sidebar/Header ne remontent
+ * plus à chaque navigation (Header refaisait déjà `useTasks()` à chaque
+ * clic) — nécessaire avant d'ajouter des comptes réels dans la Sidebar.
+ */
+function ProtectedLayout() {
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden">
@@ -37,7 +43,9 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header />
           <CommandPalette />
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">
+            <Outlet />
+          </main>
         </div>
       </div>
     </ProtectedRoute>
@@ -63,158 +71,27 @@ export default function App() {
       <Routes location={backgroundLocation ?? location}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/book/:token" element={<PublicBookingPage />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedLayout>
-              <ProspectsListPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/prospects/:id"
-          element={
-            <ProtectedLayout>
-              <ProspectDetailPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/pipeline"
-          element={
-            <ProtectedLayout>
-              <PipelinePage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedLayout>
-              <DashboardPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/reporting"
-          element={
-            <ProtectedLayout>
-              <ReportingPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <ProtectedLayout>
-              <ContactsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/contacts/:id"
-          element={
-            <ProtectedLayout>
-              <ContactDetailPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/companies"
-          element={
-            <ProtectedLayout>
-              <CompaniesPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/companies/:id"
-          element={
-            <ProtectedLayout>
-              <CompanyDetailPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/opportunities"
-          element={
-            <ProtectedLayout>
-              <OpportunitiesPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/opportunities/:id"
-          element={
-            <ProtectedLayout>
-              <OpportunityDetailPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/tasks"
-          element={
-            <ProtectedLayout>
-              <TasksPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/lists"
-          element={
-            <ProtectedLayout>
-              <ListsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/settings/custom-fields"
-          element={
-            <ProtectedLayout>
-              <CustomFieldSettingsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/automations"
-          element={
-            <ProtectedLayout>
-              <AutomationsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/settings/calendar"
-          element={
-            <ProtectedLayout>
-              <CalendarSettingsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/integrations"
-          element={
-            <ProtectedLayout>
-              <IntegrationsPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/enrichment-mapping"
-          element={
-            <ProtectedLayout>
-              <EnrichmentMappingPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/campaigns"
-          element={
-            <ProtectedLayout>
-              <CampaignsPage />
-            </ProtectedLayout>
-          }
-        />
+        <Route element={<ProtectedLayout />}>
+          <Route path="/" element={<ProspectsListPage />} />
+          <Route path="/prospects/:id" element={<ProspectDetailPage />} />
+          <Route path="/pipeline" element={<PipelinePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/reporting" element={<ReportingPage />} />
+          <Route path="/contacts" element={<ContactsPage />} />
+          <Route path="/contacts/:id" element={<ContactDetailPage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:id" element={<CompanyDetailPage />} />
+          <Route path="/opportunities" element={<OpportunitiesPage />} />
+          <Route path="/opportunities/:id" element={<OpportunityDetailPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/lists" element={<ListsPage />} />
+          <Route path="/settings/custom-fields" element={<CustomFieldSettingsPage />} />
+          <Route path="/automations" element={<AutomationsPage />} />
+          <Route path="/settings/calendar" element={<CalendarSettingsPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/enrichment-mapping" element={<EnrichmentMappingPage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
+        </Route>
       </Routes>
       {backgroundLocation && (
         <Routes>
