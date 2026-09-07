@@ -96,7 +96,7 @@ Dernière mise à jour : 2026-09-04
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
-| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A fait (filtres réels, "Voir" scopé, % enrichissement, critères) ; Lot B (Propriétaire/Mise à jour/Import CSV/Corbeille, migration 031) en cours ; Lot C (Dossiers) reporté |
+| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A fait ; Lot B code+tests verts, migration 031 écrite mais **non appliquée** (confirmation explicite de Loïc requise avant `supabase db push`) ; Lot C (Dossiers) reporté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1366,3 +1366,51 @@ server + curl 200 sur `/lists` et les 3 pages avec `?client=&list=`.
 (`created_by`, `updated_at` + triggers, `deleted_at` + `pg_cron` pour la
 purge auto 30j, cf. plan) à présenter à Loïc avant `supabase db push`
 (règle CLAUDE.md §5), puis Import CSV + Corbeille côté frontend.
+
+### 2026-09-07 (suite) — S32-segments : Lot B (Propriétaire/Mise à jour/Import CSV/Corbeille)
+
+**Migration `031_lists_metadata.sql` écrite** (pas encore appliquée) :
+- `created_by` (référence `staff_members`, même pattern que
+  `tasks.created_by`/`AddTaskDialog.tsx` — jamais l'uid d'un compte
+  client).
+- `updated_at` : trigger direct (modif nom/règles) + trigger indirect
+  via les 3 tables `*_list_members` (ajout/retrait de membre) — sinon
+  resterait figé sur la date de création pour une liste statique dont
+  on ne fait qu'ajouter des membres.
+- `deleted_at` : soft-delete. `pg_cron` (vérifié absent avant cette
+  migration, `default_version 1.6.4` disponible) activé + job quotidien
+  `purge_old_deleted_lists()` — purge réelle après 30 jours, pas une
+  simulation.
+
+**Frontend** : `packages/types` (3 champs ajoutés aux types
+`ContactList`/`CompanyList`/`OpportunityList`) ; les 3 services
+`*Lists.ts` gagnent `created_by` en insert, `deleteList` passe en
+soft-delete (`update deleted_at`), + `listDeletedXLists`/`restoreXList` ;
+`Lists.tsx` gagne un bouton Supprimer par ligne (confirmation, message
+explicite "récupérable 30 jours"), un panneau Corbeille (Restaurer),
+et attribue `created_by` au staff connecté à la création (même pattern
+réutilisé sur Contacts.tsx/Companies.tsx/Opportunities.tsx pour leurs
+propres formulaires de création de liste).
+
+**Import CSV** : `lib/csv.ts` gagne `parseCsv` (RFC 4180, testé,
+symétrique de `toCsv`) ; `lib/csvImportMatch.ts` (nouveau, testé) fait
+la correspondance CSV→entité existante (email pour un contact, SIREN ou
+nom — au choix — pour une entreprise), insensible casse/espaces ;
+`ImportListDialog.tsx` (nouveau) : upload → aperçu des colonnes
+détectées → choix de la colonne de correspondance → crée une liste
+statique avec uniquement les entités **déjà existantes** trouvées,
+rapporte le nombre de lignes non reconnues (jamais de création
+d'entité depuis le fichier). Import CSV limité à Contacts/Entreprises
+(Opportunités jugé peu naturel dans le plan, pas construit).
+
+Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (428 tests,
++29 sur ce lot), `pnpm typecheck`/`pnpm test` racine verts (12
+packages), dev server + curl 200 sur `/lists`.
+
+**Point de reprise** : migration 031 écrite mais **non appliquée** —
+attendre la confirmation explicite de Loïc avant `supabase db push`
+(règle CLAUDE.md §5, ajoute des colonnes + active `pg_cron` sur des
+tables déjà en production). Une fois appliquée : vérifier en lecture
+seule (colonnes présentes, job cron programmé), puis tester
+manuellement Supprimer/Restaurer et un import CSV réel (voir
+`TESTING.md` à mettre à jour).

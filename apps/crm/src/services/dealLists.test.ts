@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addDealsToList, createList, deleteList, listDealIdsInList, listLists, removeDealFromList } from "./dealLists";
+import {
+  addDealsToList,
+  createList,
+  deleteList,
+  listDealIdsInList,
+  listDeletedOpportunityLists,
+  listLists,
+  removeDealFromList,
+  restoreOpportunityList,
+} from "./dealLists";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -8,8 +17,11 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     select: () => query,
     order: () => query,
     eq: () => query,
+    is: () => query,
+    not: () => query,
     insert: () => query,
     upsert: () => query,
+    update: () => query,
     delete: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
@@ -42,12 +54,61 @@ describe("createList", () => {
     const client = makeStubClient({ data: null, error: { message: "insert refusé" } });
     await expect(createList(client, { clientId: "client-1", name: "x" })).rejects.toThrow("insert refusé");
   });
+
+  it("passe created_by=null si non fourni", async () => {
+    const insertSpy = vi.fn(() => query);
+    const query = {
+      select: () => query,
+      insert: insertSpy,
+      single: () => Promise.resolve({ data: { id: "list-42" }, error: null }),
+    };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await createList(client, { clientId: "client-1", name: "VIP" });
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ created_by: null }));
+  });
+
+  it("passe le staff créateur fourni", async () => {
+    const insertSpy = vi.fn(() => query);
+    const query = {
+      select: () => query,
+      insert: insertSpy,
+      single: () => Promise.resolve({ data: { id: "list-42" }, error: null }),
+    };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await createList(client, { clientId: "client-1", name: "VIP", createdBy: "staff-1" });
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ created_by: "staff-1" }));
+  });
 });
 
 describe("deleteList", () => {
   it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
     const client = makeStubClient({ data: null, error: null });
     await expect(deleteList(client, "list-1")).resolves.toBeUndefined();
+  });
+
+  it("fait une suppression douce (update deleted_at), jamais un hard delete", async () => {
+    const updateSpy = vi.fn(() => query);
+    const deleteSpy = vi.fn(() => query);
+    const query = { eq: () => Promise.resolve({ data: null, error: null }), update: updateSpy, delete: deleteSpy };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await deleteList(client, "list-1");
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ deleted_at: expect.any(String) }));
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("listDeletedOpportunityLists", () => {
+  it("retourne les listes supprimées telles que renvoyées par Supabase", async () => {
+    const rows = [{ id: "list-1", name: "Ancienne liste" }];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listDeletedOpportunityLists(client)).resolves.toEqual(rows);
+  });
+});
+
+describe("restoreOpportunityList", () => {
+  it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(restoreOpportunityList(client, "list-1")).resolves.toBeUndefined();
   });
 });
 

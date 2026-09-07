@@ -6,8 +6,10 @@ const clients = [
   { id: "c2", name: "Client B" },
 ];
 
+const LIST_META = { created_by: null, updated_at: "2026-01-01", deleted_at: null };
+
 const contactLists = [
-  { id: "cl-static", client_id: "c1", name: "Décideurs métallurgie", rules: null, created_at: "2026-01-01" },
+  { id: "cl-static", client_id: "c1", name: "Décideurs métallurgie", rules: null, created_at: "2026-01-01", ...LIST_META },
 ];
 
 const companyLists = [
@@ -24,11 +26,12 @@ const companyLists = [
       },
     ],
     created_at: "2026-01-01",
+    ...LIST_META,
   },
 ];
 
 const opportunityLists = [
-  { id: "ol-static", client_id: "c2", name: "Deals prioritaires", rules: null, created_at: "2026-01-01" },
+  { id: "ol-static", client_id: "c2", name: "Deals prioritaires", rules: null, created_at: "2026-01-01", ...LIST_META },
 ];
 
 const contacts = [

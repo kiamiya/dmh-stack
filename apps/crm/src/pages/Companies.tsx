@@ -20,6 +20,8 @@ import { toCsv } from "../lib/csv";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
+import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useSession } from "../lib/useSession";
 
 function downloadCsv(content: string, filename: string) {
   const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
@@ -38,6 +40,10 @@ export function CompaniesPage() {
   const { contacts } = useContacts();
   const clients = useClients();
   const { toast } = useToast();
+  const staff = useStaffMembers();
+  const { session } = useSession();
+  // `*_lists.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que tasks.created_by, AddTaskDialog.tsx).
+  const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
   const [addOpen, setAddOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
@@ -144,7 +150,7 @@ export function CompaniesPage() {
             }))
             .filter((g) => g.conditions.length > 0)
         : undefined;
-    await createList({ clientId, name: newListName.trim(), rules });
+    await createList({ clientId, name: newListName.trim(), rules, createdBy });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
     resetNewListForm();
   }

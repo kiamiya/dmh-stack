@@ -374,6 +374,9 @@ export interface ContactList {
   name: string;
   rules: RuleGroup[] | null;
   created_at: string;
+  created_by: string | null;
+  updated_at: string;
+  deleted_at: string | null;
 }
 
 /** Même principe que ContactList, pour les entreprises. */
@@ -383,6 +386,9 @@ export interface CompanyList {
   name: string;
   rules: RuleGroup[] | null;
   created_at: string;
+  created_by: string | null;
+  updated_at: string;
+  deleted_at: string | null;
 }
 
 /** Même principe que ContactList, pour les opportunités (table `deals`). */
@@ -392,4 +398,7 @@ export interface OpportunityList {
   name: string;
   rules: RuleGroup[] | null;
   created_at: string;
+  created_by: string | null;
+  updated_at: string;
+  deleted_at: string | null;
 }

@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityList, RuleGroup } from "@dmh/types";
 
+const LIST_SELECT = "id, client_id, name, rules, created_at, created_by, updated_at, deleted_at";
+
 export async function listLists(client: SupabaseClient, clientId: string): Promise<OpportunityList[]> {
   const { data, error } = await client
     .from("opportunity_lists")
-    .select("id, client_id, name, rules, created_at")
+    .select(LIST_SELECT)
     .eq("client_id", clientId)
+    .is("deleted_at", null)
     .order("name");
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as OpportunityList[];
@@ -13,7 +16,18 @@ export async function listLists(client: SupabaseClient, clientId: string): Promi
 
 /** Toutes les listes d'opportunités, tous clients confondus — pour la vue d'ensemble /lists (réservée au staff via `staff_full_access`). */
 export async function listAllOpportunityLists(client: SupabaseClient): Promise<OpportunityList[]> {
-  const { data, error } = await client.from("opportunity_lists").select("id, client_id, name, rules, created_at").order("name");
+  const { data, error } = await client.from("opportunity_lists").select(LIST_SELECT).is("deleted_at", null).order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as OpportunityList[];
+}
+
+/** Listes d'opportunités supprimées (Corbeille), tous clients confondus — purgées automatiquement après 30 jours (`purge_old_deleted_lists`, migration 031). */
+export async function listDeletedOpportunityLists(client: SupabaseClient): Promise<OpportunityList[]> {
+  const { data, error } = await client
+    .from("opportunity_lists")
+    .select(LIST_SELECT)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as OpportunityList[];
 }
@@ -23,20 +37,28 @@ export interface OpportunityListInsert {
   name: string;
   /** Non fourni ou undefined = liste statique. Un tableau (même vide) = liste dynamique. */
   rules?: RuleGroup[] | null;
+  /** Id staff_members du créateur, ou null (compte client, cf. AddTaskDialog.tsx pour le même pattern sur tasks.created_by) — jamais fabriqué ici. */
+  createdBy?: string | null;
 }
 
 export async function createList(client: SupabaseClient, input: OpportunityListInsert): Promise<{ id: string }> {
   const { data, error } = await client
     .from("opportunity_lists")
-    .insert({ client_id: input.clientId, name: input.name, rules: input.rules ?? null })
+    .insert({ client_id: input.clientId, name: input.name, rules: input.rules ?? null, created_by: input.createdBy ?? null })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
   return data as { id: string };
 }
 
+/** Suppression douce (Corbeille) — remplace le hard delete d'origine (migration 031). */
 export async function deleteList(client: SupabaseClient, id: string): Promise<void> {
-  const { error } = await client.from("opportunity_lists").delete().eq("id", id);
+  const { error } = await client.from("opportunity_lists").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function restoreOpportunityList(client: SupabaseClient, id: string): Promise<void> {
+  const { error } = await client.from("opportunity_lists").update({ deleted_at: null }).eq("id", id);
   if (error) throw new Error(error.message);
 }
 

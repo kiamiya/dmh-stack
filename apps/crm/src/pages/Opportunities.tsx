@@ -29,6 +29,8 @@ import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
 import { useToast } from "../components/ui/toast";
 import { useTasks } from "../hooks/useTasks";
+import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useSession } from "../lib/useSession";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "status", operator: "eq", value: "" }] }];
 
@@ -37,6 +39,10 @@ export function OpportunitiesPage() {
   const { tasks } = useTasks();
   const clients = useClients();
   const { toast } = useToast();
+  const staff = useStaffMembers();
+  const { session } = useSession();
+  // `*_lists.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que tasks.created_by, AddTaskDialog.tsx).
+  const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
   const now = useMemo(() => new Date(), []);
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<"list" | "kanban">("list");
@@ -182,7 +188,7 @@ export function OpportunitiesPage() {
             }))
             .filter((g) => g.conditions.length > 0)
         : undefined;
-    await createDealList({ clientId: listViewClientId, name: newListName.trim(), rules });
+    await createDealList({ clientId: listViewClientId, name: newListName.trim(), rules, createdBy });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
     resetNewListForm();
   }

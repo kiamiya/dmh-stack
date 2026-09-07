@@ -14,6 +14,14 @@ import { useClients } from "../hooks/useClients";
 import { useContactLists } from "../hooks/useContactLists";
 import { useCompanyLists } from "../hooks/useCompanyLists";
 import { useDealLists } from "../hooks/useDealLists";
+import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useSession } from "../lib/useSession";
+import { supabase } from "../lib/supabase";
+import { deleteList as deleteContactList, listDeletedContactLists, restoreContactList } from "../services/contactLists";
+import { deleteList as deleteCompanyList, listDeletedCompanyLists, restoreCompanyList } from "../services/companyLists";
+import { deleteList as deleteOpportunityList, listDeletedOpportunityLists, restoreOpportunityList } from "../services/dealLists";
+import type { CompanyList, ContactList, OpportunityList } from "@dmh/types";
+import { ImportListDialog } from "../components/ImportListDialog";
 import { toCsv } from "../lib/csv";
 import { useToast } from "../components/ui/toast";
 import type { ListEntityType } from "../lib/listsOverview";
@@ -55,6 +63,10 @@ export function ListsPage() {
   const { rows, loading, reload } = useListsOverview();
   const clients = useClients();
   const { toast } = useToast();
+  const staff = useStaffMembers();
+  const { session } = useSession();
+  // `*_lists.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que tasks.created_by, AddTaskDialog.tsx).
+  const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
 
   const [filterClientId, setFilterClientId] = useState("");
   const [filterEntityType, setFilterEntityType] = useState<ListEntityType | "">("");
@@ -65,6 +77,7 @@ export function ListsPage() {
   );
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [newClientId, setNewClientId] = useState("");
   const [newEntityType, setNewEntityType] = useState<ListEntityType>("contact");
   const [newName, setNewName] = useState("");
@@ -98,7 +111,7 @@ export function ListsPage() {
 
     setSubmitting(true);
     try {
-      const input = { clientId: newClientId, name: newName.trim(), rules };
+      const input = { clientId: newClientId, name: newName.trim(), rules, createdBy };
       if (newEntityType === "contact") await contactLists.create(input);
       else if (newEntityType === "company") await companyLists.create(input);
       else await dealLists.create(input);
@@ -112,6 +125,86 @@ export function ListsPage() {
       toast(`Échec : ${(err as Error).message}`, "destructive");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  const DELETE_BY_ENTITY: Record<ListEntityType, (id: string) => Promise<void>> = {
+    contact: (id) => deleteContactList(supabase, id),
+    company: (id) => deleteCompanyList(supabase, id),
+    opportunity: (id) => deleteOpportunityList(supabase, id),
+  };
+
+  async function handleDelete(id: string, entityType: ListEntityType, name: string) {
+    if (!window.confirm(`Supprimer la liste "${name}" ? Elle restera récupérable dans la Corbeille pendant 30 jours.`)) return;
+    try {
+      await DELETE_BY_ENTITY[entityType](id);
+      toast(`Liste "${name}" déplacée vers la Corbeille.`, "success");
+      await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  interface DeletedRow {
+    id: string;
+    name: string;
+    entityType: ListEntityType;
+    clientName: string;
+    deletedAt: string;
+  }
+
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashLoading, setTrashLoading] = useState(false);
+  const [deletedRows, setDeletedRows] = useState<DeletedRow[]>([]);
+
+  function toDeletedRow(list: ContactList | CompanyList | OpportunityList, entityType: ListEntityType): DeletedRow {
+    return {
+      id: list.id,
+      name: list.name,
+      entityType,
+      clientName: clients.find((c) => c.id === list.client_id)?.name ?? "—",
+      deletedAt: list.deleted_at ?? "",
+    };
+  }
+
+  async function loadTrash() {
+    setTrashLoading(true);
+    try {
+      const [c, co, o] = await Promise.all([
+        listDeletedContactLists(supabase),
+        listDeletedCompanyLists(supabase),
+        listDeletedOpportunityLists(supabase),
+      ]);
+      setDeletedRows([
+        ...c.map((l) => toDeletedRow(l, "contact")),
+        ...co.map((l) => toDeletedRow(l, "company")),
+        ...o.map((l) => toDeletedRow(l, "opportunity")),
+      ]);
+    } finally {
+      setTrashLoading(false);
+    }
+  }
+
+  async function handleToggleTrash() {
+    const next = !trashOpen;
+    setTrashOpen(next);
+    if (next) await loadTrash();
+  }
+
+  const RESTORE_BY_ENTITY: Record<ListEntityType, (id: string) => Promise<void>> = {
+    contact: (id) => restoreContactList(supabase, id),
+    company: (id) => restoreCompanyList(supabase, id),
+    opportunity: (id) => restoreOpportunityList(supabase, id),
+  };
+
+  async function handleRestore(row: DeletedRow) {
+    try {
+      await RESTORE_BY_ENTITY[row.entityType](row.id);
+      toast(`Liste "${row.name}" restaurée.`, "success");
+      await loadTrash();
+      await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
     }
   }
 
@@ -136,8 +229,14 @@ export function ListsPage() {
         title="Segments"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={handleToggleTrash}>
+              Corbeille
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExport}>
               Exporter
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              Importer un fichier
             </Button>
             <Button variant="outline" size="sm" onClick={() => setCreateOpen((v) => !v)}>
               + Créer une liste
@@ -196,6 +295,38 @@ export function ListsPage() {
           </select>
         </div>
       </div>
+
+      {trashOpen && (
+        <Card>
+          <CardContent className="space-y-2 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Corbeille</span>
+              <span className="text-xs text-muted-foreground">Purge automatique après 30 jours</span>
+            </div>
+            {trashLoading ? (
+              <Skeleton className="h-8" />
+            ) : deletedRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune liste supprimée.</p>
+            ) : (
+              <div className="space-y-1">
+                {deletedRows.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between border-t border-border pt-1.5 text-sm first:border-0 first:pt-0">
+                    <div>
+                      <span className="font-medium text-foreground">{row.name}</span>{" "}
+                      <span className="text-xs text-muted-foreground">
+                        {ENTITY_LABELS[row.entityType]} · {row.clientName} · supprimée le {row.deletedAt.slice(0, 10)}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleRestore(row)}>
+                      Restaurer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {createOpen && (
         <form onSubmit={handleCreateList} className="space-y-3 rounded-md border border-border p-3">
@@ -301,12 +432,21 @@ export function ListsPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{row.createdAt.slice(0, 10)}</TableCell>
                     <TableCell>
-                      <Link
-                        to={`${ENTITY_ROUTES[row.entityType]}?client=${row.clientId}&list=${row.id}`}
-                        className="text-sm text-accent hover:underline"
-                      >
-                        Voir
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={`${ENTITY_ROUTES[row.entityType]}?client=${row.clientId}&list=${row.id}`}
+                          className="text-sm text-accent hover:underline"
+                        >
+                          Voir
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(row.id, row.entityType, row.name)}
+                          className="text-sm text-muted-foreground hover:text-destructive hover:underline"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -322,6 +462,8 @@ export function ListsPage() {
           </CardContent>
         </Card>
       )}
+
+      <ImportListDialog open={importOpen} onOpenChange={setImportOpen} onImported={reload} />
     </div>
   );
 }
