@@ -94,7 +94,7 @@ Dernière mise à jour : 2026-09-04
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
-| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" (toggle Portail client, bouton Nouvel enrichissement, appellations) | 🔄 chrome fait, reste écran par écran à cadrer avec Loïc |
+| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + Dashboard + Contacts/Entreprises | 🔄 3/11 écrans faits, reste 8 écrans (voir plan de session) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1173,3 +1173,41 @@ Automatisations, Mapping — que Loïc pourrait vouloir rouvrir en parité
 totale) reste à cadrer écran par écran ou par lot avec Loïc, comme pour
 le chrome. Voir la liste complète dans le plan de session
 (`bubbly-watching-crescent.md`) pour la prochaine priorisation.
+
+Loïc a dit "on peut passer à la suite" — poursuite directe dans l'ordre
+du plan (règle CLAUDE.md §6, pas de choix à redemander), sans nouvelle
+question de cadrage tant que les écarts restent comblables avec des
+données 100% réelles.
+
+**Écran 2/11 — Dashboard, fait** : voir commit dédié — "Activité de la
+force de vente" (graphique empilé Appels/Séquences email/RDV posés),
+"En attente d'enrichissement" (compte réel), "Comptes clients suivis"
+(réutilise `computeClientPerformance`).
+
+**Écran 3/11 — Contacts/Entreprises, fait** :
+- `Companies.tsx` : colonnes SIREN, Effectif, CA, **Contacts** (compte
+  réel via `useContacts()`, cross-référencé par `company_id`),
+  **Complétude** (nouveau `lib/companyCompleteness.ts` — pure, % de
+  champs Pappers réellement renseignés, jamais une estimation) ;
+  bouton "Exporter" (réutilise `toCsv`, absent jusqu'ici sur cette
+  page). `services/companies.ts` : `CompanyListRow` gagne
+  `employee_range`/`revenue`.
+- `Contacts.tsx` : colonnes **Confiance** (`email_confidence`, déjà en
+  base) et **Source** (`data_source` — champ réel jamais exposé avant,
+  'pharow'/'dropcontact'/'linkedin'/'manual') ; bouton "Exporter".
+  `services/contacts.ts` : `ContactListRow` gagne `email_confidence`/
+  `data_source`.
+- Volontairement pas de "Fraîcheur" (aucune colonne `updated_at` sur
+  `companies`/`contacts`, seulement `created_at` — pas de proxy fiable)
+  ni de chips de filtre façon mockup (les filtres existants sont
+  fonctionnellement équivalents, juste une UI différente — jugé
+  cosmétique, pas un écart fonctionnel prioritaire).
+
+Vérifié à chaque écran : `pnpm --filter @dmh/crm typecheck`/`test`
+verts (374 tests, +3 sur les 2 écrans), `pnpm typecheck`/`pnpm test`
+racine verts (12 packages). Pas de vérification visuelle en navigateur
+réel possible côté Claude — à valider par Loïc.
+
+**Point de reprise** : continuer dans l'ordre du plan — écran 4/11
+"Segments" (`Lists.tsx`), puis Fiche contact, Pipeline/Opportunités,
+etc. (voir `bubbly-watching-crescent.md`).

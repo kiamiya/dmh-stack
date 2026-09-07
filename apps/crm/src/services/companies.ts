@@ -21,6 +21,8 @@ export interface CompanyListRow {
   siren: string | null;
   city: string | null;
   naf_label: string | null;
+  employee_range: string | null;
+  revenue: number | null;
   ai_score: number | null;
   client_id: string;
 }
@@ -29,7 +31,7 @@ export interface CompanyListRow {
 export async function listAllCompanies(client: SupabaseClient): Promise<CompanyListRow[]> {
   const { data, error } = await client
     .from("companies")
-    .select("id, name, siren, city, naf_label, ai_score, client_id")
+    .select("id, name, siren, city, naf_label, employee_range, revenue, ai_score, client_id")
     .order("name");
   if (error) throw new Error(error.message);
   return (data ?? []) as CompanyListRow[];

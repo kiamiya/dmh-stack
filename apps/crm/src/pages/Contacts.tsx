@@ -15,8 +15,26 @@ import { AddContactDialog } from "../components/AddContactDialog";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
+import { toCsv } from "../lib/csv";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "job_title", operator: "eq", value: "" }] }];
+
+const DATA_SOURCE_LABELS: Record<string, string> = {
+  pharow: "Pharow",
+  dropcontact: "Dropcontact",
+  linkedin: "LinkedIn",
+  manual: "Manuel",
+};
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function ContactsPage() {
   const { contacts, loading, error, reload } = useContacts();
@@ -74,6 +92,19 @@ export function ContactsPage() {
     return rows;
   }, [contacts, clientId, activeList, listMemberIdSet, customFieldValuesById]);
 
+  function handleExport() {
+    const rowsToExport = selectedIds.size > 0 ? filtered.filter((c) => selectedIds.has(c.id)) : filtered;
+    const csv = toCsv(rowsToExport, [
+      { header: "Nom", value: (c) => `${c.first_name} ${c.last_name}` },
+      { header: "Poste", value: (c) => c.job_title ?? "" },
+      { header: "Email", value: (c) => (masked ? MASKED_VALUE : (c.email ?? "")) },
+      { header: "Confiance", value: (c) => c.email_confidence ?? "" },
+      { header: "Source", value: (c) => (c.data_source ? (DATA_SOURCE_LABELS[c.data_source] ?? c.data_source) : "") },
+      { header: "Entreprise principale", value: (c) => c.companies?.name ?? "" },
+    ]);
+    downloadCsv(csv, `contacts-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -129,9 +160,14 @@ export function ContactsPage() {
         kicker="Prospection · base de contacts"
         title="Contacts"
         actions={
-          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            + Nouveau contact
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              Exporter
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              + Nouveau contact
+            </Button>
+          </>
         }
       />
 
@@ -261,6 +297,8 @@ export function ContactsPage() {
               <TableHead>Nom</TableHead>
               <TableHead>Poste</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Confiance</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead>Entreprise principale</TableHead>
             </TableRow>
           </TableHeader>
@@ -277,12 +315,14 @@ export function ContactsPage() {
                 </TableCell>
                 <TableCell>{c.job_title ?? "—"}</TableCell>
                 <TableCell>{masked ? MASKED_VALUE : (c.email ?? "—")}</TableCell>
+                <TableCell>{c.email_confidence ?? "—"}</TableCell>
+                <TableCell>{c.data_source ? (DATA_SOURCE_LABELS[c.data_source] ?? c.data_source) : "—"}</TableCell>
                 <TableCell>{c.companies?.name ?? "—"}</TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   Aucun contact.
                 </TableCell>
               </TableRow>

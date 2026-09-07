@@ -48,9 +48,11 @@ function contactRow(id: string, firstName: string, lastName: string, email: stri
     last_name: lastName,
     job_title: null,
     email,
+    email_confidence: null,
     linkedin_url: null,
     company_id: "company-1",
     client_id: "client-1",
+    data_source: null,
     companies: { name: "Acme" },
   };
 }
@@ -73,7 +75,7 @@ describe("filterPaletteContacts", () => {
 });
 
 function companyRow(id: string, name: string, siren: string | null): CompanyListRow {
-  return { id, name, siren, city: null, naf_label: null, ai_score: null, client_id: "client-1" };
+  return { id, name, siren, city: null, naf_label: null, employee_range: null, revenue: null, ai_score: null, client_id: "client-1" };
 }
 
 describe("filterPaletteCompanies", () => {

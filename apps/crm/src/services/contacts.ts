@@ -6,16 +6,20 @@ export interface ContactListRow {
   last_name: string;
   job_title: string | null;
   email: string | null;
+  email_confidence: string | null;
   linkedin_url: string | null;
   company_id: string;
   client_id: string;
+  data_source: string | null;
   companies: { name: string } | null;
 }
 
 export async function listContacts(client: SupabaseClient): Promise<ContactListRow[]> {
   const { data, error } = await client
     .from("contacts")
-    .select("id, first_name, last_name, job_title, email, linkedin_url, company_id, client_id, companies(name)")
+    .select(
+      "id, first_name, last_name, job_title, email, email_confidence, linkedin_url, company_id, client_id, data_source, companies(name)",
+    )
     .order("last_name");
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as ContactListRow[];

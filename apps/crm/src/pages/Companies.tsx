@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useCompanies } from "../hooks/useCompanies";
+import { useContacts } from "../hooks/useContacts";
 import { useClients } from "../hooks/useClients";
 import { useCompanyLists } from "../hooks/useCompanyLists";
 import { matchesRuleGroups } from "../lib/segmentEvaluator";
@@ -13,14 +14,28 @@ import { Button } from "../components/ui/button";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { formatScore, getScoreColor } from "../lib/score";
+import { formatCurrency } from "../lib/deals";
+import { computeCompanyCompleteness } from "../lib/companyCompleteness";
+import { toCsv } from "../lib/csv";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "name", operator: "contains", value: "" }] }];
 
 export function CompaniesPage() {
   const { companies, loading, error, reload } = useCompanies();
+  const { contacts } = useContacts();
   const clients = useClients();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -72,6 +87,28 @@ export function CompaniesPage() {
     }
     return rows;
   }, [companies, clientId, activeList, listMemberIdSet, customFieldValuesById]);
+
+  const contactCountByCompanyId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of contacts) counts.set(c.company_id, (counts.get(c.company_id) ?? 0) + 1);
+    return counts;
+  }, [contacts]);
+
+  function handleExport() {
+    const rowsToExport = selectedIds.size > 0 ? filtered.filter((c) => selectedIds.has(c.id)) : filtered;
+    const csv = toCsv(rowsToExport, [
+      { header: "Nom", value: (c) => c.name },
+      { header: "SIREN", value: (c) => c.siren ?? "" },
+      { header: "Secteur", value: (c) => c.naf_label ?? "" },
+      { header: "Ville", value: (c) => c.city ?? "" },
+      { header: "Effectif", value: (c) => c.employee_range ?? "" },
+      { header: "CA", value: (c) => (c.revenue != null ? String(c.revenue) : "") },
+      { header: "Contacts", value: (c) => String(contactCountByCompanyId.get(c.id) ?? 0) },
+      { header: "Complétude", value: (c) => `${computeCompanyCompleteness(c)}%` },
+      { header: "Score IA", value: (c) => (c.ai_score != null ? String(c.ai_score) : "") },
+    ]);
+    downloadCsv(csv, `entreprises-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -128,9 +165,14 @@ export function CompaniesPage() {
         kicker="Prospection · base d'entreprises"
         title="Entreprises"
         actions={
-          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            + Entreprise
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              Exporter
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              + Entreprise
+            </Button>
+          </>
         }
       />
 
@@ -258,8 +300,13 @@ export function CompaniesPage() {
                 />
               </TableHead>
               <TableHead>Nom</TableHead>
+              <TableHead>SIREN</TableHead>
               <TableHead>Ville</TableHead>
               <TableHead>Secteur</TableHead>
+              <TableHead>Effectif</TableHead>
+              <TableHead>CA</TableHead>
+              <TableHead>Contacts</TableHead>
+              <TableHead>Complétude</TableHead>
               <TableHead>Score IA</TableHead>
             </TableRow>
           </TableHeader>
@@ -274,8 +321,13 @@ export function CompaniesPage() {
                     {c.name}
                   </Link>
                 </TableCell>
+                <TableCell>{c.siren ?? "—"}</TableCell>
                 <TableCell>{c.city ?? "—"}</TableCell>
                 <TableCell>{c.naf_label ?? "—"}</TableCell>
+                <TableCell>{c.employee_range ?? "—"}</TableCell>
+                <TableCell>{c.revenue != null ? formatCurrency(c.revenue) : "—"}</TableCell>
+                <TableCell>{contactCountByCompanyId.get(c.id) ?? 0}</TableCell>
+                <TableCell>{computeCompanyCompleteness(c)}%</TableCell>
                 <TableCell>
                   <Badge variant={getScoreColor(c.ai_score)}>{formatScore(c.ai_score)}</Badge>
                 </TableCell>
@@ -283,7 +335,7 @@ export function CompaniesPage() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   Aucune entreprise.
                 </TableCell>
               </TableRow>
