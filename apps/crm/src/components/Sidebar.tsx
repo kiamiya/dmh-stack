@@ -42,6 +42,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { to: "/companies", label: "Entreprises" },
       { to: "/opportunities", label: "Opportunités" },
       { to: "/tasks", label: "Tâches" },
+      { to: "/lists", label: "Listes" },
     ],
   },
   {

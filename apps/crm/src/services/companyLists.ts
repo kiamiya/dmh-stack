@@ -11,6 +11,13 @@ export async function listLists(client: SupabaseClient, clientId: string): Promi
   return (data ?? []) as unknown as CompanyList[];
 }
 
+/** Toutes les listes d'entreprises, tous clients confondus — pour la vue d'ensemble /lists (réservée au staff via `staff_full_access`). */
+export async function listAllCompanyLists(client: SupabaseClient): Promise<CompanyList[]> {
+  const { data, error } = await client.from("company_lists").select("id, client_id, name, rules, created_at").order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as CompanyList[];
+}
+
 export interface CompanyListInsert {
   clientId: string;
   name: string;

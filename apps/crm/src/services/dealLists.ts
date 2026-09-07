@@ -11,6 +11,13 @@ export async function listLists(client: SupabaseClient, clientId: string): Promi
   return (data ?? []) as unknown as OpportunityList[];
 }
 
+/** Toutes les listes d'opportunités, tous clients confondus — pour la vue d'ensemble /lists (réservée au staff via `staff_full_access`). */
+export async function listAllOpportunityLists(client: SupabaseClient): Promise<OpportunityList[]> {
+  const { data, error } = await client.from("opportunity_lists").select("id, client_id, name, rules, created_at").order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as OpportunityList[];
+}
+
 export interface OpportunityListInsert {
   clientId: string;
   name: string;
