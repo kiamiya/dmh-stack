@@ -94,6 +94,7 @@ Dernière mise à jour : 2026-09-04
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
+| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" (toggle Portail client, bouton Nouvel enrichissement, appellations) | 🔄 chrome fait, reste écran par écran à cadrer avec Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1109,3 +1110,66 @@ l'app d'un coup.
 
 **Point de reprise** : demander à Loïc de valider visuellement ces 4
 correctifs. Prochaine tâche à redéfinir une fois son retour obtenu.
+
+### 2026-09-07 (suite) — S32 : analyse détaillée écran par écran + lot "chrome"
+
+Loïc conteste les réductions de périmètre décidées en S29-S31 sans les
+lui redemander (bascule Portail client jugée "couverte par
+apps/dashboard", bouton Nouvel enrichissement omis, appellations pas
+fidèles). Demande explicite : **analyse exhaustive écran par écran
+avant tout nouveau code**. Plan écrit et approuvé
+(`bubbly-watching-crescent.md`) — comparaison mot pour mot (texte
+statique extrait directement du mockup, pas paraphrasé) pour le chrome
+partagé (Sidebar/Header) et les 11 écrans, avec les métriques
+fabriquées du mockup explicitement marquées plutôt que silencieusement
+omises. Volume : ~40 écarts recensés.
+
+Loïc a choisi de traiter le **chrome d'abord**. 4 questions de cadrage
+posées et tranchées :
+- Bouton "Nouvel enrichissement" → ouvre le flux existant "+ Nouvelle
+  entreprise" (`AddCompanyDialog`).
+- Bascule "Force de vente / Portail client" → **vrai mode masqué dans
+  le CRM** (pas un lien vers `apps/dashboard` comme jugé en S30).
+- Widget "Crédits d'enrichissement" (chiffres fabriqués dans le
+  mockup) → affiché avec un état honnête ("Suivi non disponible")
+  plutôt qu'omis ou avec un vrai chiffre (pas de chantier de suivi de
+  quota pour l'instant).
+- Renommage "Listes" → "Segments" (mot exact du mockup) ; la fusion
+  "Réglages"/"Mon calendrier" en "Paramètres" n'a **pas** été retenue.
+
+**Livré** :
+- `lib/viewMode.tsx` (nouveau) : contexte React `ViewModeProvider`/
+  `useViewMode` ("sales"/"client_portal", état en mémoire, non
+  persisté), posé dans `App.tsx` (`ProtectedLayout`) — lisible par
+  n'importe quelle page sans prop-drilling.
+- `Header.tsx` : bascule segmentée "Force de vente"/"Portail client" ;
+  bouton "+ Nouvel enrichissement" (blueprint) ouvrant `AddCompanyDialog`,
+  navigue vers la fiche créée ; avatar carré à initiales
+  (`getInitials`, réutilisé de `lib/avatar.ts`) au lieu du texte email ;
+  recherche "une entreprise" → "une société" (mot exact du mockup).
+- `App.tsx` : bannière "Portail client — Vue en lecture seule..."
+  affichée sur toutes les pages (au-dessus de `<Outlet/>`) quand le
+  mode est actif — adaptée sans nommer un client précis (pas de notion
+  de "client courant" globale dans notre modèle, contrairement au
+  mockup).
+- `ContactDetail.tsx` : email/téléphone masqués (`•••••••••`) en mode
+  Portail client (champs deviennent en lecture seule). `Contacts.tsx` :
+  colonne Email masquée dans le tableau. **Portée volontairement
+  limitée à ces deux endroits** pour ce lot — pas un balayage exhaustif
+  de toutes les pages montrant une coordonnée brute.
+- `Sidebar.tsx` : "Listes" → "Segments", "Intégrations" → "Intégrations
+  API", widget crédits réaffiché en pied de sidebar avec l'état honnête
+  décrit ci-dessus.
+
+Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (370 tests,
+inchangé — lot purement UI, aucune nouvelle logique pure), `pnpm
+typecheck`/`pnpm test` racine verts (12 packages). Compilation
+confirmée via le dev server sur plusieurs pages. Pas de vérification
+visuelle en navigateur réel possible côté Claude — à valider par Loïc.
+
+**Point de reprise** : le reste de l'analyse (11 écrans, dont plusieurs
+concernent des chantiers déjà réduits en périmètre — Campagnes,
+Automatisations, Mapping — que Loïc pourrait vouloir rouvrir en parité
+totale) reste à cadrer écran par écran ou par lot avec Loïc, comme pour
+le chrome. Voir la liste complète dans le plan de session
+(`bubbly-watching-crescent.md`) pour la prochaine priorisation.
