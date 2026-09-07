@@ -32,6 +32,23 @@ export async function listAllInteractions(client: SupabaseClient): Promise<Inter
   return (data ?? []) as unknown as InteractionRow[];
 }
 
+export interface LinkedinInteractionRow {
+  id: string;
+  prospect_id: string;
+  type: InteractionType;
+  occurred_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
+const LINKEDIN_INTERACTION_SELECT = "id, prospect_id, type, occurred_at, metadata";
+
+/** Interactions LinkedIn (Lemlist) uniquement, avec leur `metadata` brute (campaignId/campaignName Lemlist tels que synchronisés par scripts/sync-lemlist.ts) — alimente la page /campaigns (S29 étape 6). */
+export async function listLinkedinInteractions(client: SupabaseClient): Promise<LinkedinInteractionRow[]> {
+  const { data, error } = await client.from("interactions").select(LINKEDIN_INTERACTION_SELECT).eq("channel", "linkedin");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as LinkedinInteractionRow[];
+}
+
 export interface CreateNoteInput {
   prospectId: string;
   clientId: string;

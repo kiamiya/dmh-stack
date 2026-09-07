@@ -46,7 +46,10 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   {
     label: "Marketing",
-    items: [{ to: "/automations", label: "Automatisations" }],
+    items: [
+      { to: "/automations", label: "Automatisations" },
+      { to: "/campaigns", label: "Campagnes" },
+    ],
   },
   {
     label: "Données & réglages",

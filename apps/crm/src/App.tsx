@@ -19,6 +19,7 @@ import { AutomationsPage } from "./pages/Automations";
 import { CalendarSettingsPage } from "./pages/CalendarSettings";
 import { IntegrationsPage } from "./pages/Integrations";
 import { EnrichmentMappingPage } from "./pages/EnrichmentMapping";
+import { CampaignsPage } from "./pages/Campaigns";
 import { PublicBookingPage } from "./pages/PublicBooking";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
@@ -194,6 +195,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <EnrichmentMappingPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/campaigns"
+          element={
+            <ProtectedLayout>
+              <CampaignsPage />
             </ProtectedLayout>
           }
         />

@@ -91,7 +91,7 @@ Dernière mise à jour : 2026-09-04
 | S29-3 | Design "Relais" — page Intégrations | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-6 | Campagnes (éditeur email) | ⬜ à faire (roadmap, voir plan) |
+| S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — vérification visuelle réelle en attente de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -890,6 +890,46 @@ sur les règles existantes.
 visuellement `/automations` (chaîne de blocs, création d'une règle,
 liste des règles existantes) en même temps que les étapes précédentes.
 Aucune migration ni déploiement nécessaire (requête en lecture
-supplémentaire uniquement). Prochaine étape : S29-6 (Campagnes,
-éditeur email — le plus gros morceau, nécessite un plan dédié) — voir
-roadmap dans le plan de session (`bubbly-watching-crescent.md`).
+supplémentaire uniquement).
+
+**S29 étape 6 (Campagnes) — fait, périmètre réduit avec Loïc** : fait
+avant de planifier en détail un constat important — notre intégration
+Lemlist (`packages/lemlist`) est **lecture seule** (`fetchLemlistActivities`
+uniquement, aucun appel de création de campagne/ajout de lead), et
+Lemlist a déjà son propre éditeur de séquence. Reconstruire l'éditeur de
+campagne par blocs du mockup aurait dupliqué l'outil Lemlist et
+nécessité de nouveaux appels API non vérifiés. Demandé à Loïc
+(AskUserQuestion) : **tableau de bord en lecture seule choisi** (pas
+d'éditeur de séquence, pas d'envoi depuis le CRM) — la création/l'envoi
+restent dans Lemlist, le CRM affiche les vraies statistiques déjà
+synchronisées.
+- `services/interactions.ts` : nouvelle `listLinkedinInteractions`
+  (channel='linkedin' + `metadata` brute — colonne déjà alimentée par
+  `scripts/sync-lemlist.ts`, jamais exposée avant dans le frontend). 3
+  tests vitest.
+- `lib/campaignStats.ts` (nouveau) : `computeCampaignStats` — pure,
+  regroupe les interactions LinkedIn par `metadata.campaignId` réel,
+  compte les leads/connexions/réponses distincts par prospect ; libellé
+  via `metadata.campaignName` si présent dans la charge Lemlist brute,
+  sinon repli sur l'id (jamais un nom inventé). Volontairement PAS de
+  "RDV pris" par campagne : `meetings` n'a aucun lien avec un
+  `campaignId` Lemlist, l'inventer aurait violé le principe non
+  négociable. 4 tests vitest.
+- `pages/Campaigns.tsx` (nouveau) + `hooks/useLinkedinInteractions.ts` :
+  une carte par campagne (nom, leads/connectés/réponses réels).
+- Route `/campaigns` ajoutée dans `App.tsx`, entrée nav sous
+  "Marketing" dans `Sidebar.tsx` (à côté d'Automatisations).
+- Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (355 tests,
+  +7), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
+  Compilation confirmée via le dev server. Pas de vérification visuelle
+  en navigateur réel possible côté Claude (même limitation qu'aux
+  étapes précédentes) — à valider par Loïc.
+
+**Point de reprise (étape 6, fin de la roadmap S29)** : demander à
+Loïc de valider visuellement les 6 étapes ensemble (`/dashboard`,
+`/reporting`, `/integrations`, `/enrichment-mapping`, `/automations`,
+`/campaigns`) — un seul retour global plutôt que 6 validations
+séparées. Aucune migration ni déploiement nécessaire pour cette
+dernière étape. La roadmap "design Relais" (plan de session
+`bubbly-watching-crescent.md`) est maintenant complète ; prochaine
+tâche à définir avec Loïc une fois son retour visuel obtenu.
