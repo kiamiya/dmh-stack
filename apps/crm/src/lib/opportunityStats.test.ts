@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { computeConversionRate, computePipelineValueByStatus, computeWeightedPipelineValue } from "./opportunityStats";
+import {
+  computeAverageCycleDays,
+  computeConversionRate,
+  computeDealAgeDays,
+  computeNextActionForDeal,
+  computePipelineValueByStatus,
+  computeWeightedPipelineValue,
+} from "./opportunityStats";
 
 const deals = [
   { status: "negotiation" as const, deal_value: 1000 },
@@ -57,5 +64,44 @@ describe("computeWeightedPipelineValue", () => {
 
   it("retourne 0 sur une liste vide", () => {
     expect(computeWeightedPipelineValue([])).toBe(0);
+  });
+});
+
+describe("computeDealAgeDays", () => {
+  it("calcule le nombre de jours écoulés depuis la création", () => {
+    const now = new Date("2026-09-10T00:00:00Z");
+    expect(computeDealAgeDays({ created_at: "2026-09-01T00:00:00Z" }, now)).toBe(9);
+  });
+});
+
+describe("computeAverageCycleDays", () => {
+  it("calcule le cycle moyen en jours pour les opportunités gagnées uniquement", () => {
+    const deals = [
+      { status: "won" as const, created_at: "2026-08-01T00:00:00Z", signed_at: "2026-08-11T00:00:00Z" },
+      { status: "won" as const, created_at: "2026-08-01T00:00:00Z", signed_at: "2026-08-21T00:00:00Z" },
+      { status: "lost" as const, created_at: "2026-08-01T00:00:00Z", signed_at: null },
+    ];
+    expect(computeAverageCycleDays(deals)).toBe(15); // (10 + 20) / 2
+  });
+
+  it("retourne null sans opportunité gagnée", () => {
+    expect(computeAverageCycleDays([{ status: "negotiation", created_at: "2026-08-01T00:00:00Z", signed_at: null }])).toBeNull();
+  });
+});
+
+describe("computeNextActionForDeal", () => {
+  const tasks = [
+    { deal_id: "d1", title: "Relancer", due_date: "2026-09-15", status: "to_do" },
+    { deal_id: "d1", title: "Envoyer devis", due_date: "2026-09-12", status: "to_do" },
+    { deal_id: "d1", title: "Ancienne tâche", due_date: "2026-09-05", status: "done" },
+    { deal_id: "d2", title: "Autre deal", due_date: "2026-09-01", status: "to_do" },
+  ];
+
+  it("retourne la tâche non terminée à l'échéance la plus proche", () => {
+    expect(computeNextActionForDeal("d1", tasks)).toEqual({ title: "Envoyer devis", dueDate: "2026-09-12" });
+  });
+
+  it("retourne null sans tâche ouverte liée", () => {
+    expect(computeNextActionForDeal("d3", tasks)).toBeNull();
   });
 });

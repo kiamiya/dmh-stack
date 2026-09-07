@@ -19,17 +19,25 @@ import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency } from "../lib/deals";
-import { computeWeightedPipelineValue } from "../lib/opportunityStats";
+import {
+  computeAverageCycleDays,
+  computeDealAgeDays,
+  computeNextActionForDeal,
+  computeWeightedPipelineValue,
+} from "../lib/opportunityStats";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
 import { useToast } from "../components/ui/toast";
+import { useTasks } from "../hooks/useTasks";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "status", operator: "eq", value: "" }] }];
 
 export function OpportunitiesPage() {
   const { deals, loading, error, create, changeStage } = useOpportunities();
+  const { tasks } = useTasks();
   const clients = useClients();
   const { toast } = useToast();
+  const now = useMemo(() => new Date(), []);
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<"list" | "kanban">("list");
   const [kanbanClientId, setKanbanClientId] = useState("");
@@ -90,6 +98,7 @@ export function OpportunitiesPage() {
 
   const weightedPipelineValue = useMemo(() => computeWeightedPipelineValue(listViewDeals), [listViewDeals]);
   const negotiationCount = useMemo(() => listViewDeals.filter((d) => d.status === "negotiation").length, [listViewDeals]);
+  const averageCycleDays = useMemo(() => computeAverageCycleDays(listViewDeals), [listViewDeals]);
 
   const dealsByClient = useMemo(() => {
     const groups = new Map<string, typeof listViewDeals>();
@@ -106,6 +115,7 @@ export function OpportunitiesPage() {
   }, [listViewDeals, clients]);
 
   function renderDealRow(d: (typeof listViewDeals)[number]) {
+    const nextAction = computeNextActionForDeal(d.id, tasks);
     return (
       <TableRow key={d.id}>
         <TableCell>
@@ -118,8 +128,13 @@ export function OpportunitiesPage() {
         </TableCell>
         <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>
         <TableCell>{formatCurrency(d.deal_value)}</TableCell>
+        <TableCell>{d.probability != null ? `${d.probability}%` : "—"}</TableCell>
         <TableCell>
           <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>
+        </TableCell>
+        <TableCell>{computeDealAgeDays(d, now)} j</TableCell>
+        <TableCell className="text-muted-foreground">
+          {nextAction ? `${nextAction.title} (${nextAction.dueDate})` : "—"}
         </TableCell>
         <TableCell>
           {d.attributed_to_dmh === null ? (
@@ -304,6 +319,7 @@ export function OpportunitiesPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
             <span className="text-foreground">
               Pipe pondéré <strong className="font-semibold">{formatCurrency(weightedPipelineValue)}</strong> · {negotiationCount} affaire(s) en négociation
+              {averageCycleDays !== null && <> · cycle moyen {averageCycleDays} j</>}
             </span>
             <Button variant="outline" size="sm" onClick={() => setGroupByClient((v) => !v)} disabled={!!listViewClientId}>
               {groupByClient ? "Vue à plat" : "Grouper par client"}
@@ -379,7 +395,10 @@ export function OpportunitiesPage() {
                         <TableHead>Entreprise</TableHead>
                         <TableHead>Contact</TableHead>
                         <TableHead>Montant</TableHead>
+                        <TableHead>Proba.</TableHead>
                         <TableHead>Statut</TableHead>
+                        <TableHead>Ancienneté</TableHead>
+                        <TableHead>Prochaine action</TableHead>
                         <TableHead>Attribution</TableHead>
                         <TableHead>Commission</TableHead>
                       </TableRow>
@@ -406,7 +425,10 @@ export function OpportunitiesPage() {
                   <TableHead>Entreprise</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Montant</TableHead>
+                  <TableHead>Proba.</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Ancienneté</TableHead>
+                  <TableHead>Prochaine action</TableHead>
                   <TableHead>Attribution</TableHead>
                   <TableHead>Commission</TableHead>
                 </TableRow>
@@ -415,7 +437,7 @@ export function OpportunitiesPage() {
                 {listViewDeals.map(renderDealRow)}
                 {listViewDeals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground">
                       Aucune opportunité.
                     </TableCell>
                   </TableRow>

@@ -17,6 +17,7 @@ export interface DealRow {
   stage_id: string | null;
   probability: number | null;
   expected_close_date: string | null;
+  created_at: string;
   updated_at: string;
   contact_list_id: string | null;
   company_list_id: string | null;
@@ -25,7 +26,7 @@ export interface DealRow {
 }
 
 const DEAL_SELECT =
-  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, updated_at, contact_list_id, company_list_id, contacts(first_name, last_name), companies(name)";
+  "id, client_id, company_name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, created_at, updated_at, contact_list_id, company_list_id, contacts(first_name, last_name), companies(name)";
 
 export async function listDeals(client: SupabaseClient): Promise<DealRow[]> {
   const { data, error } = await client.from("deals").select(DEAL_SELECT).order("signed_at", { ascending: false });

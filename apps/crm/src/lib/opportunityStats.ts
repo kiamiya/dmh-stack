@@ -53,3 +53,48 @@ export function computeConversionRate(deals: Array<{ status: DealStatus }>): num
   const won = closed.filter((d) => d.status === "won").length;
   return Math.round((won / closed.length) * 100);
 }
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Pure : ancienneté en jours depuis la création de l'opportunité. */
+export function computeDealAgeDays(deal: { created_at: string }, now: Date): number {
+  return Math.floor((now.getTime() - new Date(deal.created_at).getTime()) / MS_PER_DAY);
+}
+
+/**
+ * Pure : cycle moyen (en jours) entre création et signature — uniquement
+ * les opportunités gagnées avec une date de signature (`signed_at`,
+ * posée à la victoire) : une opportunité perdue n'a pas de date de
+ * clôture équivalente en base. `null` si aucune opportunité gagnée.
+ */
+export function computeAverageCycleDays(
+  deals: Array<{ status: DealStatus; created_at: string; signed_at: string | null }>,
+): number | null {
+  const closed = deals.filter((d) => d.status === "won" && d.signed_at);
+  if (closed.length === 0) return null;
+  const totalDays = closed.reduce(
+    (sum, d) => sum + (new Date(d.signed_at!).getTime() - new Date(d.created_at).getTime()) / MS_PER_DAY,
+    0,
+  );
+  return Math.round(totalDays / closed.length);
+}
+
+export interface NextDealAction {
+  title: string;
+  dueDate: string;
+}
+
+/**
+ * Pure : prochaine tâche non terminée liée à cette opportunité (échéance
+ * la plus proche) — `null` si aucune tâche ouverte n'y est liée.
+ */
+export function computeNextActionForDeal(
+  dealId: string,
+  tasks: Array<{ deal_id: string | null; title: string; due_date: string | null; status: string }>,
+): NextDealAction | null {
+  const candidates = tasks
+    .filter((t) => t.deal_id === dealId && t.status !== "done" && t.due_date)
+    .sort((a, b) => a.due_date!.localeCompare(b.due_date!));
+  const next = candidates[0];
+  return next ? { title: next.title, dueDate: next.due_date! } : null;
+}
