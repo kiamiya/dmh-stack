@@ -95,7 +95,7 @@ Dernière mise à jour : 2026-09-04
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
-| S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 écrite mais **non appliquée** (confirmation explicite de Loïc requise avant `supabase db push`, règle CLAUDE.md §5) |
+| S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1302,3 +1302,21 @@ en production). `TESTING.md` à rédiger avec le protocole de validation
 manuelle (non-régression d'une règle simple existante en priorité,
 puis branche Oui/Non, puis `trigger_enrichment` une fois le secret
 Vault rempli par Loïc) avant de considérer cette tâche terminée.
+
+### 2026-09-07 (suite) — S32-auto : migration 030 appliquée en production
+
+Loïc a confirmé ("tu peux y aller") — `supabase db push --linked` exécuté.
+Vérifié en lecture seule après coup : `pg_net` actif, colonne
+`automation_actions.branch` présente, contraintes `entity_type` (+
+`prospect`) et `action_type` (+ `trigger_enrichment`) à jour, trigger
+`prospects_automation` créé, secret Vault `app_service_role_key` créé
+(vide, comme prévu). `automation_rules` est vide en production (0 règle
+existante) — le test de non-régression n'a donc rien à régresser
+aujourd'hui ; il se confondra avec le premier test réel de Loïc.
+
+**Point de reprise** : reste à faire de la part de Loïc — remplir la
+vraie valeur du secret Vault (`vault.update_secret`, requête fournie
+dans `TESTING.md`, jamais commitée) puis dérouler le protocole de test
+manuel en 2 étapes désormais (branche Oui/Non, puis Enrichir réel).
+`TESTING.md` mis à jour en conséquence — en attente de sa validation
+avant de considérer S32-auto terminé.
