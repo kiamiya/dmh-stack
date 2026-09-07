@@ -88,7 +88,7 @@ Dernière mise à jour : 2026-09-04
 | S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
 | S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-3 | Design "Relais" — page Intégrations | 🔄 code fait, déploiement Edge Function en attente de confirmation Loïc |
+| S29-3 | Design "Relais" — page Intégrations | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-4..6 | Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -810,19 +810,22 @@ reskin général. Aucune migration ni déploiement nécessaire pour cette
   tests, +4), `pnpm --filter @dmh/crm typecheck`/`test` verts (340
   tests, +2), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
   Compilation confirmée via le dev server (200 sur `Integrations.tsx`).
-- **Déploiement de l'Edge Function NON fait** — contrairement aux
-  étapes 1-2 (100% frontend), celle-ci ajoute une fonction serveur :
-  action distante soumise à confirmation explicite au cas par cas
-  (règle CLAUDE.md §5). Tant qu'elle n'est pas déployée
-  (`supabase functions deploy integrations-status`), `/integrations`
-  affichera une erreur réseau en conditions réelles — code prêt,
-  déploiement à confirmer avec Loïc avant de continuer sur l'étape 4.
+- **Déployée** (confirmation explicite de Loïc obtenue) : première
+  tentative bloquée par le classificateur de permissions auto (action
+  distante), puis échouée pour de vrai (`deno.json` manquant pour cette
+  fonction — import `@supabase/supabase-js` non résolu, même souci
+  qu'anticipé pour les autres fonctions calendrier/enrichissement,
+  juste oublié ici). Ajouté `supabase/functions/integrations-status/deno.json`
+  (mêmes imports que `calendar-my-events`), redéployé avec succès.
+  Vérifié : `curl` sans en-tête `Authorization` renvoie bien `401`
+  (fonction live, auth appliquée). Pas de vérification avec une vraie
+  session staff possible côté Claude (même limitation que d'habitude,
+  cf. note S17) — à valider par Loïc en rechargeant `/integrations`.
 
-**Point de reprise (étape 3)** : demander à Loïc l'autorisation de
-déployer `integrations-status` (`supabase functions deploy
-integrations-status`) — une fois déployée, valider visuellement
-`/integrations` (statut réel des 4 clés déjà dans `.env.local`/Supabase
-Vault). Prochaine étape après validation : S29-4 (Mapping
+**Point de reprise (étape 3)** : demander à Loïc de valider
+visuellement `/integrations` (statut réel des 4 clés déjà dans
+`.env.local`/Supabase Vault — toutes attendues "Connecté" puisque
+`pnpm run check-env` est vert). Prochaine étape : S29-4 (Mapping
 enrichissement, la plus délicate — touche le pipeline d'enrichissement
-Phase 1) — voir roadmap dans le plan de session
-(`bubbly-watching-crescent.md`).
+Phase 1, nécessite un plan dédié avant toute implémentation) — voir
+roadmap dans le plan de session (`bubbly-watching-crescent.md`).
