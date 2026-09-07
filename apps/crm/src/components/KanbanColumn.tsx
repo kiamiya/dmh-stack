@@ -30,17 +30,19 @@ export function KanbanColumn({ column, prospects }: KanbanColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-lg border border-border bg-secondary/50 p-2",
+        "flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-secondary/50 p-2",
         isOver && "border-accent bg-accent/10",
       )}
     >
-      <div className="flex items-center justify-between px-1 pb-2">
-        <span className="text-sm font-semibold text-foreground">{column.label}</span>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      <div className="flex items-center justify-between gap-1 px-1 pb-2">
+        <span className="truncate text-xs font-semibold text-foreground" title={column.label}>
+          {column.label}
+        </span>
+        <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
           {prospects.length}
         </span>
       </div>
-      <div className="flex min-h-[2rem] flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-0.5">
         {prospects.map((p) => (
           <DraggableCard key={p.id} prospect={p} />
         ))}
@@ -50,5 +52,5 @@ export function KanbanColumn({ column, prospects }: KanbanColumnProps) {
 }
 
 export function KanbanBoardShell({ children }: { children: ReactNode }) {
-  return <div className="flex gap-3 overflow-x-auto p-6">{children}</div>;
+  return <div className="grid min-h-0 flex-1 auto-cols-fr grid-flow-col gap-2">{children}</div>;
 }

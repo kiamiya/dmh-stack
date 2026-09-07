@@ -29,12 +29,12 @@ export function PipelinePage() {
   if (error) return <div className="p-8 text-sm text-destructive">{error}</div>;
 
   return (
-    <div className="flex flex-col gap-3 p-6">
+    <div className="flex h-full flex-col gap-3 p-6">
       <PageHeader kicker="Prospection · vue Kanban" title="Pipeline" />
       {loading ? (
-        <div className="flex gap-3 overflow-x-auto">
+        <div className="grid flex-1 min-h-0 grid-flow-col auto-cols-fr gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 w-72 shrink-0" />
+            <Skeleton key={i} className="h-full" />
           ))}
         </div>
       ) : (

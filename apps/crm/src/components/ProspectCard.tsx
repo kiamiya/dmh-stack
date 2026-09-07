@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { cn } from "../lib/cn";
 import { Avatar } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { formatScore, getScoreColor } from "../lib/score";
@@ -24,9 +25,9 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
   return (
     <div
       {...dragHandleProps}
-      className="cursor-grab rounded-md border border-border bg-card p-3 shadow-sm active:cursor-grabbing"
+      className="cursor-grab rounded-md border border-border bg-card p-2 shadow-sm active:cursor-grabbing"
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-1.5">
         <Avatar name={companyName} size="sm" />
         <div className="min-w-0 flex-1">
           <Link
@@ -34,18 +35,27 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
             state={openProspectLinkState(location)}
             onClick={(e) => e.stopPropagation()}
             className="block truncate text-sm font-medium text-foreground hover:underline"
+            title={companyName}
           >
             {companyName}
           </Link>
-          <div className="truncate text-xs text-muted-foreground">{contactName}</div>
+          <div className="truncate text-xs text-muted-foreground" title={contactName}>
+            {contactName}
+          </div>
         </div>
         <Badge variant={getScoreColor(prospect.companies?.ai_score ?? null)}>
           {formatScore(prospect.companies?.ai_score ?? null)}
         </Badge>
       </div>
-      <div className="mt-2 flex items-center gap-1.5 text-xs">
-        <span className={stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground"}>
-          {stagnant && "⚠ "}Dernière activité : {formatRelativeTime(prospect.last_activity_at)}
+      <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+        <span
+          className={cn(
+            "truncate",
+            stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground",
+          )}
+          title={`Dernière activité : ${formatRelativeTime(prospect.last_activity_at)}`}
+        >
+          {stagnant && "⚠ "}{formatRelativeTime(prospect.last_activity_at)}
         </span>
       </div>
     </div>
