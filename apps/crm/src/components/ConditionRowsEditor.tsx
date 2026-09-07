@@ -1,4 +1,5 @@
 import type { AutomationConditionOperator } from "@dmh/types";
+import { X } from "lucide-react";
 import { Button } from "./ui/button";
 
 export interface ConditionDraft {
@@ -72,7 +73,7 @@ export function ConditionRowsEditor({ conditions, onChange, label = "Conditions 
             />
           )}
           <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(i)}>
-            ✕
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
           </Button>
         </div>
       ))}

@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { TriangleAlert } from "lucide-react";
 import { cn } from "../lib/cn";
 import { Avatar } from "./ui/avatar";
 import { Badge } from "./ui/badge";
@@ -50,12 +51,13 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
         <span
           className={cn(
-            "truncate",
+            "flex items-center gap-1 truncate",
             stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground",
           )}
           title={`Dernière activité : ${formatRelativeTime(prospect.last_activity_at)}`}
         >
-          {stagnant && "⚠ "}{formatRelativeTime(prospect.last_activity_at)}
+          {stagnant && <TriangleAlert className="h-3 w-3 shrink-0" strokeWidth={1.5} />}
+          <span className="truncate">{formatRelativeTime(prospect.last_activity_at)}</span>
         </span>
       </div>
     </div>

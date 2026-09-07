@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { ProspectDetailContent } from "./ProspectDetailContent";
 
 /**
@@ -50,9 +51,9 @@ export function ProspectDetailPanel() {
                   type="button"
                   onClick={close}
                   aria-label="Fermer"
-                  className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
-                  ✕ Fermer
+                  <X className="h-4 w-4" strokeWidth={1.5} /> Fermer
                 </button>
               </div>
             }

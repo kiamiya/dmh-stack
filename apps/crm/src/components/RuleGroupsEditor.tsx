@@ -1,4 +1,5 @@
 import type { AutomationConditionOperator, CustomFieldEntityType } from "@dmh/types";
+import { X } from "lucide-react";
 import { useFieldDefinitions } from "../hooks/useFieldDefinitions";
 import { Button } from "./ui/button";
 
@@ -152,7 +153,7 @@ export function RuleGroupsEditor({ entityType, clientId, groups, onChange }: Rul
                   />
                 )}
                 <Button type="button" variant="ghost" size="sm" onClick={() => removeCondition(gi, ci)}>
-                  ✕
+                  <X className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </Button>
               </div>
             ))}

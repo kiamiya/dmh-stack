@@ -9,6 +9,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
+import { TriangleAlert } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
@@ -191,8 +192,13 @@ export function ProspectsListPage() {
         cell: ({ row }) => {
           const stagnant = isStagnant(row.original.last_activity_at);
           return (
-            <span className={stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : undefined}>
-              {stagnant && "⚠ "}
+            <span
+              className={cn(
+                "flex items-center gap-1",
+                stagnant && "font-medium text-yellow-700 dark:text-yellow-400",
+              )}
+            >
+              {stagnant && <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} />}
               {formatRelativeTime(row.original.last_activity_at)}
             </span>
           );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell, CircleDot, Moon, Sun } from "lucide-react";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
 import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
@@ -9,7 +10,7 @@ import { themeLabel } from "../lib/theme";
 import { useTasks } from "../hooks/useTasks";
 import { computeTasksDueToday } from "../lib/taskStats";
 
-const THEME_ICON = { light: "☀", dark: "☾", system: "◐" } as const;
+const THEME_ICON = { light: Sun, dark: Moon, system: CircleDot } as const;
 
 /**
  * Barre fine au-dessus du contenu — compte/notifications uniquement.
@@ -23,6 +24,7 @@ export function Header() {
   const { theme, cycleTheme } = useTheme();
   const { tasks } = useTasks();
   const dueToday = computeTasksDueToday(tasks);
+  const ThemeIcon = THEME_ICON[theme];
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -40,7 +42,7 @@ export function Header() {
               aria-label="Tâches du jour"
               className="relative rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
             >
-              🔔
+              <Bell className="h-4 w-4" strokeWidth={1.5} />
               {dueToday.length > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium leading-none text-white">
                   {dueToday.length}
@@ -66,9 +68,9 @@ export function Header() {
           onClick={cycleTheme}
           title={`Thème : ${themeLabel(theme)} (cliquer pour changer)`}
           aria-label={`Thème : ${themeLabel(theme)}`}
-          className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+          className="rounded-md px-2 py-1.5 text-muted-foreground hover:bg-secondary"
         >
-          {THEME_ICON[theme]}
+          <ThemeIcon className="h-4 w-4" strokeWidth={1.5} />
         </button>
         {session?.user.email && (
           <DropdownMenu

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { TriangleAlert } from "lucide-react";
 import { isStagnant } from "../lib/stagnation";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { formatCurrency } from "../lib/deals";
@@ -30,8 +31,15 @@ export function OpportunityCard({ deal, dragHandleProps }: OpportunityCardProps)
       </div>
       <div className="mt-1 text-sm text-foreground">{formatCurrency(deal.deal_value)}</div>
       <div className="mt-1 flex items-center gap-1 text-xs">
-        <span className={stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground"}>
-          {stagnant && "⚠ "}Dernière activité : {formatRelativeTime(deal.updated_at)}
+        <span
+          className={
+            stagnant
+              ? "flex items-center gap-1 font-medium text-yellow-700 dark:text-yellow-400"
+              : "flex items-center gap-1 text-muted-foreground"
+          }
+        >
+          {stagnant && <TriangleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />}
+          Dernière activité : {formatRelativeTime(deal.updated_at)}
         </span>
       </div>
     </div>
