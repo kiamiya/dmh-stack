@@ -126,3 +126,30 @@ export function computeWeeklyCounts(dates: string[], weeksCount: number, now: Da
 
   return buckets;
 }
+
+export interface WeeklyBreakdownBucket {
+  weekStart: string;
+  calls: number;
+  emails: number;
+  meetings: number;
+}
+
+/**
+ * Pure : combine 3 séries hebdomadaires (appels, emails envoyés, RDV) en
+ * une seule structure pour le graphique empilé "Activité de la force de
+ * vente" (mockup "Relais", Dashboard) — les 3 tableaux doivent venir du
+ * même appel `computeWeeklyCounts` (mêmes `weeksCount`/`now`), donc alignés
+ * index par index sur les mêmes semaines.
+ */
+export function combineWeeklyBreakdown(
+  calls: WeeklyBucket[],
+  emails: WeeklyBucket[],
+  meetings: WeeklyBucket[],
+): WeeklyBreakdownBucket[] {
+  return calls.map((c, i) => ({
+    weekStart: c.weekStart,
+    calls: c.count,
+    emails: emails[i]?.count ?? 0,
+    meetings: meetings[i]?.count ?? 0,
+  }));
+}

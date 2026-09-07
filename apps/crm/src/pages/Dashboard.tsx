@@ -8,21 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { StatusBarList } from "../components/charts/StatusBarList";
 import { FunnelChart } from "../components/charts/FunnelChart";
 import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
+import { StackedWeeklyBarChart } from "../components/charts/StackedWeeklyBarChart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency } from "../lib/deals";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
 import { groupActivityEventsByDay, mergeActivityEvents } from "../lib/activityFeed";
 import {
+  combineWeeklyBreakdown,
   computeFunnelFromHistory,
   computeStatusCounts,
   computeWeeklyCounts,
   topProspectsByScore,
 } from "../lib/dashboardStats";
+import { computeClientPerformance } from "../lib/reportingStats";
 import { useProspects } from "../hooks/useProspects";
 import { useStatusHistory } from "../hooks/useStatusHistory";
 import { useDeals } from "../hooks/useDeals";
 import { useAllInteractions } from "../hooks/useAllInteractions";
+import { useMeetings } from "../hooks/useMeetings";
+import { useClients } from "../hooks/useClients";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useTasks } from "../hooks/useTasks";
 import { computeConversionRate, computePipelineValueByStatus } from "../lib/opportunityStats";
@@ -35,6 +41,8 @@ export function DashboardPage() {
   const { history, loading: historyLoading } = useStatusHistory();
   const { deals, loading: dealsLoading } = useDeals();
   const { interactions, loading: interactionsLoading } = useAllInteractions();
+  const { meetings, loading: meetingsLoading } = useMeetings();
+  const clients = useClients();
   const staff = useStaffMembers();
   const { tasks, loading: tasksLoading } = useTasks();
 
@@ -55,6 +63,26 @@ export function DashboardPage() {
       ),
     [deals, now],
   );
+  const weeklyActivity = useMemo(() => {
+    const calls = computeWeeklyCounts(
+      interactions.filter((i) => i.type === "call").map((i) => i.occurred_at),
+      8,
+      now,
+    );
+    const emails = computeWeeklyCounts(
+      interactions.filter((i) => i.type === "email_sent").map((i) => i.occurred_at),
+      8,
+      now,
+    );
+    // "RDV posés" approximé par la date de l'événement lui-même (`starts_at`) — `meetings` n'a pas de date de création distincte.
+    const bookedMeetings = computeWeeklyCounts(meetings.map((m) => m.starts_at), 8, now);
+    return combineWeeklyBreakdown(calls, emails, bookedMeetings);
+  }, [interactions, meetings, now]);
+  const toEnrichCount = useMemo(() => prospects.filter((p) => p.status === "to_enrich").length, [prospects]);
+  const clientPerformance = useMemo(
+    () => computeClientPerformance(clients, deals, meetings, staff),
+    [clients, deals, meetings, staff],
+  );
 
   const companyNameByProspectId = useMemo(
     () => new Map(prospects.map((p) => [p.id, p.companies?.name ?? "—"])),
@@ -71,7 +99,7 @@ export function DashboardPage() {
     [prospects, now],
   );
 
-  const loading = prospectsLoading || historyLoading || dealsLoading || interactionsLoading || tasksLoading;
+  const loading = prospectsLoading || historyLoading || dealsLoading || interactionsLoading || meetingsLoading || tasksLoading;
   const wonDeals = deals.filter((d) => d.status === "won");
   const lostDeals = deals.filter((d) => d.status === "lost");
   const totalCommission = wonDeals.reduce((sum, d) => sum + (d.commission_amount ?? 0), 0);
@@ -137,6 +165,15 @@ export function DashboardPage() {
 
         <TabsContent value="overview">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Activité de la force de vente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StackedWeeklyBarChart title="Activité de la force de vente" data={weeklyActivity} />
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Prospects par statut</CardTitle>
@@ -152,6 +189,48 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <FunnelChart stages={funnel} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground">En attente d'enrichissement</div>
+                <div className="text-2xl font-semibold text-foreground">{toEnrichCount}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Comptes clients suivis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Commercial</TableHead>
+                      <TableHead className="text-right">RDV</TableHead>
+                      <TableHead className="text-right">Pipe</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientPerformance.map((row) => (
+                      <TableRow key={row.clientId}>
+                        <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
+                        <TableCell className="text-muted-foreground">{row.topStaffName ?? "—"}</TableCell>
+                        <TableCell className="text-right">{row.meetingsCount}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.pipelineValue)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {clientPerformance.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Aucun client DMH enregistré.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </div>

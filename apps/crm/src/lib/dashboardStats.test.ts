@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FUNNEL_STAGES,
+  combineWeeklyBreakdown,
   computeFunnelFromHistory,
   computeStatusCounts,
   computeWeeklyCounts,
@@ -96,5 +97,19 @@ describe("computeWeeklyCounts", () => {
   it("ignore les dates en dehors de la fenêtre demandée", () => {
     const result = computeWeeklyCounts(["2020-01-01T00:00:00Z"], 2, NOW);
     expect(result.reduce((sum, b) => sum + b.count, 0)).toBe(0);
+  });
+});
+
+describe("combineWeeklyBreakdown", () => {
+  const NOW = new Date("2026-08-26T12:00:00Z");
+
+  it("combine 3 séries alignées par semaine", () => {
+    const calls = computeWeeklyCounts(["2026-08-24T09:00:00Z"], 2, NOW);
+    const emails = computeWeeklyCounts(["2026-08-24T10:00:00Z", "2026-08-24T11:00:00Z"], 2, NOW);
+    const meetings = computeWeeklyCounts([], 2, NOW);
+    const result = combineWeeklyBreakdown(calls, emails, meetings);
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual({ weekStart: "2026-08-24", calls: 1, emails: 2, meetings: 0 });
+    expect(result[0]).toEqual({ weekStart: "2026-08-17", calls: 0, emails: 0, meetings: 0 });
   });
 });
