@@ -72,8 +72,8 @@ function NavItem({ to, label, active }: { to: string; label: string; active: boo
     <Link
       to={to}
       className={cn(
-        "block rounded-md px-3 py-1.5 font-heading text-[15px] tracking-wide",
-        active ? "bg-white/15 text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-white/10",
+        "block rounded-md px-3 py-1.5 font-body text-sm",
+        active ? "bg-white/15 font-medium text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-white/10",
       )}
     >
       {label}
@@ -126,13 +126,13 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={() => toggleGroup(entry.label)}
-                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/45 hover:bg-white/10"
+                className="flex w-full items-center justify-between rounded-md bg-white/5 px-2.5 py-2 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground/85 hover:bg-white/10"
               >
                 {entry.label}
                 <span className={cn("transition-transform", open && "rotate-90")}>›</span>
               </button>
               {open && (
-                <div className="mt-0.5 space-y-0.5">
+                <div className="mt-1 space-y-0.5 border-l border-white/15 pl-3">
                   {entry.items.map((item) => (
                     <NavItem key={item.to} to={item.to} label={item.label} active={location.pathname === item.to} />
                   ))}
