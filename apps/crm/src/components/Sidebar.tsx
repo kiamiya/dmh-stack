@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../lib/cn";
+import { useSidebarCounts } from "../hooks/useSidebarCounts";
 
 interface NavLink {
   to: string;
@@ -67,16 +68,27 @@ function findActiveGroup(pathname: string): NavGroup | undefined {
   return NAV_ENTRIES.find((e): e is NavGroup => isGroup(e) && e.items.some((i) => i.to === pathname));
 }
 
-function NavItem({ to, label, active }: { to: string; label: string; active: boolean }) {
+function NavItem({
+  to,
+  label,
+  active,
+  badge,
+}: {
+  to: string;
+  label: string;
+  active: boolean;
+  badge?: string | number | null;
+}) {
   return (
     <Link
       to={to}
       className={cn(
-        "block rounded-md px-3 py-1.5 font-body text-sm",
+        "flex items-center gap-2 rounded-md px-3 py-1.5 font-body text-sm",
         active ? "bg-white/15 font-medium text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-white/10",
       )}
     >
-      {label}
+      <span className="flex-1 truncate">{label}</span>
+      {badge != null && <span className="shrink-0 text-xs tabular-nums opacity-55">{badge}</span>}
     </Link>
   );
 }
@@ -90,6 +102,16 @@ function NavItem({ to, label, active }: { to: string; label: string; active: boo
  */
 export function Sidebar() {
   const location = useLocation();
+  const counts = useSidebarCounts();
+  const badgeByPath: Record<string, string | number | null> = {
+    "/": counts.prospects,
+    "/contacts": counts.contacts,
+    "/companies": counts.companies,
+    "/opportunities": counts.opportunities,
+    "/tasks": counts.tasks,
+    "/lists": counts.lists,
+    "/integrations": counts.integrations,
+  };
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     const active = findActiveGroup(location.pathname);
@@ -134,7 +156,13 @@ export function Sidebar() {
               {open && (
                 <div className="mt-1 space-y-0.5 border-l border-white/15 pl-3">
                   {entry.items.map((item) => (
-                    <NavItem key={item.to} to={item.to} label={item.label} active={location.pathname === item.to} />
+                    <NavItem
+                      key={item.to}
+                      to={item.to}
+                      label={item.label}
+                      active={location.pathname === item.to}
+                      badge={badgeByPath[item.to] ?? null}
+                    />
                   ))}
                 </div>
               )}
