@@ -9,53 +9,55 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 migration appliquée — reste le secret Vault + ta validation manuelle
+## Statut : ⛔ bloqué — confirmation requise avant application de la migration 031
 
-**Automatisations — moteur étendu (branches Oui/Non + action "Enrichir")**,
-S32-auto. Code écrit et vert (`pnpm typecheck`/`pnpm test` racine, 12
-packages). Migration `supabase/migrations/030_automation_branching_and_enrichment.sql`
-**appliquée en production le 2026-09-07** (confirmée par toi) — vérifiée
-en lecture seule après coup : `pg_net` actif, colonne `branch` présente,
-contraintes `entity_type`/`action_type` étendues, trigger
-`prospects_automation` créé, secret Vault `app_service_role_key` créé
-(vide). `automation_rules` était vide en production avant cette
-migration : pas de règle existante à faire régresser.
+**Segments (/lists) — Lot B (Propriétaire, Mise à jour, Import CSV,
+Corbeille)**, S32-segments. Code écrit et vert (`pnpm typecheck`/`pnpm
+test` racine, 12 packages, 428 tests côté CRM). Migration
+`supabase/migrations/031_lists_metadata.sql` ajoute des colonnes sur
+`contact_lists`/`company_lists`/`opportunity_lists` (déjà en production)
+et active `pg_cron` — par la règle CLAUDE.md §5, je n'applique **pas**
+`supabase db push` sans ta confirmation explicite.
 
-Le détail complet (schéma, rétro-compatibilité, limite
-synchrone/asynchrone assumée) est dans `PROGRESS.md`, section "2026-09-07
-(suite) — S32-auto".
+### Ce que fait la migration
 
-### Étape 1 — remplir le secret Vault (toi seul peux le faire)
+1. `created_by`, `updated_at` (+ triggers), `deleted_at` sur les 3 tables
+   de listes.
+2. Active `pg_cron` (vérifié absent avant cette migration) et programme
+   un job quotidien (3h du matin) qui supprime définitivement les listes
+   dans la Corbeille depuis plus de 30 jours.
 
-Après la migration, exécute (SQL Editor Supabase, jamais dans un commit) :
+Détail complet dans `PROGRESS.md`, section "2026-09-07 (suite) —
+S32-segments : Lot B".
 
-```sql
-select vault.update_secret(
-  (select id from vault.secrets where name = 'app_service_role_key'),
-  '<vraie clé service_role — Project Settings → API>'
-);
-```
+### Étape 1 — confirmer l'application de la migration
 
-Sans cette étape, l'action "Enrichir" ne fait rien (le code vérifie que le
-secret n'est pas vide avant d'appeler `net.http_post`) — aucune erreur,
-mais aucun effet non plus.
+Dis-moi si je peux lancer `supabase db push` (ou fais-le toi-même). Rien
+ci-dessous n'est testable avant cette étape.
 
 ### Étape 2 — protocole de test manuel (dans l'ordre)
 
-| # | Test | Pré-requis | Résultat attendu |
-|---|---|---|---|
-| 1 | **Simple sans branche** — créer une règle basique sur `/automations` (ex. `opportunity`/`stage_changed` → créer une tâche), sans cocher "Brancher" | Aucun | La tâche se crée normalement au changement d'étape — confirme que le trigger réécrit se comporte comme avant pour le cas `always` |
-| 2 | **Branche Oui/Non** — créer une règle avec une condition simple (ex. `city est renseigné`), cocher "Brancher l'action selon les conditions", mettre une action différente en Oui et en Non | Test 1 validé | Créer un prospect avec `city` renseigné → l'action "Oui" s'exécute ; sans `city` → l'action "Non" s'exécute |
-| 3 | **Enrichir** — créer une règle sur l'entité "Prospect", déclencheur "À la création", action "Enrichir" (Pappers ou Dropcontact) | Étape 1 du fichier (secret Vault rempli) | Créer un prospect réel test → vérifier dans `companies`/logs Edge Function que l'enrichissement a bien été déclenché |
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir `/segments` (Segments), vérifier que les listes existantes s'affichent toujours normalement | Aucune liste ne disparaît (le filtre `deleted_at is null` ne cache que les nouvelles suppressions) |
+| 2 | Créer une liste, vérifier la colonne "Propriétaire" en base (`select created_by from contact_lists order by created_at desc limit 1`) | L'id correspond à ton compte staff |
+| 3 | Ajouter/retirer un membre d'une liste statique, vérifier `updated_at` en base | La date change, sans toucher au nom ni aux règles |
+| 4 | Cliquer "Supprimer" sur une liste → elle disparaît de la liste principale → cliquer "Corbeille" → elle y apparaît | Comportement soft-delete confirmé |
+| 5 | Cliquer "Restaurer" dans la Corbeille | La liste réapparaît dans le tableau principal |
+| 6 | "Importer un fichier" avec un petit CSV réel (contacts existants + 1-2 lignes volontairement non reconnues) | La liste créée contient les bons contacts, le toast indique le nombre de lignes non reconnues, aucun nouveau contact n'est créé |
 
-Comme pour tout le reste : pas de vérification visuelle en navigateur réel
-possible côté Claude — les 3 lignes ci-dessus sont à exécuter et constater
-par toi.
+Comme pour tout le reste : pas de vérification visuelle en navigateur
+réel possible côté Claude — à valider par toi.
+
+## Rappel — test en attente sur un autre chantier
+
+Le protocole de test de l'extension du moteur d'Automatisations
+(migration 030, branches Oui/Non + action "Enrichir") reste également en
+attente de ta validation — voir `PROGRESS.md`, section "S32-auto". Pas
+perdu, juste pas répété ici (ce fichier ne couvre que le test courant).
 
 ## Outillage disponible pour ce chantier
 
-- `pnpm --filter @dmh/crm dev` (port 5173), page `/automations`.
+- `pnpm --filter @dmh/crm dev` (port 5173), page `/lists`.
 - `supabase db query --linked --project-ref hkonylfpcstbvxswyxyh "<SQL>"`
   pour inspecter l'état réel sans modifier quoi que ce soit.
-- Logs de l'Edge Function appelée (`enrich-pappers`/`enrich-dropcontact`)
-  visibles dans le dashboard Supabase, utiles pour le test 3.
