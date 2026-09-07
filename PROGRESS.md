@@ -94,7 +94,7 @@ Dernière mise à jour : 2026-09-04
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
-| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + Dashboard + Contacts/Entreprises | 🔄 3/11 écrans faits, reste 8 écrans (voir plan de session) |
+| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | 🔄 chrome + 8/11 écrans faits, reste Campagnes/Automatisations/Mapping/Paramètres (décision de périmètre à reconfirmer) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1211,3 +1211,23 @@ réel possible côté Claude — à valider par Loïc.
 **Point de reprise** : continuer dans l'ordre du plan — écran 4/11
 "Segments" (`Lists.tsx`), puis Fiche contact, Pipeline/Opportunités,
 etc. (voir `bubbly-watching-crescent.md`).
+
+**Écrans 4-8/11 faits** (voir commits dédiés) : Segments (création de
+liste depuis `/lists`, export, date de création réelle), Fiche contact
+(carte Société, Historique via interactions réelles, Source, bouton
+Appeler), Pipeline/Opportunités (Proba./Ancienneté/Prochaine action,
+cycle moyen), Intégrations (grille de cartes avec description réelle
+par fournisseur), Reporting (colonne "Contacts travaillés" réelle via
+`computeClientPerformance` étendu).
+
+**Reste 4/11 écrans, tous déjà en périmètre réduit par décision
+antérieure de Loïc, à reconfirmer avant d'y toucher** : Campagnes
+(éditeur de blocs complet vs tableau de bord Lemlist actuel),
+Automatisations (canvas de nœuds vs chaîne visuelle actuelle), Mapping
+enrichissement (cascade configurable vs vue lecture seule actuelle),
+Paramètres (gestion équipe/rôles — explicitement hors périmètre dans le
+roadmap S9-S16). Rebâtir ces 4 en parité totale serait un chantier bien
+plus lourd que les 8 précédents (nouveau schéma, nouvelles Edge
+Functions pour Campagnes, nouveau paradigme d'UI pour Automatisations,
+architecture de rôles pour Paramètres) — question de cadrage posée à
+Loïc avant d'exécuter, pas de décision prise seul cette fois.
