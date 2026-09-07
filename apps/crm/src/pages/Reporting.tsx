@@ -14,24 +14,26 @@ import { useDeals } from "../hooks/useDeals";
 import { useMeetings } from "../hooks/useMeetings";
 import { useClients } from "../hooks/useClients";
 import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useAllInteractions } from "../hooks/useAllInteractions";
 
 export function ReportingPage() {
   const { prospects, loading: prospectsLoading } = useProspects();
   const { history, loading: historyLoading } = useStatusHistory();
   const { deals, loading: dealsLoading } = useDeals();
   const { meetings, loading: meetingsLoading } = useMeetings();
+  const { interactions, loading: interactionsLoading } = useAllInteractions();
   const clients = useClients();
   const staff = useStaffMembers();
 
-  const loading = prospectsLoading || historyLoading || dealsLoading || meetingsLoading;
+  const loading = prospectsLoading || historyLoading || dealsLoading || meetingsLoading || interactionsLoading;
 
   const wonDeals = deals.filter((d) => d.status === "won");
   const pipelineValue = useMemo(() => computePipelineValueByStatus(deals), [deals]);
   const conversionRate = useMemo(() => computeConversionRate(deals), [deals]);
   const funnel = useMemo(() => computeFunnelFromHistory(history), [history]);
   const clientPerformance = useMemo(
-    () => computeClientPerformance(clients, deals, meetings, staff),
-    [clients, deals, meetings, staff],
+    () => computeClientPerformance(clients, deals, meetings, staff, prospects, interactions),
+    [clients, deals, meetings, staff, prospects, interactions],
   );
 
   if (loading) {
@@ -114,6 +116,7 @@ export function ReportingPage() {
               <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Commercial</TableHead>
+                <TableHead>Contacts travaillés</TableHead>
                 <TableHead>Opportunités</TableHead>
                 <TableHead>Gagnées</TableHead>
                 <TableHead>Valeur pipeline</TableHead>
@@ -125,6 +128,7 @@ export function ReportingPage() {
                 <TableRow key={row.clientId}>
                   <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
                   <TableCell className="text-muted-foreground">{row.topStaffName ?? "—"}</TableCell>
+                  <TableCell>{row.workedContactsCount}</TableCell>
                   <TableCell>{row.dealsCount}</TableCell>
                   <TableCell>{row.wonDealsCount}</TableCell>
                   <TableCell>{formatCurrency(row.pipelineValue)}</TableCell>
@@ -133,7 +137,7 @@ export function ReportingPage() {
               ))}
               {clientPerformance.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Aucun client DMH enregistré.
                   </TableCell>
                 </TableRow>

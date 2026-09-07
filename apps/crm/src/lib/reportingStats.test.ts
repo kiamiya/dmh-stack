@@ -24,9 +24,18 @@ const staff = [
   { id: "s2", name: "Paul Martin" },
 ];
 
+const prospects = [
+  { client_id: "c1", id: "p1" },
+  { client_id: "c1", id: "p2" },
+  { client_id: "c1", id: "p3" },
+  { client_id: "c2", id: "p4" },
+];
+
+const interactions = [{ prospect_id: "p1" }, { prospect_id: "p1" }, { prospect_id: "p2" }];
+
 describe("computeClientPerformance", () => {
   it("regroupe deals et RDV par client", () => {
-    const rows = computeClientPerformance(clients, deals, meetings, staff);
+    const rows = computeClientPerformance(clients, deals, meetings, staff, prospects, interactions);
     expect(rows).toHaveLength(2);
     expect(rows.find((r) => r.clientId === "c1")).toMatchObject({
       clientName: "Client A",
@@ -45,22 +54,30 @@ describe("computeClientPerformance", () => {
   });
 
   it("désigne le commercial ayant posé le plus de RDV pour ce client", () => {
-    const rows = computeClientPerformance(clients, deals, meetings, staff);
+    const rows = computeClientPerformance(clients, deals, meetings, staff, prospects, interactions);
     expect(rows.find((r) => r.clientId === "c1")?.topStaffName).toBe("Marie Dubois");
     expect(rows.find((r) => r.clientId === "c2")?.topStaffName).toBe("Paul Martin");
   });
 
   it("retourne null pour topStaffName sans aucun RDV", () => {
-    const rows = computeClientPerformance(clients, deals, [], staff);
+    const rows = computeClientPerformance(clients, deals, [], staff, prospects, interactions);
     expect(rows.every((r) => r.topStaffName === null)).toBe(true);
   });
 
-  it("inclut un client à 0 sans opportunité ni RDV", () => {
-    const rows = computeClientPerformance(clients, [], [], staff);
-    expect(rows.every((r) => r.dealsCount === 0 && r.pipelineValue === 0 && r.meetingsCount === 0)).toBe(true);
+  it("compte les prospects distincts ayant au moins une interaction, par client", () => {
+    const rows = computeClientPerformance(clients, deals, meetings, staff, prospects, interactions);
+    expect(rows.find((r) => r.clientId === "c1")?.workedContactsCount).toBe(2); // p1 et p2, pas p3
+    expect(rows.find((r) => r.clientId === "c2")?.workedContactsCount).toBe(0); // p4 sans interaction
+  });
+
+  it("inclut un client à 0 sans opportunité ni RDV ni interaction", () => {
+    const rows = computeClientPerformance(clients, [], [], staff, [], []);
+    expect(rows.every((r) => r.dealsCount === 0 && r.pipelineValue === 0 && r.meetingsCount === 0 && r.workedContactsCount === 0)).toBe(
+      true,
+    );
   });
 
   it("retourne un tableau vide sans client", () => {
-    expect(computeClientPerformance([], deals, meetings, staff)).toEqual([]);
+    expect(computeClientPerformance([], deals, meetings, staff, prospects, interactions)).toEqual([]);
   });
 });

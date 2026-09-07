@@ -80,8 +80,8 @@ export function DashboardPage() {
   }, [interactions, meetings, now]);
   const toEnrichCount = useMemo(() => prospects.filter((p) => p.status === "to_enrich").length, [prospects]);
   const clientPerformance = useMemo(
-    () => computeClientPerformance(clients, deals, meetings, staff),
-    [clients, deals, meetings, staff],
+    () => computeClientPerformance(clients, deals, meetings, staff, prospects, interactions),
+    [clients, deals, meetings, staff, prospects, interactions],
   );
 
   const companyNameByProspectId = useMemo(
