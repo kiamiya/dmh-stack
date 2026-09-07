@@ -86,12 +86,12 @@ Dernière mise à jour : 2026-09-04
 | S26 | Listes dynamiques (critères ET/OU) + fusion des segments dans les listes | ✅ fait côté code — en attente de migration + test navigateur réel |
 | S27 | Dropdowns avec recherche (contacts/entreprises/listes) | ✅ fait |
 | S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
-| S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-3 | Design "Relais" — page Intégrations | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — vérification visuelle réelle en attente de Loïc |
+| S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S29-2 | Design "Relais" — page Reporting | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S29-3 | Design "Relais" — page Intégrations | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -975,3 +975,12 @@ validation visuelle de la roadmap S29 (design "Relais") ou une autre
 tâche du planning Phase 1 encore ouverte (S1 "souscrire aux outils",
 tests à l'échelle S2/S3, déploiement Vercel S5 — toutes dépendent d'un
 client pilote réel, hors périmètre dev pur).
+
+**Retour de Loïc (2026-09-07)** : (1) validation visuelle des 6 écrans
+du design "Relais" — bon, tableau S29 mis à jour ci-dessus ; (2) test
+du pipeline d'enrichissement redéployé reporté à plus tard (pas fait
+aujourd'hui) ; (3) **aucun client pilote réel pour l'instant** — bloque
+toujours S1 ("souscrire aux outils"), les tests à l'échelle S2/S3
+(50/100 prospects réels) et le déploiement Vercel S5. Tant qu'un client
+pilote n'existe pas, ces tâches restent `⬜` sans action possible côté
+dev — prochaine tâche à redéfinir avec Loïc.
