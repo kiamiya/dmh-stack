@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { filterPaletteProspects } from "./commandPalette";
+import { filterPaletteCompanies, filterPaletteContacts, filterPaletteProspects } from "./commandPalette";
 import type { ProspectListRow } from "../services/prospects";
+import type { ContactListRow } from "../services/contacts";
+import type { CompanyListRow } from "../services/companies";
 
 function row(id: string, companyName: string): ProspectListRow {
   return {
@@ -36,5 +38,57 @@ describe("filterPaletteProspects", () => {
   it("retourne un tableau vide si rien ne correspond", () => {
     const rows = [row("1", "Acme")];
     expect(filterPaletteProspects(rows, "introuvable")).toHaveLength(0);
+  });
+});
+
+function contactRow(id: string, firstName: string, lastName: string, email: string | null): ContactListRow {
+  return {
+    id,
+    first_name: firstName,
+    last_name: lastName,
+    job_title: null,
+    email,
+    linkedin_url: null,
+    company_id: "company-1",
+    client_id: "client-1",
+    companies: { name: "Acme" },
+  };
+}
+
+describe("filterPaletteContacts", () => {
+  it("retourne un tableau vide si la requête est vide", () => {
+    expect(filterPaletteContacts([contactRow("1", "Jean", "Dupont", null)], "")).toEqual([]);
+  });
+
+  it("filtre par prénom, nom ou email", () => {
+    const rows = [contactRow("1", "Jean", "Dupont", "jean@acme.fr"), contactRow("2", "Marie", "Martin", null)];
+    expect(filterPaletteContacts(rows, "dupont").map((c) => c.id)).toEqual(["1"]);
+    expect(filterPaletteContacts(rows, "acme.fr").map((c) => c.id)).toEqual(["1"]);
+  });
+
+  it("limite le nombre de résultats", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => contactRow(String(i), "Jean", "Dupont", null));
+    expect(filterPaletteContacts(rows, "dupont", 3)).toHaveLength(3);
+  });
+});
+
+function companyRow(id: string, name: string, siren: string | null): CompanyListRow {
+  return { id, name, siren, city: null, naf_label: null, ai_score: null, client_id: "client-1" };
+}
+
+describe("filterPaletteCompanies", () => {
+  it("retourne un tableau vide si la requête est vide", () => {
+    expect(filterPaletteCompanies([companyRow("1", "Acme", null)], "")).toEqual([]);
+  });
+
+  it("filtre par nom ou SIREN", () => {
+    const rows = [companyRow("1", "Acme", "812449067"), companyRow("2", "Autre Corp", null)];
+    expect(filterPaletteCompanies(rows, "acme").map((c) => c.id)).toEqual(["1"]);
+    expect(filterPaletteCompanies(rows, "812449067").map((c) => c.id)).toEqual(["1"]);
+  });
+
+  it("limite le nombre de résultats", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => companyRow(String(i), "Acme", null));
+    expect(filterPaletteCompanies(rows, "acme", 3)).toHaveLength(3);
   });
 });

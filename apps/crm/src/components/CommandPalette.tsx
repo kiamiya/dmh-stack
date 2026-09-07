@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Command } from "cmdk";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useProspects } from "../hooks/useProspects";
-import { filterPaletteProspects } from "../lib/commandPalette";
+import { useContacts } from "../hooks/useContacts";
+import { useCompanies } from "../hooks/useCompanies";
+import { filterPaletteCompanies, filterPaletteContacts, filterPaletteProspects } from "../lib/commandPalette";
 import { openProspectLinkState } from "../lib/navigation";
 import { ALL_PROSPECT_STATUSES, getStatusLabel } from "../lib/status";
 import { updateProspectStatus } from "../services/prospects";
@@ -13,35 +15,35 @@ import type { ProspectListRow } from "../services/prospects";
 const ITEM_CLASS =
   "flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-sm text-foreground data-[selected=true]:bg-secondary";
 
+export interface CommandPaletteProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  query: string;
+  onQueryChange: (query: string) => void;
+}
+
 /**
- * Palette de commandes (cmd+K / ctrl+K) : recherche instantanée de
- * prospects (même logique que le filtre du tableau) + navigation rapide.
- * Sélectionner un prospect ouvre une seconde page listant des actions
- * rapides pour lui (changer de statut, voir la fiche).
+ * Palette de commandes (cmd+K / ctrl+K, ou déclenchée depuis la barre de
+ * recherche du Header — S30) : recherche instantanée de prospects,
+ * contacts et entreprises (nom/société/SIREN, comme le placeholder du
+ * mockup le promet) + navigation rapide. Sélectionner un prospect ouvre
+ * une seconde page listant des actions rapides pour lui (changer de
+ * statut, voir la fiche). `open`/`query` sont contrôlés par le parent
+ * (`ProtectedLayout`, via `useCommandPaletteState`) pour être partagés
+ * avec le champ de recherche visible du Header.
  */
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+export function CommandPalette({ open, onOpenChange, query, onQueryChange }: CommandPaletteProps) {
   const [activeProspect, setActiveProspect] = useState<ProspectListRow | null>(null);
   const { prospects, reload } = useProspects();
+  const { contacts } = useContacts();
+  const { companies } = useCompanies();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen((v) => !v);
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   function close() {
-    setOpen(false);
-    setQuery("");
+    onOpenChange(false);
+    onQueryChange("");
     setActiveProspect(null);
   }
 
@@ -68,13 +70,15 @@ export function CommandPalette() {
     close();
   }
 
-  const matches = filterPaletteProspects(prospects, query);
+  const prospectMatches = filterPaletteProspects(prospects, query);
+  const contactMatches = filterPaletteContacts(contacts, query);
+  const companyMatches = filterPaletteCompanies(companies, query);
 
   return (
     <Command.Dialog
       open={open}
-      onOpenChange={(next) => (next ? setOpen(true) : close())}
-      label="Palette de commandes"
+      onOpenChange={(next) => (next ? onOpenChange(true) : close())}
+      label="Rechercher"
       overlayClassName="fixed inset-0 z-50 bg-foreground/40"
       contentClassName="fixed left-1/2 top-24 z-50 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-lg"
       shouldFilter={false}
@@ -83,8 +87,8 @@ export function CommandPalette() {
         <>
           <Command.Input
             value={query}
-            onValueChange={setQuery}
-            placeholder="Rechercher un prospect, une page…"
+            onValueChange={onQueryChange}
+            placeholder="Rechercher un contact, une entreprise, un SIREN…"
             className="w-full border-b border-border bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground"
           />
           <Command.List className="max-h-80 overflow-y-auto p-2">
@@ -96,9 +100,29 @@ export function CommandPalette() {
               <Command.Item className={ITEM_CLASS} onSelect={() => goTo("/pipeline")}>Pipeline</Command.Item>
               <Command.Item className={ITEM_CLASS} onSelect={() => goTo("/dashboard")}>Dashboard</Command.Item>
             </Command.Group>
-            {matches.length > 0 && (
+            {contactMatches.length > 0 && (
+              <Command.Group heading="Contacts" className="mt-2 px-2 text-xs font-medium text-muted-foreground">
+                {contactMatches.map((c) => (
+                  <Command.Item key={c.id} className={ITEM_CLASS} onSelect={() => goTo(`/contacts/${c.id}`)}>
+                    <span className="truncate">{c.first_name} {c.last_name}</span>
+                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.companies?.name ?? ""}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+            {companyMatches.length > 0 && (
+              <Command.Group heading="Entreprises" className="mt-2 px-2 text-xs font-medium text-muted-foreground">
+                {companyMatches.map((c) => (
+                  <Command.Item key={c.id} className={ITEM_CLASS} onSelect={() => goTo(`/companies/${c.id}`)}>
+                    <span className="truncate">{c.name}</span>
+                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.siren ?? ""}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+            {prospectMatches.length > 0 && (
               <Command.Group heading="Prospects" className="mt-2 px-2 text-xs font-medium text-muted-foreground">
-                {matches.map((p) => (
+                {prospectMatches.map((p) => (
                   <Command.Item key={p.id} className={ITEM_CLASS} onSelect={() => setActiveProspect(p)}>
                     <span className="truncate">{p.companies?.name ?? "—"}</span>
                     <span className="ml-2 shrink-0 text-xs text-muted-foreground">

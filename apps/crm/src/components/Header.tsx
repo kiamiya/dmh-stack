@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CircleDot, Moon, Sun } from "lucide-react";
+import { Bell, CircleDot, Moon, Search, Sun } from "lucide-react";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
 import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
@@ -12,15 +12,21 @@ import { computeTasksDueToday } from "../lib/taskStats";
 
 const THEME_ICON = { light: Sun, dark: Moon, system: CircleDot } as const;
 
+export interface HeaderProps {
+  /** Ouvre la palette de commandes (Cmd+K) avec cette requête — appelé à chaque frappe dans le champ de recherche visible (S30, le mockup en a un dans le bandeau du haut, jusqu'ici seul le raccourci clavier existait). */
+  onSearchInput: (query: string) => void;
+}
+
 /**
- * Barre fine au-dessus du contenu — compte/notifications uniquement.
+ * Barre fine au-dessus du contenu — recherche + compte/notifications.
  * La navigation de page est passée dans `Sidebar.tsx` en S28 (disposition
  * façon HubSpot/Brevo : nav à gauche, compte/notifications en haut).
  */
-export function Header() {
+export function Header({ onSearchInput }: HeaderProps) {
   const { session } = useSession();
   const navigate = useNavigate();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const { theme, cycleTheme } = useTheme();
   const { tasks } = useTasks();
   const dueToday = computeTasksDueToday(tasks);
@@ -30,9 +36,27 @@ export function Header() {
     await supabase.auth.signOut();
   }
 
+  function handleSearchChange(value: string) {
+    setSearchValue(value);
+    onSearchInput(value);
+  }
+
   return (
     <header className="border-b border-border bg-card">
-      <div className="flex items-center justify-end gap-1 px-6 py-3">
+      <div className="flex items-center gap-3 px-6 py-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />
+          <input
+            type="text"
+            value={searchValue}
+            onFocus={() => onSearchInput(searchValue)}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onBlur={() => setSearchValue("")}
+            placeholder="Rechercher un contact, une entreprise, un SIREN…"
+            className="w-full rounded-md border border-border bg-secondary/40 py-1.5 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-accent"
+          />
+        </div>
+        <div className="ml-auto flex items-center gap-1">
         <DropdownMenu
           align="end"
           trigger={
@@ -87,6 +111,7 @@ export function Header() {
             <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
           </DropdownMenu>
         )}
+        </div>
       </div>
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </header>

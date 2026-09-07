@@ -26,6 +26,7 @@ import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
+import { useCommandPaletteState } from "./hooks/useCommandPaletteState";
 
 /**
  * Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche
@@ -36,13 +37,25 @@ import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
  * clic) — nécessaire avant d'ajouter des comptes réels dans la Sidebar.
  */
 function ProtectedLayout() {
+  const palette = useCommandPaletteState();
+
+  function openSearch(query: string) {
+    palette.setQuery(query);
+    palette.setOpen(true);
+  }
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Header />
-          <CommandPalette />
+          <Header onSearchInput={openSearch} />
+          <CommandPalette
+            open={palette.open}
+            onOpenChange={palette.setOpen}
+            query={palette.query}
+            onQueryChange={palette.setQuery}
+          />
           <main className="flex-1 overflow-y-auto">
             <Outlet />
           </main>
