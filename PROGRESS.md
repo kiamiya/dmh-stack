@@ -88,7 +88,8 @@ Dernière mise à jour : 2026-09-04
 | S28 | Navigation en barre latérale gauche avec menus/sous-menus (HubSpot/Brevo) | ✅ fait |
 | S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-3..6 | Intégrations, Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
+| S29-3 | Design "Relais" — page Intégrations | 🔄 code fait, déploiement Edge Function en attente de confirmation Loïc |
+| S29-4..6 | Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -784,6 +785,44 @@ jamais s'arrêter entre étapes déjà ordonnées).
 **Point de reprise (étape 2)** : demander à Loïc de valider visuellement
 `/reporting` (KPI, entonnoir, tableau par client) en même temps que le
 reskin général. Aucune migration ni déploiement nécessaire pour cette
-étape (lecture seule via hooks/RLS existants). Prochaine étape : S29-3
-(Intégrations) — voir roadmap dans le plan de session
+étape (lecture seule via hooks/RLS existants).
+
+**S29 étape 3 (page Intégrations) — code fait, déploiement en attente** :
+- `packages/config/src/integrations.ts` (nouveau) : `computeIntegrationStatuses`
+  — pure, statut "configuré" par fournisseur dérivé de la présence
+  réelle de sa clé d'API dans l'environnement (`PAPPERS_API_KEY`,
+  `DROPCONTACT_API_KEY`, `SMARTLEAD_API_KEY`, `LEMLIST_API_KEY`) — les
+  4 fournisseurs réellement utilisés par le pipeline (brief §1.2.1), pas
+  "Kaspr"/"Hunter"/"Brevo SMTP" du mockup qui ne font pas partie de notre
+  stack. Jamais de chiffre d'usage/quota (pas de suivi réel en base) —
+  conforme au principe non négociable du plan. 4 tests vitest.
+- Nouvelle Edge Function `supabase/functions/integrations-status`
+  (même convention d'auth que `calendar-my-events` : JWT vérifié via
+  client anon, pas de distinction de rôle nécessaire — statut DMH, pas
+  une donnée par client) — renvoie uniquement les booléens `configured`,
+  jamais les clés elles-mêmes.
+- `services/integrations.ts` + `hooks/useIntegrations.ts` +
+  `pages/Integrations.tsx` (nouveau) : liste des 4 fournisseurs, badge
+  "Connecté"/"Non configuré".
+- Route `/integrations` ajoutée dans `App.tsx`, entrée nav sous
+  "Données & réglages" dans `Sidebar.tsx`.
+- Vérifié : `pnpm --filter @dmh/config typecheck`/`test` verts (31
+  tests, +4), `pnpm --filter @dmh/crm typecheck`/`test` verts (340
+  tests, +2), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
+  Compilation confirmée via le dev server (200 sur `Integrations.tsx`).
+- **Déploiement de l'Edge Function NON fait** — contrairement aux
+  étapes 1-2 (100% frontend), celle-ci ajoute une fonction serveur :
+  action distante soumise à confirmation explicite au cas par cas
+  (règle CLAUDE.md §5). Tant qu'elle n'est pas déployée
+  (`supabase functions deploy integrations-status`), `/integrations`
+  affichera une erreur réseau en conditions réelles — code prêt,
+  déploiement à confirmer avec Loïc avant de continuer sur l'étape 4.
+
+**Point de reprise (étape 3)** : demander à Loïc l'autorisation de
+déployer `integrations-status` (`supabase functions deploy
+integrations-status`) — une fois déployée, valider visuellement
+`/integrations` (statut réel des 4 clés déjà dans `.env.local`/Supabase
+Vault). Prochaine étape après validation : S29-4 (Mapping
+enrichissement, la plus délicate — touche le pipeline d'enrichissement
+Phase 1) — voir roadmap dans le plan de session
 (`bubbly-watching-crescent.md`).

@@ -17,6 +17,7 @@ import { TasksPage } from "./pages/Tasks";
 import { CustomFieldSettingsPage } from "./pages/CustomFieldSettings";
 import { AutomationsPage } from "./pages/Automations";
 import { CalendarSettingsPage } from "./pages/CalendarSettings";
+import { IntegrationsPage } from "./pages/Integrations";
 import { PublicBookingPage } from "./pages/PublicBooking";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
@@ -176,6 +177,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <CalendarSettingsPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/integrations"
+          element={
+            <ProtectedLayout>
+              <IntegrationsPage />
             </ProtectedLayout>
           }
         />

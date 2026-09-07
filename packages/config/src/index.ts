@@ -18,3 +18,5 @@ export type {
   LemlistSyncEnv,
   EnvSource,
 } from "./env.js";
+export { computeIntegrationStatuses } from "./integrations.js";
+export type { IntegrationStatus } from "./integrations.js";
