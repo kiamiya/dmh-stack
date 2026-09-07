@@ -6,6 +6,7 @@ export interface ProspectListRow {
   status: ProspectStatus;
   client_id: string;
   assigned_to: string | null;
+  contact_id: string | null;
   last_activity_at: string | null;
   created_at: string;
   companies: { name: string; ai_score: number | null; naf_label: string | null } | null;
@@ -14,7 +15,7 @@ export interface ProspectListRow {
 }
 
 const PROSPECT_LIST_SELECT =
-  "id, status, client_id, assigned_to, last_activity_at, created_at, companies(name, ai_score, naf_label), contacts(first_name, last_name, email), dmh_clients(id, name)";
+  "id, status, client_id, assigned_to, contact_id, last_activity_at, created_at, companies(name, ai_score, naf_label), contacts(first_name, last_name, email), dmh_clients(id, name)";
 
 export async function listProspects(client: SupabaseClient): Promise<ProspectListRow[]> {
   const { data, error } = await client

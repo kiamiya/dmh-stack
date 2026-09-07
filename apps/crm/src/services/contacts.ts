@@ -35,13 +35,14 @@ export interface ContactDetailRow {
   email_confidence: string | null;
   linkedin_url: string | null;
   phone: string | null;
+  data_source: string | null;
   company_id: string;
   company_list_id: string | null;
   companies: { id: string; name: string } | null;
 }
 
 const CONTACT_DETAIL_SELECT =
-  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, company_id, company_list_id, companies(id, name)";
+  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, data_source, company_id, company_list_id, companies(id, name)";
 
 export async function getContact(client: SupabaseClient, id: string): Promise<ContactDetailRow> {
   const { data, error } = await client.from("contacts").select(CONTACT_DETAIL_SELECT).eq("id", id).single();

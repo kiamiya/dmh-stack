@@ -10,6 +10,7 @@ function row(id: string, companyName: string): ProspectListRow {
     status: "ready",
     client_id: "client-1",
     assigned_to: null,
+    contact_id: null,
     last_activity_at: null,
     created_at: "2026-08-01T00:00:00Z",
     companies: { name: companyName, ai_score: 5, naf_label: null },

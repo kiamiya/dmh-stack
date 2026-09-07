@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useContactDetail } from "../hooks/useContactDetail";
 import { useCompanies } from "../hooks/useCompanies";
 import { useContacts } from "../hooks/useContacts";
+import { useProspects } from "../hooks/useProspects";
+import { useInteractions } from "../hooks/useInteractions";
 import { supabase } from "../lib/supabase";
 import { mergeContacts } from "../services/mergeContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
@@ -20,9 +22,18 @@ import { SearchableSelect } from "../components/ui/searchable-select";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
+import { formatRelativeTime } from "../lib/relativeTime";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
+import { getInteractionTypeColor, getInteractionTypeLabel } from "../lib/interactionLabels";
 import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
+
+const DATA_SOURCE_LABELS: Record<string, string> = {
+  pharow: "Pharow",
+  dropcontact: "Dropcontact",
+  linkedin: "LinkedIn",
+  manual: "Manuel",
+};
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +43,9 @@ export function ContactDetailPage() {
   const masked = viewMode === "client_portal";
   const allCompanies = useCompanies();
   const allContacts = useContacts();
+  const { prospects } = useProspects();
+  const linkedProspect = prospects.find((p) => p.contact_id === contact?.id);
+  const { interactions: history } = useInteractions(linkedProspect?.id, contact?.client_id);
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
   const { toast } = useToast();
@@ -106,6 +120,8 @@ export function ContactDetailPage() {
 
   const linkedCompanyIds = new Set(companies.map((rel) => rel.company_id));
   const linkableCompanies = allCompanies.companies.filter((c) => !linkedCompanyIds.has(c.id));
+  const primaryCompanyId = (companies.find((rel) => rel.is_primary) ?? companies[0])?.company_id;
+  const primaryCompany = allCompanies.companies.find((c) => c.id === primaryCompanyId);
   const relatedDeals = deals.filter((d) => d.contact_id === contact.id);
   const relatedTasks = tasks.filter((t) => t.contact_id === contact.id);
   const mergeCandidates = allContacts.contacts.filter(
@@ -146,7 +162,17 @@ export function ContactDetailPage() {
       <Link to="/contacts" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux contacts
       </Link>
-      <PageHeader kicker="Prospection · fiche contact" title={`${contact.first_name} ${contact.last_name}`} />
+      <PageHeader
+        kicker="Prospection · fiche contact"
+        title={`${contact.first_name} ${contact.last_name}`}
+        actions={
+          !masked && contact.phone ? (
+            <Button size="sm" blueprint onClick={() => (window.location.href = `tel:${contact.phone}`)}>
+              Appeler
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -208,11 +234,31 @@ export function ContactDetailPage() {
             placeholder="URL LinkedIn"
             className="rounded-md border border-border px-3 py-2 text-sm"
           />
+          {contact.data_source && (
+            <p className="text-xs text-muted-foreground sm:col-span-2">
+              Source des données : {DATA_SOURCE_LABELS[contact.data_source] ?? contact.data_source}
+            </p>
+          )}
           <Button onClick={handleSave} disabled={saving} className="w-fit sm:col-span-2">
             {saving ? "…" : "Enregistrer"}
           </Button>
         </CardContent>
       </Card>
+
+      {primaryCompany && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Société</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm text-muted-foreground">
+            <div>SIREN : {primaryCompany.siren ?? "—"}</div>
+            <div>Secteur : {primaryCompany.naf_label ?? "—"}</div>
+            <div>Effectif : {primaryCompany.employee_range ?? "—"}</div>
+            <div>CA : {primaryCompany.revenue ? formatCurrency(primaryCompany.revenue) : "—"}</div>
+            <div>Ville : {primaryCompany.city ?? "—"}</div>
+          </CardContent>
+        </Card>
+      )}
 
       <CustomFieldsCard entityType="contact" entityId={contact.id} clientId={contact.client_id} />
 
@@ -338,6 +384,26 @@ export function ContactDetailPage() {
       />
 
       <MeetingsCard contactId={contact.id} />
+
+      {linkedProspect && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Historique</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {history.map((h) => (
+              <div key={h.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <Badge variant={getInteractionTypeColor(h.type)}>{getInteractionTypeLabel(h.type)}</Badge>
+                  <span className="text-xs text-muted-foreground">{formatRelativeTime(h.occurred_at)}</span>
+                </div>
+                {h.content && <p className="mt-1 text-muted-foreground">{h.content}</p>}
+              </div>
+            ))}
+            {history.length === 0 && <p className="text-sm text-muted-foreground">Aucun historique.</p>}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
