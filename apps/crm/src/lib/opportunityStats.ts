@@ -27,6 +27,21 @@ export function computePipelineValueByStatus(deals: Array<{ status: DealStatus; 
 }
 
 /**
+ * Pure : valeur pondérée du pipeline en cours — somme de `deal_value *
+ * probability / 100` pour les opportunités encore `negotiation`
+ * uniquement (une opportunité close a déjà une issue, pas une
+ * probabilité à pondérer). Une opportunité sans `probability` renseignée
+ * compte pour 0 (jamais une probabilité par défaut inventée).
+ */
+export function computeWeightedPipelineValue(
+  deals: Array<{ status: DealStatus; deal_value: number; probability: number | null }>,
+): number {
+  return deals
+    .filter((d) => d.status === "negotiation")
+    .reduce((sum, d) => sum + (d.deal_value * (d.probability ?? 0)) / 100, 0);
+}
+
+/**
  * Pure : taux de conversion en % parmi les opportunités déjà closes
  * (gagnées ou perdues) — les opportunités encore en négociation ne
  * comptent pas, elles n'ont pas encore d'issue. Retourne 0 si aucune

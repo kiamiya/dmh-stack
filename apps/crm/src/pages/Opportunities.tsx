@@ -19,6 +19,7 @@ import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency } from "../lib/deals";
+import { computeWeightedPipelineValue } from "../lib/opportunityStats";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
 import { useToast } from "../components/ui/toast";
@@ -48,6 +49,7 @@ export function OpportunitiesPage() {
   const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
   const [newListGroups, setNewListGroups] = useState<RuleGroupDraft[]>(EMPTY_GROUPS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [groupByClient, setGroupByClient] = useState(false);
   const [bulkListId, setBulkListId] = useState("");
 
   const activeList = dealLists.find((l) => l.id === listId) ?? null;
@@ -85,6 +87,51 @@ export function OpportunitiesPage() {
     }
     return rows;
   }, [deals, listViewClientId, activeList, listMemberIdSet, customFieldValuesById]);
+
+  const weightedPipelineValue = useMemo(() => computeWeightedPipelineValue(listViewDeals), [listViewDeals]);
+  const negotiationCount = useMemo(() => listViewDeals.filter((d) => d.status === "negotiation").length, [listViewDeals]);
+
+  const dealsByClient = useMemo(() => {
+    const groups = new Map<string, typeof listViewDeals>();
+    for (const d of listViewDeals) {
+      const group = groups.get(d.client_id);
+      if (group) group.push(d);
+      else groups.set(d.client_id, [d]);
+    }
+    return Array.from(groups.entries()).map(([clientId, rows]) => ({
+      clientId,
+      clientName: clients.find((c) => c.id === clientId)?.name ?? "—",
+      rows,
+    }));
+  }, [listViewDeals, clients]);
+
+  function renderDealRow(d: (typeof listViewDeals)[number]) {
+    return (
+      <TableRow key={d.id}>
+        <TableCell>
+          <input type="checkbox" checked={selectedIds.has(d.id)} onChange={() => toggleSelected(d.id)} />
+        </TableCell>
+        <TableCell className="font-medium text-foreground">
+          <Link to={`/opportunities/${d.id}`} className="hover:underline">
+            {d.company_name}
+          </Link>
+        </TableCell>
+        <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>
+        <TableCell>{formatCurrency(d.deal_value)}</TableCell>
+        <TableCell>
+          <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>
+        </TableCell>
+        <TableCell>
+          {d.attributed_to_dmh === null ? (
+            "—"
+          ) : (
+            <Badge variant={d.attributed_to_dmh ? "green" : "default"}>{d.attributed_to_dmh ? "Oui" : "Non"}</Badge>
+          )}
+        </TableCell>
+        <TableCell>{formatCurrency(d.commission_amount)}</TableCell>
+      </TableRow>
+    );
+  }
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -254,6 +301,15 @@ export function OpportunitiesPage() {
             )}
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
+            <span className="text-foreground">
+              Pipe pondéré <strong className="font-semibold">{formatCurrency(weightedPipelineValue)}</strong> · {negotiationCount} affaire(s) en négociation
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setGroupByClient((v) => !v)} disabled={!!listViewClientId}>
+              {groupByClient ? "Vue à plat" : "Grouper par client"}
+            </Button>
+          </div>
+
           {newListOpen && listViewClientId && (
             <form onSubmit={handleCreateDealList} className="space-y-3 rounded-md border border-border p-3">
               <input
@@ -311,59 +367,62 @@ export function OpportunitiesPage() {
             </div>
           )}
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8">
-                  <input
-                    type="checkbox"
-                    checked={listViewDeals.length > 0 && selectedIds.size === listViewDeals.length}
-                    onChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Entreprise</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Montant</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Attribution</TableHead>
-                <TableHead>Commission</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {listViewDeals.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>
-                    <input type="checkbox" checked={selectedIds.has(d.id)} onChange={() => toggleSelected(d.id)} />
-                  </TableCell>
-                  <TableCell className="font-medium text-foreground">
-                    <Link to={`/opportunities/${d.id}`} className="hover:underline">
-                      {d.company_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>
-                  <TableCell>{formatCurrency(d.deal_value)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {d.attributed_to_dmh === null ? "—" : (
-                      <Badge variant={d.attributed_to_dmh ? "green" : "default"}>
-                        {d.attributed_to_dmh ? "Oui" : "Non"}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatCurrency(d.commission_amount)}</TableCell>
-                </TableRow>
+          {groupByClient ? (
+            <div className="space-y-4">
+              {dealsByClient.map((group) => (
+                <div key={group.clientId} className="space-y-1.5">
+                  <span className="font-heading text-sm font-semibold text-foreground">{group.clientName}</span>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead>Entreprise</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Montant</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Attribution</TableHead>
+                        <TableHead>Commission</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{group.rows.map(renderDealRow)}</TableBody>
+                  </Table>
+                </div>
               ))}
-              {listViewDeals.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Aucune opportunité.
-                  </TableCell>
-                </TableRow>
+              {dealsByClient.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground">Aucune opportunité.</p>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">
+                    <input
+                      type="checkbox"
+                      checked={listViewDeals.length > 0 && selectedIds.size === listViewDeals.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Entreprise</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Attribution</TableHead>
+                  <TableHead>Commission</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {listViewDeals.map(renderDealRow)}
+                {listViewDeals.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      Aucune opportunité.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </div>
       )}
 

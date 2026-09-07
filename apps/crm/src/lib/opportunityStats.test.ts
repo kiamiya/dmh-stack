@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeConversionRate, computePipelineValueByStatus } from "./opportunityStats";
+import { computeConversionRate, computePipelineValueByStatus, computeWeightedPipelineValue } from "./opportunityStats";
 
 const deals = [
   { status: "negotiation" as const, deal_value: 1000 },
@@ -38,5 +38,24 @@ describe("computeConversionRate", () => {
 
   it("retourne 100 si tout est gagné", () => {
     expect(computeConversionRate([{ status: "won" }, { status: "won" }])).toBe(100);
+  });
+});
+
+describe("computeWeightedPipelineValue", () => {
+  it("pondère uniquement les opportunités en négociation par leur probabilité", () => {
+    const value = computeWeightedPipelineValue([
+      { status: "negotiation", deal_value: 10000, probability: 50 },
+      { status: "negotiation", deal_value: 4000, probability: 25 },
+      { status: "won", deal_value: 5000, probability: 100 },
+    ]);
+    expect(value).toBe(6000); // 10000*0.5 + 4000*0.25 ; le "won" n'est pas compté
+  });
+
+  it("compte 0 pour une opportunité sans probabilité renseignée", () => {
+    expect(computeWeightedPipelineValue([{ status: "negotiation", deal_value: 10000, probability: null }])).toBe(0);
+  });
+
+  it("retourne 0 sur une liste vide", () => {
+    expect(computeWeightedPipelineValue([])).toBe(0);
   });
 });
