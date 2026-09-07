@@ -92,6 +92,7 @@ Dernière mise à jour : 2026-09-04
 | S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
+| S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -983,4 +984,67 @@ aujourd'hui) ; (3) **aucun client pilote réel pour l'instant** — bloque
 toujours S1 ("souscrire aux outils"), les tests à l'échelle S2/S3
 (50/100 prospects réels) et le déploiement Vercel S5. Tant qu'un client
 pilote n'existe pas, ces tâches restent `⬜` sans action possible côté
-dev — prochaine tâche à redéfinir avec Loïc.
+dev.
+
+### 2026-09-07 (suite) — S30 : audit design "Relais" v2 + 6 correctifs
+
+Loïc a demandé de re-vérifier le mockup Claude Design contre le code
+réel. Re-fetch via `DesignSync` : le fichier avait grossi (92 Ko → 118
+Ko, 10 → 11 écrans, nouvel écran "Segments") depuis la dernière lecture
+— comparé écran par écran contre le code réel. 5 écarts réels identifiés
+(hors Campagnes/Automatisations/Mapping/Intégrations/Paramètres, déjà
+tranchés). Loïc a demandé de tous les traiter + refondre `/pipeline`
+pour que les 12 colonnes tiennent à l'écran sans scroll de fenêtre. Plan
+écrit et approuvé (`bubbly-watching-crescent.md`), exécuté en 6 commits :
+
+1. **Layout `/pipeline`** — `ProtectedLayout` (`App.tsx`) borne
+   désormais `main` à la hauteur réelle du viewport (`h-screen
+   overflow-hidden` + `main overflow-y-auto`, au lieu de `min-h-screen`
+   qui laissait la fenêtre entière scroller) — comportement inchangé
+   pour toutes les autres pages (leur contenu scrolle dans `main` au
+   lieu de la fenêtre). `KanbanBoardShell`/`KanbanColumn`
+   (`components/KanbanColumn.tsx`) passent d'un flex à largeur fixe
+   (`w-72`, `overflow-x-auto`) à une grille à colonnes égales
+   (`grid-flow-col auto-cols-fr`) — les 12 statuts tiennent sans scroll
+   horizontal, chaque colonne scrolle verticalement en interne si
+   besoin. `ProspectCard.tsx` compacté (padding, troncature + `title`)
+   pour rester lisible à largeur réduite.
+2. **Fiches détail** — `ContactDetail`/`CompanyDetail`/`OpportunityDetail`
+   gagnent `PageHeader` (oubliées à l'étape 1 de S29). Affichage de la
+   confiance email Dropcontact (`contact.email_confidence`, déjà
+   stockée mais jamais montrée) sur la fiche contact.
+3. **Page `/lists`** (nouveau) — vue d'ensemble de toutes les listes
+   (Contacts/Entreprises/Opportunités, tous clients), remplace l'écran
+   "Segments" du mockup **en périmètre réduit** : pas de dossiers/
+   corbeille/colonnes "Origine"/"Propriétaire" (aucune donnée réelle
+   derrière ces concepts dans `contact_lists`/`company_lists`/
+   `opportunity_lists`, qui n'ont que `id, client_id, name, rules,
+   created_at`) — juste nom/type/mode/client/effectif réel (calculé via
+   `matchesRuleGroups` pour les dynamiques, comptage direct pour les
+   statiques).
+4. **Reporting** — nouvelle colonne "Commercial" dans "Performance par
+   client" : le commercial ayant posé le plus de RDV pour ce client
+   (agrégat réel sur `meetings.staff_id`, `dmh_clients` n'a pas de
+   champ "propriétaire" assigné).
+5. **Opportunités** — bandeau "Pipe pondéré" (`deal_value × probability`,
+   opportunités en négociation uniquement) + bascule "Grouper par
+   client". Pas de regroupement "par commercial" : `deals` n'a aucun
+   champ owner/staff_id réel, contrairement au Reporting où l'agrégat
+   RDV-par-client est défendable.
+
+Vérifié à chaque étape : `pnpm --filter @dmh/crm typecheck`/`test`
+verts (364 tests, +21 sur ce lot), `pnpm typecheck`/`pnpm test` racine
+verts (12 packages). Compilation confirmée via le dev server sur
+plusieurs pages (Dashboard, Contacts, Pipeline, Opportunités) pour
+valider l'absence de régression du changement de layout transverse
+(`ProtectedLayout`). Pas de vérification visuelle en navigateur réel
+possible côté Claude (même limitation que d'habitude) — à valider par
+Loïc. Aucune migration ni déploiement nécessaire (uniquement des
+lectures via des hooks/tables déjà existants).
+
+**Point de reprise** : demander à Loïc de valider visuellement les 6
+correctifs (`/pipeline` sans scroll, fiches détail restylées, `/lists`,
+"Commercial" sur `/reporting`, pipe pondéré + regroupement sur
+`/opportunities`). Prochaine tâche à redéfinir avec Loïc une fois son
+retour obtenu — le planning Phase 1 reste bloqué sur l'absence de
+client pilote réel (S1/S2/S3/S5).
