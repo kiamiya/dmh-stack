@@ -9,14 +9,23 @@ import type {
   AutomationTriggerType,
 } from "@dmh/types";
 
-export async function listRules(client: SupabaseClient, clientId: string): Promise<AutomationRule[]> {
+/** Rule enrichie de ses conditions/actions imbriquées (embedding PostgREST via les FK `rule_id`) — pour la vue "chaîne visuelle" de /automations, évite un aller-retour par règle. */
+export interface AutomationRuleWithChain extends AutomationRule {
+  automation_conditions: Array<Pick<AutomationCondition, "field" | "operator" | "value">>;
+  automation_actions: Array<Pick<AutomationAction, "position" | "action_type" | "action_config">>;
+}
+
+const RULE_SELECT =
+  "id, client_id, name, enabled, entity_type, trigger_type, trigger_config, created_at, automation_conditions(field, operator, value), automation_actions(position, action_type, action_config)";
+
+export async function listRules(client: SupabaseClient, clientId: string): Promise<AutomationRuleWithChain[]> {
   const { data, error } = await client
     .from("automation_rules")
-    .select("id, client_id, name, enabled, entity_type, trigger_type, trigger_config, created_at")
+    .select(RULE_SELECT)
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []) as AutomationRule[];
+  return (data ?? []) as unknown as AutomationRuleWithChain[];
 }
 
 export interface RuleInsert {

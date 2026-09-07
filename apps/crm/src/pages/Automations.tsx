@@ -8,10 +8,10 @@ import { useStaffMembers } from "../hooks/useStaffMembers";
 import { supabase } from "../lib/supabase";
 import { addAction, addCondition } from "../services/automations";
 import { validateAutomationRuleForm } from "../lib/automationForm";
+import { summarizeAction, summarizeConditions, summarizeTrigger } from "../lib/automationChain";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { useToast } from "../components/ui/toast";
 import { ConditionRowsEditor } from "../components/ConditionRowsEditor";
 import type { ConditionDraft } from "../components/ConditionRowsEditor";
@@ -28,6 +28,20 @@ const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   record_created: "À la création",
   stage_changed: "Au changement d'étape",
 };
+
+/** Bloc de la chaîne visuelle (déclencheur/conditions/action) — même carte que le reste du design "Relais", juste un habillage : pilote exactement le même formulaire/schéma qu'avant (S12), pas un nouveau moteur. */
+function ChainBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex-1 space-y-1.5 border border-border p-3">
+      <div className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function ChainArrow() {
+  return <div className="hidden shrink-0 self-center px-1 font-heading text-lg text-muted-foreground sm:block">→</div>;
+}
 
 export function AutomationsPage() {
   const clients = useClients();
@@ -117,7 +131,7 @@ export function AutomationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-6">
       <PageHeader kicker="Marketing · règles automatiques" title="Automatisations" />
 
       <div>
@@ -151,71 +165,72 @@ export function AutomationsPage() {
                   className="w-full rounded-md border border-border px-3 py-2 text-sm"
                 />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={entityType}
-                    onChange={(e) => setEntityType(e.target.value as AutomationEntityType)}
-                    className="rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    {(Object.keys(ENTITY_LABELS) as AutomationEntityType[]).map((t) => (
-                      <option key={t} value={t}>
-                        {ENTITY_LABELS[t]}
+                <div className="flex flex-col gap-0 sm:flex-row sm:items-stretch">
+                  <ChainBlock label="1 · Déclencheur">
+                    <select
+                      value={entityType}
+                      onChange={(e) => setEntityType(e.target.value as AutomationEntityType)}
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                    >
+                      {(Object.keys(ENTITY_LABELS) as AutomationEntityType[]).map((t) => (
+                        <option key={t} value={t}>
+                          {ENTITY_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={triggerType}
+                      onChange={(e) => setTriggerType(e.target.value as AutomationTriggerType)}
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                    >
+                      <option value="record_created">{TRIGGER_LABELS.record_created}</option>
+                      <option value="stage_changed" disabled={entityType !== "opportunity"}>
+                        {TRIGGER_LABELS.stage_changed}
                       </option>
-                    ))}
-                  </select>
-                  <select
-                    value={triggerType}
-                    onChange={(e) => setTriggerType(e.target.value as AutomationTriggerType)}
-                    className="rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    <option value="record_created">{TRIGGER_LABELS.record_created}</option>
-                    <option value="stage_changed" disabled={entityType !== "opportunity"}>
-                      {TRIGGER_LABELS.stage_changed}
-                    </option>
-                  </select>
-                </div>
+                    </select>
+                    {triggerType === "stage_changed" && entityType === "opportunity" && (
+                      <select
+                        value={toStageId}
+                        onChange={(e) => setToStageId(e.target.value)}
+                        className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Vers n'importe quelle étape</option>
+                        {stages.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            Vers "{s.name}"
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </ChainBlock>
 
-                {triggerType === "stage_changed" && entityType === "opportunity" && (
-                  <select
-                    value={toStageId}
-                    onChange={(e) => setToStageId(e.target.value)}
-                    className="w-full rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    <option value="">Vers n'importe quelle étape</option>
-                    {stages.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        Vers "{s.name}"
-                      </option>
-                    ))}
-                  </select>
-                )}
+                  <ChainArrow />
 
-                <ConditionRowsEditor
-                  conditions={conditions}
-                  onChange={setConditions}
-                  label="Conditions (optionnel, toutes doivent être vraies)"
-                />
+                  <ChainBlock label="2 · Conditions">
+                    <ConditionRowsEditor conditions={conditions} onChange={setConditions} label="Toutes doivent être vraies" />
+                  </ChainBlock>
 
-                <div className="space-y-2 rounded-md border border-border p-3">
-                  <span className="text-xs font-medium text-muted-foreground">Action : créer une tâche</span>
-                  <input
-                    value={taskTitle}
-                    onChange={(e) => setTaskTitle(e.target.value)}
-                    placeholder="Titre de la tâche"
-                    className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                  <ChainArrow />
+
+                  <ChainBlock label="3 · Action">
+                    <span className="block text-xs text-muted-foreground">Créer une tâche</span>
+                    <input
+                      value={taskTitle}
+                      onChange={(e) => setTaskTitle(e.target.value)}
+                      placeholder="Titre de la tâche"
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                    />
                     <input
                       type="number"
                       value={dueInDays}
                       onChange={(e) => setDueInDays(e.target.value)}
                       placeholder="Échéance (jours, optionnel)"
-                      className="rounded-md border border-border px-2 py-1.5 text-sm"
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                     />
                     <select
                       value={assignedTo}
                       onChange={(e) => setAssignedTo(e.target.value)}
-                      className="rounded-md border border-border px-2 py-1.5 text-sm"
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                     >
                       <option value="">Non assignée</option>
                       {staff.map((s) => (
@@ -224,7 +239,7 @@ export function AutomationsPage() {
                         </option>
                       ))}
                     </select>
-                  </div>
+                  </ChainBlock>
                 </div>
 
                 {error && <p className="text-sm text-destructive">{error}</p>}
@@ -235,48 +250,41 @@ export function AutomationsPage() {
             </CardContent>
           </Card>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Objet</TableHead>
-                <TableHead>Déclencheur</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!loading &&
-                rules.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium text-foreground">{r.name}</TableCell>
-                    <TableCell>
-                      <Badge>{ENTITY_LABELS[r.entity_type]}</Badge>
-                    </TableCell>
-                    <TableCell>{TRIGGER_LABELS[r.trigger_type]}</TableCell>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={r.enabled}
-                        onChange={(e) => toggle(r.id, e.target.checked)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
-                        Supprimer
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              {!loading && rules.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Aucune règle pour ce client.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="space-y-2">
+            {!loading &&
+              rules.map((r) => (
+                <Card key={r.id}>
+                  <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+                    <div className="flex flex-1 flex-col gap-0 sm:flex-row sm:items-stretch">
+                      <ChainBlock label={ENTITY_LABELS[r.entity_type]}>
+                        <span className="text-sm text-foreground">{summarizeTrigger(r.trigger_type)}</span>
+                      </ChainBlock>
+                      <ChainArrow />
+                      <ChainBlock label="Conditions">
+                        <span className="text-sm text-foreground">{summarizeConditions(r.automation_conditions)}</span>
+                      </ChainBlock>
+                      <ChainArrow />
+                      <ChainBlock label="Action">
+                        <span className="text-sm text-foreground">{summarizeAction(r.automation_actions)}</span>
+                      </ChainBlock>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
+                      <span className="text-xs font-medium text-muted-foreground">{r.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={r.enabled ? "green" : "default"}>{r.enabled ? "Active" : "Désactivée"}</Badge>
+                        <input type="checkbox" checked={r.enabled} onChange={(e) => toggle(r.id, e.target.checked)} />
+                        <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            {!loading && rules.length === 0 && (
+              <p className="p-4 text-center text-sm text-muted-foreground">Aucune règle pour ce client.</p>
+            )}
+          </div>
         </>
       )}
     </div>

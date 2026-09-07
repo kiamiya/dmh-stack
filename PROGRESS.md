@@ -90,7 +90,8 @@ Dernière mise à jour : 2026-09-04
 | S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-3 | Design "Relais" — page Intégrations | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-5..6 | Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
+| S29-5 | Design "Relais" — Automatisations (chaîne visuelle) | ✅ fait — vérification visuelle réelle en attente de Loïc |
+| S29-6 | Campagnes (éditeur email) | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -856,5 +857,39 @@ pipeline de prod sans besoin exprimé.
 visuellement `/enrichment-mapping` en même temps que les étapes 1-3.
 Aucune migration ni déploiement nécessaire (lecture seule, aucune
 modification des Edge Functions d'enrichissement existantes).
-Prochaine étape : S29-5 (Automatisations en canvas) — voir roadmap dans
-le plan de session (`bubbly-watching-crescent.md`).
+
+**S29 étape 5 (Automatisations en canvas) — fait, périmètre réduit avec
+Loïc** : même type de décision qu'à l'étape 4 — demandé à Loïc
+(AskUserQuestion) le niveau voulu, **habillage visuel du moteur actuel
+choisi** (pas d'extension du moteur avec de nouveaux types d'étapes
+"enrichir"/"filtrer") : `/automations` pilote exactement le même schéma
+`automation_rules`/`conditions`/`actions` (S12) qu'avant, aucun risque
+sur les règles existantes.
+- `lib/automationChain.ts` (nouveau) : `summarizeTrigger`/
+  `summarizeConditions`/`summarizeAction` — pure, traduisent
+  trigger_type/conditions/action_config en libellés FR pour la chaîne
+  visuelle. 5 tests vitest.
+- `services/automations.ts` : `listRules` enrichi avec un embedding
+  PostgREST (`automation_conditions(...)`, `automation_actions(...)`
+  via les FK `rule_id` déjà en place, migration 017) — un seul aller-
+  retour au lieu d'un fetch séparé par règle. Nouveau type
+  `AutomationRuleWithChain`.
+- `pages/Automations.tsx` : formulaire de création restylé en 3 blocs
+  connectés (Déclencheur → Conditions → Action, `ChainBlock`/
+  `ChainArrow`) ; la liste des règles existantes passe d'un `<Table>` à
+  des cartes affichant la même chaîne à 3 blocs avec le résumé réel de
+  chaque règle (via `automationChain.ts`), plus le statut actif/inactif
+  et les actions supprimer/activer inchangées.
+- Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (348 tests,
+  +5), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
+  Compilation confirmée via le dev server. Pas de vérification visuelle
+  en navigateur réel possible côté Claude (même limitation qu'aux
+  étapes précédentes) — à valider par Loïc.
+
+**Point de reprise (étape 5)** : demander à Loïc de valider
+visuellement `/automations` (chaîne de blocs, création d'une règle,
+liste des règles existantes) en même temps que les étapes précédentes.
+Aucune migration ni déploiement nécessaire (requête en lecture
+supplémentaire uniquement). Prochaine étape : S29-6 (Campagnes,
+éditeur email — le plus gros morceau, nécessite un plan dédié) — voir
+roadmap dans le plan de session (`bubbly-watching-crescent.md`).

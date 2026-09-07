@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AutomationRule } from "@dmh/types";
 import { supabase } from "../lib/supabase";
 import { deleteRule, listRules, updateRuleEnabled } from "../services/automations";
-import type { RuleInsert } from "../services/automations";
+import type { AutomationRuleWithChain, RuleInsert } from "../services/automations";
 import { createRule } from "../services/automations";
 
 export function useAutomationRules(clientId: string) {
-  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [rules, setRules] = useState<AutomationRuleWithChain[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
