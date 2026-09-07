@@ -14,6 +14,7 @@ import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { AddContactDialog } from "../components/AddContactDialog";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
+import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "job_title", operator: "eq", value: "" }] }];
 
@@ -21,6 +22,8 @@ export function ContactsPage() {
   const { contacts, loading, error, reload } = useContacts();
   const clients = useClients();
   const { toast } = useToast();
+  const { viewMode } = useViewMode();
+  const masked = viewMode === "client_portal";
   const [addOpen, setAddOpen] = useState(false);
   const [clientId, setClientId] = useState("");
 
@@ -273,7 +276,7 @@ export function ContactsPage() {
                   </Link>
                 </TableCell>
                 <TableCell>{c.job_title ?? "—"}</TableCell>
-                <TableCell>{c.email ?? "—"}</TableCell>
+                <TableCell>{masked ? MASKED_VALUE : (c.email ?? "—")}</TableCell>
                 <TableCell>{c.companies?.name ?? "—"}</TableCell>
               </TableRow>
             ))}

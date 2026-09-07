@@ -43,7 +43,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { to: "/companies", label: "Entreprises" },
       { to: "/opportunities", label: "Opportunités" },
       { to: "/tasks", label: "Tâches" },
-      { to: "/lists", label: "Listes" },
+      { to: "/lists", label: "Segments" },
     ],
   },
   {
@@ -58,7 +58,7 @@ const NAV_ENTRIES: NavEntry[] = [
     items: [
       { to: "/settings/calendar", label: "Mon calendrier" },
       { to: "/settings/custom-fields", label: "Réglages" },
-      { to: "/integrations", label: "Intégrations" },
+      { to: "/integrations", label: "Intégrations API" },
       { to: "/enrichment-mapping", label: "Mapping enrichissement" },
     ],
   },
@@ -170,6 +170,14 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="flex flex-col gap-1.5 border-t border-white/15 px-[18px] py-4">
+        <span className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/60">
+          Crédits d'enrichissement
+        </span>
+        <span className="text-xs text-sidebar-foreground/70">
+          Suivi non disponible pour l'instant
+        </span>
+      </div>
     </aside>
   );
 }

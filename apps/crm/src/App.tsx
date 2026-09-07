@@ -27,6 +27,7 @@ import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
 import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
 import { useCommandPaletteState } from "./hooks/useCommandPaletteState";
+import { ViewModeProvider, useViewMode } from "./lib/viewMode";
 
 /**
  * Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche
@@ -36,8 +37,9 @@ import { useCommandPaletteState } from "./hooks/useCommandPaletteState";
  * plus à chaque navigation (Header refaisait déjà `useTasks()` à chaque
  * clic) — nécessaire avant d'ajouter des comptes réels dans la Sidebar.
  */
-function ProtectedLayout() {
+function ProtectedLayoutContent() {
   const palette = useCommandPaletteState();
+  const { viewMode } = useViewMode();
 
   function openSearch(query: string) {
     palette.setQuery(query);
@@ -45,22 +47,46 @@ function ProtectedLayout() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Header onSearchInput={openSearch} />
-          <CommandPalette
-            open={palette.open}
-            onOpenChange={palette.setOpen}
-            query={palette.query}
-            onQueryChange={palette.setQuery}
-          />
-          <main className="flex-1 overflow-y-auto">
-            <Outlet />
-          </main>
-        </div>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Header onSearchInput={openSearch} />
+        <CommandPalette
+          open={palette.open}
+          onOpenChange={palette.setOpen}
+          query={palette.query}
+          onQueryChange={palette.setQuery}
+        />
+        <main className="flex-1 overflow-y-auto">
+          {viewMode === "client_portal" && (
+            <div className="flex items-center gap-3 border-b border-accent/30 bg-accent/10 px-6 py-2.5 text-sm">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+              <span>
+                <strong className="font-heading">Portail client.</strong> Vue en lecture seule : coordonnées
+                brutes masquées, activité de la force de vente visible en temps réel.
+              </span>
+            </div>
+          )}
+          <Outlet />
+        </main>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Layout protégé (S28, `<Outlet/>` S30) — enveloppe le contenu dans
+ * `ViewModeProvider` (S32 : bascule "Force de vente / Portail client" du
+ * mockup "Relais", un vrai mode masqué dans le CRM plutôt qu'un lien vers
+ * `apps/dashboard`) pour que n'importe quelle page en dessous puisse lire
+ * le mode courant sans prop-drilling.
+ */
+function ProtectedLayout() {
+  return (
+    <ProtectedRoute>
+      <ViewModeProvider>
+        <ProtectedLayoutContent />
+      </ViewModeProvider>
     </ProtectedRoute>
   );
 }

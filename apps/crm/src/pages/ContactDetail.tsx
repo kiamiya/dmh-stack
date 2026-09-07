@@ -22,11 +22,14 @@ import { useToast } from "../components/ui/toast";
 import { formatCurrency } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
+import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { contact, companies, loading, error, save, linkCompany, unlinkCompany } = useContactDetail(id!);
+  const { viewMode } = useViewMode();
+  const masked = viewMode === "client_portal";
   const allCompanies = useCompanies();
   const allContacts = useContacts();
   const { deals } = useOpportunities();
@@ -169,24 +172,36 @@ export function ContactDetailPage() {
             className="rounded-md border border-border px-3 py-2 text-sm"
           />
           <div className="flex flex-col gap-1">
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="rounded-md border border-border px-3 py-2 text-sm"
-            />
-            {contact.email_confidence && (
+            {masked ? (
+              <span className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+                {MASKED_VALUE}
+              </span>
+            ) : (
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="rounded-md border border-border px-3 py-2 text-sm"
+              />
+            )}
+            {!masked && contact.email_confidence && (
               <span className="text-xs text-muted-foreground">
                 Confiance email (Dropcontact) : {contact.email_confidence}
               </span>
             )}
           </div>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="Téléphone"
-            className="rounded-md border border-border px-3 py-2 text-sm"
-          />
+          {masked ? (
+            <span className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+              {MASKED_VALUE}
+            </span>
+          ) : (
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Téléphone"
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            />
+          )}
           <input
             value={linkedinUrl}
             onChange={(e) => setLinkedinUrl(e.target.value)}

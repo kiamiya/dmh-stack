@@ -88,7 +88,7 @@ export function CommandPalette({ open, onOpenChange, query, onQueryChange }: Com
           <Command.Input
             value={query}
             onValueChange={onQueryChange}
-            placeholder="Rechercher un contact, une entreprise, un SIREN…"
+            placeholder="Rechercher un contact, une société, un SIREN…"
             className="w-full border-b border-border bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground"
           />
           <Command.List className="max-h-80 overflow-y-auto p-2">

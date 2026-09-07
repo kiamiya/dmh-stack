@@ -24,7 +24,7 @@ export function ListsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <PageHeader kicker="Prospection · toutes les listes" title="Listes" />
+      <PageHeader kicker="Prospection · toutes les listes" title="Segments" />
 
       <p className="text-sm text-muted-foreground">
         Toutes les listes de Contacts, Entreprises et Opportunités, tous clients confondus — statiques ou
