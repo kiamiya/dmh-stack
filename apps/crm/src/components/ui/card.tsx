@@ -9,7 +9,7 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Card({ className, blueprint, children, ...props }: CardProps) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card text-card-foreground shadow-sm", blueprint && "blueprint", className)} {...props}>
+    <div className={cn("rounded-lg border border-border bg-transparent text-card-foreground", blueprint && "blueprint", className)} {...props}>
       {blueprint && <BlueprintCorners />}
       {children}
     </div>
