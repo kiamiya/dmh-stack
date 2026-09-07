@@ -9,76 +9,67 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ vérifié en local (mode démo) — en attente de ta relecture
+## Statut : ⛔ bloqué — confirmation requise avant application de la migration
 
-**Refonte UX/UI du CRM interne (`apps/crm`) — résorption de dette
-technique : sous-onglets sur le Dashboard**, branche `feat/crm-redesign`,
-exécuté le 2026-09-01. `/dashboard` est réorganisé en 4 onglets (Vue
-d'ensemble / Évolution / Scores & Deals / Activité) au lieu d'empiler
-toutes les sections verticalement — testé en navigateur, bascule
-instantanée entre les 4 onglets, contenu correct dans chacun. Aucune
-logique changée, uniquement la présentation.
+**Automatisations — moteur étendu (branches Oui/Non + action "Enrichir")**,
+S32-auto, code écrit et vert (`pnpm typecheck`/`pnpm test` racine, 12
+packages). La migration `supabase/migrations/030_automation_branching_and_enrichment.sql`
+modifie le moteur d'exécution en production (trigger PL/pgSQL utilisé par
+TOUTES les automatisations existantes) — par la règle CLAUDE.md §5, je
+n'applique **pas** `supabase db push` sans ta confirmation explicite,
+même si le reste (git commit/push du code) est déjà fait automatiquement.
 
-Vient après les 4 améliorations UX précédentes (panneau latéral, vues en
-onglets, fil d'activité groupé par jour, undo) et les 6 phases initiales
-(toutes terminées) :
+### Avant de valider : ce que fait la migration
 
-### Ce qui a été fait
+1. Ajoute `automation_actions.branch` (`always`/`if_true`/`if_false`) et
+   réécrit `run_automation_rules()` pour exécuter les actions par branche
+   au lieu de sauter toute la règle quand une condition échoue.
+2. Active `pg_net`, ajoute `entity_type = 'prospect'` (+ trigger sur
+   `prospects`), ajoute `action_type = 'trigger_enrichment'`.
+3. Crée un emplacement de secret Vault **vide** (`app_service_role_key`) —
+   aucune vraie clé n'est dans la migration.
 
-1. **Panneau latéral pour la fiche prospect** — s'ouvre par-dessus la
-   liste/le Kanban (pattern background-location React Router), au lieu
-   d'une navigation plein écran qui faisait perdre le scroll/filtres/
-   sélection.
-2. **Vues sauvegardées en onglets épinglés** dans `/prospects` (au lieu
-   d'un dropdown) — "Toutes" + une vue par onglet + "+ Nouvelle vue".
-3. **Fil d'activité du Dashboard groupé par jour** ("Aujourd'hui", "Hier",
-   date complète au-delà).
-4. **Undo sur les actions groupées** — le toast de confirmation propose
-   "Annuler", qui restaure la valeur propre à chaque prospect.
+Le détail complet (schéma, rétro-compatibilité, limite
+synchrone/asynchrone assumée) est dans `PROGRESS.md`, section "2026-09-07
+(suite) — S32-auto".
 
-**Corrigé au passage** : le mode démo ne reproduisait pas le trigger
-`prospect_status_change` (migration 010) — un changement de statut fait
-dans le CRM n'apparaissait jamais dans le fil d'activité/funnel en mode
-démo. `mockSupabase.ts` journalise maintenant l'historique comme le
-ferait la vraie base.
+### Étape 1 — confirmer l'application de la migration
 
-### Ce qui a été testé
+Dis-moi si je peux lancer `supabase db push` (ou fais-le toi-même si tu
+préfères garder la main sur les migrations en production). Rien
+ci-dessous n'est testable avant cette étape.
 
-| Élément | Résultat |
-|---|---|
-| `pnpm test` / `pnpm typecheck` racine (10 packages) | ✅ vert (116 tests dans `@dmh/crm`, +10) |
-| Ouverture du panneau latéral (clic sur un prospect depuis la liste) | ✅ liste visible en arrière-plan, filtres/scroll préservés |
-| Fermeture du panneau (bouton "✕ Fermer") | ✅ retour à `/`, état de la liste intact |
-| Onglets de vues sauvegardées | ✅ "Toutes" / vue existante testées, bascule correcte |
-| Undo sur changement de statut groupé | ✅ testé de bout en bout : statut changé → toast "Annuler" → clic → statut restauré à sa valeur d'origine, confirmé visuellement |
-| Fil d'activité groupé par jour, y compris "Aujourd'hui" en temps réel | ✅ après correction du mode démo, un changement de statut fait à l'instant apparaît bien sous "Aujourd'hui" |
-| Aucune erreur console réelle (résidus de logs HMR déjà expliqués précédemment, confirmés stale) | ✅ |
+### Étape 2 — remplir le secret Vault (toi seul peux le faire)
 
-### Point à valider par toi
+Après la migration, exécute (SQL Editor Supabase, jamais dans un commit) :
 
-1. Teste le panneau latéral et l'undo toi-même en conditions réelles.
-2. Toutes les phases (0-6) + ces 4 améliorations sont maintenant
-   terminées. Dis-moi si tu veux merger `feat/crm-redesign` dans `master`,
-   ou d'abord relire l'ensemble du chantier.
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'app_service_role_key'),
+  '<vraie clé service_role — Project Settings → API>'
+);
+```
 
-## Dette technique actée (hors périmètre de cette refonte)
+Sans cette étape, l'action "Enrichir" ne fait rien (le code vérifie que le
+secret n'est pas vide avant d'appeler `net.http_post`) — aucune erreur,
+mais aucun effet non plus.
 
-- **Pas de store partagé entre les instances de `useProspects()`** — la
-  palette de commandes et la page affichée ont chacune leur propre état ;
-  une action depuis la palette persiste réellement mais ne rafraîchit pas
-  la liste visible sans navigation. Corriger demanderait un cache/store
-  partagé (React Query ou équivalent).
-- ~~Pas de navigation par sous-onglets entre les cartes du Dashboard~~ **Résolu le 2026-09-01** — `/dashboard` utilise maintenant `Tabs` (4 onglets).
-- **Recherche globale mono-entité** — la palette cmd+K ne cherche que les
-  prospects, pas entreprises/contacts/deals séparément.
-- **Pas de champs personnalisés (custom properties)** — impliquerait un
-  schéma flexible (JSONB/EAV) : changement d'architecture à part entière,
-  à cadrer séparément si DMH le souhaite un jour.
+### Étape 3 — protocole de test manuel (dans l'ordre)
+
+| # | Test | Pré-requis | Résultat attendu |
+|---|---|---|---|
+| 1 | **Non-régression** — une règle existante simple (`create_task`, sans branche) se déclenche encore normalement après la migration | Une règle déjà en place (ex. sur `opportunity`/`stage_changed`) | Comportement strictement identique à avant : la tâche se crée toujours, rien ne change dans son fonctionnement |
+| 2 | **Branche Oui/Non** — créer une règle sur `/automations` avec une condition simple (ex. `city est renseigné`), cocher "Brancher l'action selon les conditions", mettre une action différente en Oui et en Non | Étape 1 validée | Créer un prospect avec `city` renseigné → l'action "Oui" s'exécute ; sans `city` → l'action "Non" s'exécute |
+| 3 | **Enrichir** — créer une règle sur l'entité "Prospect", déclencheur "À la création", action "Enrichir" (Pappers ou Dropcontact) | Étape 2 du fichier (secret Vault rempli) | Créer un prospect réel test → vérifier dans `companies`/logs Edge Function que l'enrichissement a bien été déclenché |
+
+Comme pour tout le reste : pas de vérification visuelle en navigateur réel
+possible côté Claude — les 3 lignes ci-dessus sont à exécuter et constater
+par toi.
 
 ## Outillage disponible pour ce chantier
 
-- Mode démo local : `SUPABASE_DEMO_MODE=true` dans `.env.local`.
-- `pnpm --filter @dmh/crm dev` (port 5173).
-- Branche `feat/crm-redesign` — rien n'est poussé sur `master` avant merge
-  final validé par toi.
-- Vrai Supabase réactivé, migration 010 appliquée.
+- `pnpm --filter @dmh/crm dev` (port 5173), page `/automations`.
+- `supabase db query --linked --project-ref hkonylfpcstbvxswyxyh "<SQL>"`
+  pour inspecter l'état réel sans modifier quoi que ce soit.
+- Logs de l'Edge Function appelée (`enrich-pappers`/`enrich-dropcontact`)
+  visibles dans le dashboard Supabase, utiles pour l'étape 3.

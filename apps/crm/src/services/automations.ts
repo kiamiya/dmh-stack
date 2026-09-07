@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   AutomationAction,
+  AutomationActionBranch,
   AutomationActionType,
   AutomationCondition,
   AutomationConditionOperator,
@@ -12,11 +13,11 @@ import type {
 /** Rule enrichie de ses conditions/actions imbriquées (embedding PostgREST via les FK `rule_id`) — pour la vue "chaîne visuelle" de /automations, évite un aller-retour par règle. */
 export interface AutomationRuleWithChain extends AutomationRule {
   automation_conditions: Array<Pick<AutomationCondition, "field" | "operator" | "value">>;
-  automation_actions: Array<Pick<AutomationAction, "position" | "action_type" | "action_config">>;
+  automation_actions: Array<Pick<AutomationAction, "branch" | "position" | "action_type" | "action_config">>;
 }
 
 const RULE_SELECT =
-  "id, client_id, name, enabled, entity_type, trigger_type, trigger_config, created_at, automation_conditions(field, operator, value), automation_actions(position, action_type, action_config)";
+  "id, client_id, name, enabled, entity_type, trigger_type, trigger_config, created_at, automation_conditions(field, operator, value), automation_actions(branch, position, action_type, action_config)";
 
 export async function listRules(client: SupabaseClient, clientId: string): Promise<AutomationRuleWithChain[]> {
   const { data, error } = await client
@@ -105,6 +106,7 @@ export interface ActionInsert {
   position: number;
   actionType: AutomationActionType;
   actionConfig: Record<string, unknown>;
+  branch?: AutomationActionBranch;
 }
 
 export async function addAction(client: SupabaseClient, input: ActionInsert): Promise<{ id: string }> {
@@ -116,6 +118,7 @@ export async function addAction(client: SupabaseClient, input: ActionInsert): Pr
       position: input.position,
       action_type: input.actionType,
       action_config: input.actionConfig,
+      branch: input.branch ?? "always",
     })
     .select("id")
     .single();

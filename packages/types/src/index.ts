@@ -297,10 +297,11 @@ export interface ClientUser {
  * Brevo") — périmètre v1 volontairement réduit : 2 déclencheurs, 1 type
  * d'action (voir le commentaire en tête de la migration).
  */
-export type AutomationEntityType = "contact" | "company" | "opportunity" | "task";
+export type AutomationEntityType = "contact" | "company" | "opportunity" | "task" | "prospect";
 export type AutomationTriggerType = "record_created" | "stage_changed";
 export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set";
-export type AutomationActionType = "create_task";
+export type AutomationActionType = "create_task" | "trigger_enrichment";
+export type AutomationActionBranch = "always" | "if_true" | "if_false";
 
 export interface AutomationRule {
   id: string;
@@ -327,6 +328,7 @@ export interface AutomationAction {
   id: string;
   client_id: string;
   rule_id: string;
+  branch: AutomationActionBranch;
   position: number;
   action_type: AutomationActionType;
   action_config: Record<string, unknown>;

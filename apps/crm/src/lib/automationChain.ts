@@ -1,4 +1,4 @@
-import type { AutomationConditionOperator, AutomationTriggerType } from "@dmh/types";
+import type { AutomationActionBranch, AutomationConditionOperator, AutomationTriggerType } from "@dmh/types";
 
 const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   record_created: "À la création",
@@ -27,10 +27,37 @@ export function summarizeConditions(conditions: Array<{ field: string; operator:
     .join(" ET ");
 }
 
-/** Pure : libellé du bloc "action" — seul `create_task` existe côté moteur (migration 017). */
+const PROVIDER_LABELS: Record<string, string> = {
+  pappers: "Pappers",
+  dropcontact: "Dropcontact",
+};
+
+/** Pure : libellé du bloc "action" d'une branche — `create_task` (migration 017) ou `trigger_enrichment` (migration 030). */
 export function summarizeAction(actions: Array<{ action_type: string; action_config: Record<string, unknown> }>): string {
   const createTask = actions.find((a) => a.action_type === "create_task");
-  if (!createTask) return "Aucune action";
-  const title = typeof createTask.action_config.title === "string" ? createTask.action_config.title : "";
-  return `Créer tâche : "${title}"`;
+  if (createTask) {
+    const title = typeof createTask.action_config.title === "string" ? createTask.action_config.title : "";
+    return `Créer tâche : "${title}"`;
+  }
+  const enrich = actions.find((a) => a.action_type === "trigger_enrichment");
+  if (enrich) {
+    const provider = typeof enrich.action_config.provider === "string" ? enrich.action_config.provider : "";
+    return `Enrichir via ${PROVIDER_LABELS[provider] ?? (provider || "?")}`;
+  }
+  return "Aucune action";
+}
+
+export interface BranchedActions<T> {
+  always: T[];
+  ifTrue: T[];
+  ifFalse: T[];
+}
+
+/** Pure : répartit les actions d'une règle par branche (migration 030 — `always` par défaut, rétro-compatible avec les règles créées avant les branches Oui/Non). */
+export function splitActionsByBranch<T extends { branch: AutomationActionBranch }>(actions: T[]): BranchedActions<T> {
+  return {
+    always: actions.filter((a) => a.branch === "always"),
+    ifTrue: actions.filter((a) => a.branch === "if_true"),
+    ifFalse: actions.filter((a) => a.branch === "if_false"),
+  };
 }

@@ -94,7 +94,8 @@ Dernière mise à jour : 2026-09-04
 | S29-6 | Design "Relais" — Campagnes (tableau de bord Lemlist) | ✅ fait — validé visuellement par Loïc le 2026-09-07 |
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
-| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | 🔄 chrome + 8/11 écrans faits, reste Campagnes/Automatisations/Mapping/Paramètres (décision de périmètre à reconfirmer) |
+| S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
+| S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 écrite mais **non appliquée** (confirmation explicite de Loïc requise avant `supabase db push`, règle CLAUDE.md §5) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1231,3 +1232,73 @@ plus lourd que les 8 précédents (nouveau schéma, nouvelles Edge
 Functions pour Campagnes, nouveau paradigme d'UI pour Automatisations,
 architecture de rôles pour Paramètres) — question de cadrage posée à
 Loïc avant d'exécuter, pas de décision prise seul cette fois.
+
+### 2026-09-07 (suite) — S32-auto : Automatisations, moteur étendu (branches + Enrichir)
+
+Décision de Loïc sur les 4 derniers écrans : Campagnes/Mapping/
+Paramètres restent en périmètre réduit (options "Recommandé"), mais
+**Automatisations** doit aller jusqu'au bout — "Étendre le moteur +
+canvas" (option non recommandée, choisie explicitement).
+
+Recherche préalable (lecture complète de la migration 017, requêtes en
+lecture seule sur le vrai projet Supabase via `supabase db query
+--linked`) : moteur 100% synchrone (trigger PL/pgSQL dans la même
+transaction), conditions combinées en ET seulement, une seule règle
+`continue`-ait entièrement si une condition échouait (pas de "sinon"),
+un seul type d'action (`create_task`), pas d'`entity_type` "prospect".
+Vérifié : `supabase_vault` déjà actif, `pg_net` absent.
+
+**Migration `030_automation_branching_and_enrichment.sql` écrite**
+(pas encore appliquée) :
+- Colonne `automation_actions.branch` (`always`/`if_true`/`if_false`,
+  défaut `always`) — réécriture de `run_automation_rules()` pour
+  exécuter les actions par branche au lieu de sauter toute la règle ;
+  strictement rétro-compatible (aucune règle existante n'a d'action
+  `if_true`/`if_false`, donc comportement identique à avant pour elles
+  — **à valider manuellement en priorité avant tout autre test**, voir
+  TESTING.md).
+- `create extension if not exists pg_net;` + `action_type` étendu avec
+  `trigger_enrichment` + `entity_type` étendu avec `prospect` + nouveau
+  trigger `prospects_automation` (déclenchement enfin possible sur
+  "nouveau prospect créé").
+- Action `trigger_enrichment` : appel `net.http_post` vers l'Edge
+  Function `enrich-<provider>`, clé service lue dans
+  `vault.decrypted_secrets` (jamais en dur). **Point de blocage réel,
+  documenté explicitement** : je n'ai accès qu'à la version masquée de
+  `SUPABASE_SERVICE_ROLE_KEY` — la migration crée l'emplacement de
+  secret vide (`vault.create_secret('', 'app_service_role_key')`),
+  **Loïc doit remplacer la valeur lui-même** après application, hors
+  commit (requête SQL fournie séparément).
+- **Limite architecturale assumée** : le moteur reste synchrone, donc
+  impossible de brancher dans la MÊME règle sur le résultat de
+  l'enrichissement déclenché (asynchrone, ex. Dropcontact) — seulement
+  sur des conditions déjà connues au moment du déclenchement. Un futur
+  enchaînement complet demanderait une deuxième règle réagissant à un
+  changement de statut (pas construit ici).
+
+Frontend : `packages/types` (`AutomationEntityType`+`prospect`,
+`AutomationActionType`+`trigger_enrichment`, nouveau
+`AutomationActionBranch`, `AutomationAction.branch`) ;
+`services/automations.ts` (select/insert `branch`) ;
+`lib/automationChain.ts` (`summarizeAction` gère `trigger_enrichment`,
+nouvelle fonction pure `splitActionsByBranch`, testée) ;
+`pages/Automations.tsx` réécrit : case à cocher "Brancher l'action
+selon les conditions (Oui/Non)" qui bascule entre le bloc Action unique
+(comportement identique à avant si non cochée — rétro-compatible) et
+deux colonnes Oui/Non ; sélecteur d'action gagne "Enrichir" (choix
+Pappers/Dropcontact), visible uniquement pour l'entité "Prospect" (seul
+cas géré côté moteur) ; affichage des règles existantes ajoute les
+blocs "Si Oui"/"Si Non" uniquement quand la règle en a (sinon rendu
+linéaire identique à avant, via `splitActionsByBranch`).
+
+Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (385 tests,
++13 sur ce lot), `pnpm typecheck`/`pnpm test` racine verts (12
+packages), dev server + curl 200 sur `/automations`.
+
+**Point de reprise** : la migration 030 est écrite mais **non
+appliquée** — attendre la confirmation explicite de Loïc avant
+`supabase db push` (règle CLAUDE.md §5, modifie le moteur d'exécution
+en production). `TESTING.md` à rédiger avec le protocole de validation
+manuelle (non-régression d'une règle simple existante en priorité,
+puis branche Oui/Non, puis `trigger_enrichment` une fois le secret
+Vault rempli par Loïc) avant de considérer cette tâche terminée.
