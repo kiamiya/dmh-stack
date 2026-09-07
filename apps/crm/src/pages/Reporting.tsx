@@ -13,6 +13,7 @@ import { useStatusHistory } from "../hooks/useStatusHistory";
 import { useDeals } from "../hooks/useDeals";
 import { useMeetings } from "../hooks/useMeetings";
 import { useClients } from "../hooks/useClients";
+import { useStaffMembers } from "../hooks/useStaffMembers";
 
 export function ReportingPage() {
   const { prospects, loading: prospectsLoading } = useProspects();
@@ -20,6 +21,7 @@ export function ReportingPage() {
   const { deals, loading: dealsLoading } = useDeals();
   const { meetings, loading: meetingsLoading } = useMeetings();
   const clients = useClients();
+  const staff = useStaffMembers();
 
   const loading = prospectsLoading || historyLoading || dealsLoading || meetingsLoading;
 
@@ -28,8 +30,8 @@ export function ReportingPage() {
   const conversionRate = useMemo(() => computeConversionRate(deals), [deals]);
   const funnel = useMemo(() => computeFunnelFromHistory(history), [history]);
   const clientPerformance = useMemo(
-    () => computeClientPerformance(clients, deals, meetings),
-    [clients, deals, meetings],
+    () => computeClientPerformance(clients, deals, meetings, staff),
+    [clients, deals, meetings, staff],
   );
 
   if (loading) {
@@ -111,6 +113,7 @@ export function ReportingPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead>Commercial</TableHead>
                 <TableHead>Opportunités</TableHead>
                 <TableHead>Gagnées</TableHead>
                 <TableHead>Valeur pipeline</TableHead>
@@ -121,6 +124,7 @@ export function ReportingPage() {
               {clientPerformance.map((row) => (
                 <TableRow key={row.clientId}>
                   <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.topStaffName ?? "—"}</TableCell>
                   <TableCell>{row.dealsCount}</TableCell>
                   <TableCell>{row.wonDealsCount}</TableCell>
                   <TableCell>{formatCurrency(row.pipelineValue)}</TableCell>
@@ -129,7 +133,7 @@ export function ReportingPage() {
               ))}
               {clientPerformance.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Aucun client DMH enregistré.
                   </TableCell>
                 </TableRow>
