@@ -89,7 +89,8 @@ Dernière mise à jour : 2026-09-04
 | S29-1 | Design "Relais" — système de design (tokens, typo, blueprint, nav) | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-2 | Design "Relais" — page Reporting | ✅ fait — vérification visuelle réelle en attente de Loïc |
 | S29-3 | Design "Relais" — page Intégrations | ✅ fait — vérification visuelle réelle en attente de Loïc |
-| S29-4..6 | Mapping enrichissement, Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
+| S29-4 | Design "Relais" — Mapping enrichissement (lecture seule) | ✅ fait — vérification visuelle réelle en attente de Loïc |
+| S29-5..6 | Automatisations (canvas), Campagnes | ⬜ à faire (roadmap, voir plan) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -825,7 +826,35 @@ reskin général. Aucune migration ni déploiement nécessaire pour cette
 **Point de reprise (étape 3)** : demander à Loïc de valider
 visuellement `/integrations` (statut réel des 4 clés déjà dans
 `.env.local`/Supabase Vault — toutes attendues "Connecté" puisque
-`pnpm run check-env` est vert). Prochaine étape : S29-4 (Mapping
-enrichissement, la plus délicate — touche le pipeline d'enrichissement
-Phase 1, nécessite un plan dédié avant toute implémentation) — voir
-roadmap dans le plan de session (`bubbly-watching-crescent.md`).
+`pnpm run check-env` est vert).
+
+**S29 étape 4 (Mapping enrichissement) — fait, périmètre réduit avec
+Loïc** : la cascade réelle (`enrich-pappers` → `enrich-dropcontact`) est
+un pipeline FIXE à 2 étapes codé en dur, pas un mapping par champ/
+fournisseur configurable comme le mockup le suggère. Demandé à Loïc
+(AskUserQuestion) le niveau de profondeur voulu : **vue en lecture
+seule choisie** (pas de vraie configurabilité) — évite de toucher au
+pipeline de prod sans besoin exprimé.
+- `lib/enrichmentCascade.ts` (nouveau) : `ENRICHMENT_CASCADE` (constante
+  documentant les 2 étapes réelles — fournisseur, déclencheur, champs
+  écrits, statut atteint, un miroir exact du code des 2 Edge Functions,
+  pas une liste indicative) + `computeCascadeStepCounts` (pure, compte
+  les prospects par statut réel de chaque étape). 3 tests vitest.
+- `pages/EnrichmentMapping.tsx` (nouveau) : KPI "en attente
+  d'enrichissement" (compte réel `to_enrich`) + une carte par étape de
+  la cascade (fournisseur, déclencheur, champs cibles, nombre réel de
+  prospects à ce statut) — aucun chiffre inventé.
+- Route `/enrichment-mapping` ajoutée dans `App.tsx`, entrée nav sous
+  "Données & réglages" dans `Sidebar.tsx`.
+- Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (343 tests,
+  +3), `pnpm typecheck`/`pnpm test` racine verts (12 packages).
+  Compilation confirmée via le dev server. Pas de vérification visuelle
+  en navigateur réel possible côté Claude (même limitation qu'aux
+  étapes 1-3) — à valider par Loïc.
+
+**Point de reprise (étape 4)** : demander à Loïc de valider
+visuellement `/enrichment-mapping` en même temps que les étapes 1-3.
+Aucune migration ni déploiement nécessaire (lecture seule, aucune
+modification des Edge Functions d'enrichissement existantes).
+Prochaine étape : S29-5 (Automatisations en canvas) — voir roadmap dans
+le plan de session (`bubbly-watching-crescent.md`).

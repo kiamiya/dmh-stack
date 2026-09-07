@@ -54,6 +54,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { to: "/settings/calendar", label: "Mon calendrier" },
       { to: "/settings/custom-fields", label: "Réglages" },
       { to: "/integrations", label: "Intégrations" },
+      { to: "/enrichment-mapping", label: "Mapping enrichissement" },
     ],
   },
 ];
