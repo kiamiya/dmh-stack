@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useContacts } from "../hooks/useContacts";
 import { useClients } from "../hooks/useClients";
 import { useContactLists } from "../hooks/useContactLists";
@@ -43,10 +43,11 @@ export function ContactsPage() {
   const { viewMode } = useViewMode();
   const masked = viewMode === "client_portal";
   const [addOpen, setAddOpen] = useState(false);
-  const [clientId, setClientId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
 
   const { lists, create: createList, remove: removeList, addContacts: addContactsToList, listMemberIds } = useContactLists(clientId);
-  const [listId, setListId] = useState("");
+  const [listId, setListId] = useState(() => searchParams.get("list") ?? "");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
   const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);

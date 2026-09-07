@@ -96,6 +96,7 @@ Dernière mise à jour : 2026-09-04
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
+| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A fait (filtres réels, "Voir" scopé, % enrichissement, critères) ; Lot B (Propriétaire/Mise à jour/Import CSV/Corbeille, migration 031) en cours ; Lot C (Dossiers) reporté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1320,3 +1321,48 @@ dans `TESTING.md`, jamais commitée) puis dérouler le protocole de test
 manuel en 2 étapes désormais (branche Oui/Non, puis Enrichir réel).
 `TESTING.md` mis à jour en conséquence — en attente de sa validation
 avant de considérer S32-auto terminé.
+
+### 2026-09-07 (suite) — S32-segments : Lot A (comparaison + filtres/enrichissement réels)
+
+Loïc a demandé une comparaison stricte entre l'écran "Segments" du
+mockup et `/lists` (voir plan `bubbly-watching-crescent.md`). Recherche
+faite (2 agents parallèles : extraction littérale du mockup, audit du
+code actuel) — écart réel et important confirmé : le mockup a des
+dossiers, une corbeille, des filtres, des colonnes configurables et 4
+colonnes en plus (Enrichis/Propriétaire/Origine/Mise à jour) qui
+n'existaient pas. Décision de Loïc : tout le Lot A + tout le Lot B
+maintenant, Lot C (Dossiers) reporté.
+
+**Lot A fait** :
+- Filtres réels sur `/lists` (client/type d'entité/mode) —
+  `lib/listsFilters.ts` (nouveau, testé), remplace les 6 chips fabriqués
+  du mockup par des filtres qui collent aux données déjà chargées.
+- `lib/listsOverview.ts` gagne `criteriaCount` (somme des conditions,
+  tous groupes, null si statique) et `enrichmentRate` (moyenne réelle de
+  `computeCompanyCompleteness`/nouvelle `computeContactCompleteness` sur
+  les membres résolus, null pour les listes d'opportunités — pas de
+  notion d'enrichissement pertinente pour un deal). `useListsOverview.ts`
+  garde désormais les vrais ids de membres statiques (`Map<string,
+  string[]>`, avant juste leur longueur) pour pouvoir résoudre les
+  entités complètes et calculer ce taux.
+- **"Voir" scopé aux membres réels** : découverte en implémentant que
+  Contacts.tsx/Companies.tsx/Opportunities.tsx avaient déjà tout le
+  filtrage par liste (client + liste statique/dynamique via
+  `matchesRuleGroups`), juste piloté par un `<select>` local, pas
+  accessible en lien profond. Solution beaucoup plus simple que prévu au
+  plan : les 3 pages lisent maintenant `useSearchParams()` (`client`,
+  `list`) pour initialiser leur état existant, `Lists.tsx` construit le
+  lien `?client=...&list=...` — aucune nouvelle fonction de filtrage
+  nécessaire, 100% de code déjà là et déjà testé indirectement.
+- `lib/contactCompleteness.ts` (nouveau, testé) : même principe que
+  `companyCompleteness.ts`, sur poste/email/URL LinkedIn (seuls champs
+  disponibles dans `ContactListRow`).
+
+Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (399 tests,
++11), `pnpm typecheck`/`pnpm test` racine verts (12 packages), dev
+server + curl 200 sur `/lists` et les 3 pages avec `?client=&list=`.
+
+**Point de reprise** : enchaîner sur le Lot B — migration 031
+(`created_by`, `updated_at` + triggers, `deleted_at` + `pg_cron` pour la
+purge auto 30j, cf. plan) à présenter à Loïc avant `supabase db push`
+(règle CLAUDE.md §5), puis Import CSV + Corbeille côté frontend.

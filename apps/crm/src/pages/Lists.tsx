@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/ui/page-header";
@@ -17,6 +17,7 @@ import { useDealLists } from "../hooks/useDealLists";
 import { toCsv } from "../lib/csv";
 import { useToast } from "../components/ui/toast";
 import type { ListEntityType } from "../lib/listsOverview";
+import { filterListRows } from "../lib/listsFilters";
 
 const ENTITY_LABELS: Record<ListEntityType, string> = {
   contact: "Contacts",
@@ -54,6 +55,14 @@ export function ListsPage() {
   const { rows, loading, reload } = useListsOverview();
   const clients = useClients();
   const { toast } = useToast();
+
+  const [filterClientId, setFilterClientId] = useState("");
+  const [filterEntityType, setFilterEntityType] = useState<ListEntityType | "">("");
+  const [filterMode, setFilterMode] = useState<"static" | "dynamic" | "">("");
+  const filteredRows = useMemo(
+    () => filterListRows(rows, { clientId: filterClientId, entityType: filterEntityType, mode: filterMode }),
+    [rows, filterClientId, filterEntityType, filterMode],
+  );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newClientId, setNewClientId] = useState("");
@@ -107,12 +116,14 @@ export function ListsPage() {
   }
 
   function handleExport() {
-    const csv = toCsv(rows, [
+    const csv = toCsv(filteredRows, [
       { header: "Nom", value: (r) => r.name },
       { header: "Type", value: (r) => ENTITY_LABELS[r.entityType] },
       { header: "Mode", value: (r) => (r.mode === "dynamic" ? "Dynamique" : "Statique") },
+      { header: "Critères", value: (r) => (r.criteriaCount != null ? String(r.criteriaCount) : "") },
       { header: "Client", value: (r) => r.clientName },
       { header: "Membres", value: (r) => String(r.memberCount) },
+      { header: "Enrichis", value: (r) => (r.enrichmentRate != null ? `${r.enrichmentRate}%` : "") },
       { header: "Créée le", value: (r) => r.createdAt.slice(0, 10) },
     ]);
     downloadCsv(csv, `segments-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -140,6 +151,51 @@ export function ListsPage() {
         dynamiques. Les effectifs sont réels (comptage direct pour les statiques, évaluation des critères pour
         les dynamiques).
       </p>
+
+      <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
+          <select
+            value={filterClientId}
+            onChange={(e) => setFilterClientId(e.target.value)}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          >
+            <option value="">Tous</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Type</label>
+          <select
+            value={filterEntityType}
+            onChange={(e) => setFilterEntityType(e.target.value as ListEntityType | "")}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          >
+            <option value="">Tous</option>
+            {(Object.keys(ENTITY_LABELS) as ListEntityType[]).map((t) => (
+              <option key={t} value={t}>
+                {ENTITY_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Mode</label>
+          <select
+            value={filterMode}
+            onChange={(e) => setFilterMode(e.target.value as "static" | "dynamic" | "")}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          >
+            <option value="">Tous</option>
+            <option value="static">Statique</option>
+            <option value="dynamic">Dynamique</option>
+          </select>
+        </div>
+      </div>
 
       {createOpen && (
         <form onSubmit={handleCreateList} className="space-y-3 rounded-md border border-border p-3">
@@ -215,33 +271,46 @@ export function ListsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Mode</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead className="text-right">Membres</TableHead>
+                  <TableHead className="text-right">Enrichis</TableHead>
                   <TableHead>Créée le</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                    <TableCell>
-                      <Badge>{ENTITY_LABELS[row.entityType]}</Badge>
+                    <TableCell className="font-medium text-foreground">
+                      {row.name}
+                      <span className="mt-0.5 flex items-center gap-1.5">
+                        <Badge>{ENTITY_LABELS[row.entityType]}</Badge>
+                        {row.mode === "dynamic" && row.criteriaCount != null && (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {row.criteriaCount} critère{row.criteriaCount === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell>{row.mode === "dynamic" ? "Dynamique" : "Statique"}</TableCell>
                     <TableCell className="text-muted-foreground">{row.clientName}</TableCell>
                     <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {row.enrichmentRate != null ? `${row.enrichmentRate}%` : "—"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{row.createdAt.slice(0, 10)}</TableCell>
                     <TableCell>
-                      <Link to={ENTITY_ROUTES[row.entityType]} className="text-sm text-accent hover:underline">
+                      <Link
+                        to={`${ENTITY_ROUTES[row.entityType]}?client=${row.clientId}&list=${row.id}`}
+                        className="text-sm text-accent hover:underline"
+                      >
                         Voir
                       </Link>
                     </TableCell>
                   </TableRow>
                 ))}
-                {rows.length === 0 && (
+                {filteredRows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Aucune liste pour l'instant.

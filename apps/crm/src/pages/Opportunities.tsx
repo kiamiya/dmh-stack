@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { DndContext } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { useOpportunities } from "../hooks/useOpportunities";
@@ -47,9 +47,10 @@ export function OpportunitiesPage() {
 
   // Filtre/liste de la vue "Liste" — état indépendant de kanbanClientId
   // pour ne pas toucher au fonctionnement déjà validé de l'onglet Kanban.
-  const [listViewClientId, setListViewClientId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [listViewClientId, setListViewClientId] = useState(() => searchParams.get("client") ?? "");
   const { lists: dealLists, create: createDealList, remove: removeDealList, addDeals: addDealsToList, listMemberIds: listDealMemberIds } = useDealLists(listViewClientId);
-  const [listId, setListId] = useState("");
+  const [listId, setListId] = useState(() => searchParams.get("list") ?? "");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
   const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);

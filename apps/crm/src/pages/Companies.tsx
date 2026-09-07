@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useCompanies } from "../hooks/useCompanies";
@@ -39,10 +39,11 @@ export function CompaniesPage() {
   const clients = useClients();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
-  const [clientId, setClientId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
 
   const { lists, create: createList, remove: removeList, addCompanies: addCompaniesToList, listMemberIds } = useCompanyLists(clientId);
-  const [listId, setListId] = useState("");
+  const [listId, setListId] = useState(() => searchParams.get("list") ?? "");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
   const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
   const [newListOpen, setNewListOpen] = useState(false);

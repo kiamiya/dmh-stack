@@ -26,7 +26,7 @@ export function useListsOverview() {
   const [contactLists, setContactLists] = useState<ContactList[]>([]);
   const [companyLists, setCompanyLists] = useState<CompanyList[]>([]);
   const [opportunityLists, setOpportunityLists] = useState<OpportunityList[]>([]);
-  const [staticMemberCounts, setStaticMemberCounts] = useState<Map<string, number>>(new Map());
+  const [staticMemberIds, setStaticMemberIds] = useState<Map<string, string[]>>(new Map());
   const [listsLoading, setListsLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -40,22 +40,16 @@ export function useListsOverview() {
         setCompanyLists(coLists);
         setOpportunityLists(oLists);
 
-        const [contactCounts, companyCounts, opportunityCounts] = await Promise.all([
-          Promise.all(
-            cLists.filter((l) => l.rules === null).map((l) => listContactIdsInList(supabase, l.id).then((ids) => [l.id, ids.length] as const)),
-          ),
-          Promise.all(
-            coLists.filter((l) => l.rules === null).map((l) => listCompanyIdsInList(supabase, l.id).then((ids) => [l.id, ids.length] as const)),
-          ),
-          Promise.all(
-            oLists.filter((l) => l.rules === null).map((l) => listDealIdsInList(supabase, l.id).then((ids) => [l.id, ids.length] as const)),
-          ),
+        const [contactIds, companyIds, opportunityIds] = await Promise.all([
+          Promise.all(cLists.filter((l) => l.rules === null).map((l) => listContactIdsInList(supabase, l.id).then((ids) => [l.id, ids] as const))),
+          Promise.all(coLists.filter((l) => l.rules === null).map((l) => listCompanyIdsInList(supabase, l.id).then((ids) => [l.id, ids] as const))),
+          Promise.all(oLists.filter((l) => l.rules === null).map((l) => listDealIdsInList(supabase, l.id).then((ids) => [l.id, ids] as const))),
         ]);
 
         if (cancelled) return;
-        const counts = new Map<string, number>();
-        for (const [id, count] of [...contactCounts, ...companyCounts, ...opportunityCounts]) counts.set(id, count);
-        setStaticMemberCounts(counts);
+        const idsByList = new Map<string, string[]>();
+        for (const [id, ids] of [...contactIds, ...companyIds, ...opportunityIds]) idsByList.set(id, ids);
+        setStaticMemberIds(idsByList);
       })
       .catch(() => {
         if (!cancelled) {
@@ -82,8 +76,8 @@ export function useListsOverview() {
   }, [load]);
 
   const rows = useMemo(
-    () => computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberCounts),
-    [contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberCounts],
+    () => computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberIds),
+    [contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberIds],
   );
 
   return {
