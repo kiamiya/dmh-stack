@@ -9,40 +9,57 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 migration appliquée — reste ta validation manuelle
+## Statut : ⛔ bloqué — confirmation requise avant application de la migration 032
 
-**Segments (/lists) — Lot B (Propriétaire, Mise à jour, Import CSV,
-Corbeille)**, S32-segments. Code écrit et vert (`pnpm typecheck`/`pnpm
-test` racine, 12 packages, 428 tests côté CRM). Migration
-`supabase/migrations/031_lists_metadata.sql` **appliquée en production
-le 2026-09-08** (confirmée par toi) — vérifiée en lecture seule après
-coup : les 9 colonnes ont le bon type, `pg_cron` actif, le job
-`purge-old-deleted-lists` programmé et actif. 0 liste en production à
-ce jour : rien à régresser.
+**Segments (/lists) — Lot C (Dossiers)**, S32-segments. Code écrit et
+vert (`pnpm typecheck`/`pnpm test` racine, 12 packages, 454 tests côté
+CRM). Migration `supabase/migrations/032_list_folders.sql` crée une
+nouvelle table `list_folders` et ajoute `folder_id` sur les 3 tables de
+listes (déjà en production) — par la règle CLAUDE.md §5, je n'applique
+**pas** `supabase db push` sans ta confirmation explicite.
 
-Détail complet dans `PROGRESS.md`, section "2026-09-08 — S32-segments :
-migration 031 appliquée en production".
+### Ce que fait la migration
 
-### Protocole de test manuel (dans l'ordre)
+1. Nouvelle table `list_folders` (arbre à 2 niveaux, rattachée à un
+   client DMH — décision de cadrage prise avec toi), avec les mêmes 3
+   policies RLS que `contact_lists`.
+2. `folder_id` (nullable) ajouté sur `contact_lists`/`company_lists`/
+   `opportunity_lists` — supprimer un dossier ne supprime jamais les
+   listes qu'il contenait, juste les déclasse (`on delete set null`).
+
+Détail complet dans `PROGRESS.md`, section "2026-09-08 (suite) —
+S32-segments : Lot C (Dossiers)".
+
+### Étape 1 — confirmer l'application de la migration
+
+Dis-moi si je peux lancer `supabase db push` (ou fais-le toi-même). Rien
+ci-dessous n'est testable avant cette étape.
+
+### Étape 2 — protocole de test manuel (dans l'ordre)
 
 | # | Test | Résultat attendu |
 |---|---|---|
-| 1 | Ouvrir `/segments` (Segments), vérifier que les listes existantes s'affichent toujours normalement | Aucune liste ne disparaît (le filtre `deleted_at is null` ne cache que les nouvelles suppressions) |
-| 2 | Créer une liste, vérifier la colonne "Propriétaire" en base (`select created_by from contact_lists order by created_at desc limit 1`) | L'id correspond à ton compte staff |
-| 3 | Ajouter/retirer un membre d'une liste statique, vérifier `updated_at` en base | La date change, sans toucher au nom ni aux règles |
-| 4 | Cliquer "Supprimer" sur une liste → elle disparaît de la liste principale → cliquer "Corbeille" → elle y apparaît | Comportement soft-delete confirmé |
-| 5 | Cliquer "Restaurer" dans la Corbeille | La liste réapparaît dans le tableau principal |
-| 6 | "Importer un fichier" avec un petit CSV réel (contacts existants + 1-2 lignes volontairement non reconnues) | La liste créée contient les bons contacts, le toast indique le nombre de lignes non reconnues, aucun nouveau contact n'est créé |
+| 1 | Ouvrir `/segments`, sélectionner un client dans le filtre "Client DMH" | Une colonne "Dossiers" apparaît à gauche (vide au départ) |
+| 2 | Cliquer "+ Dossier", créer un dossier racine | Le dossier apparaît dans l'arbre |
+| 3 | Créer un sous-dossier (choisir le dossier créé comme parent) | Le sous-dossier apparaît indenté sous le dossier racine |
+| 4 | Dans le tableau, changer le "Dossier" d'une liste existante via le menu déroulant de la colonne | La liste apparaît quand on clique sur ce dossier dans l'arbre |
+| 5 | Cliquer sur le dossier racine (celui qui a le sous-dossier) | Les listes classées dans le sous-dossier apparaissent aussi (agrégation parent) |
+| 6 | Supprimer le dossier racine (bouton ×, confirmer) | Le sous-dossier disparaît aussi, mais la liste qui y était classée reste intacte (juste déclassée — vérifiable via la colonne "Dossier" qui repasse à "—") |
+| 7 | Créer une liste ou importer un CSV en choisissant un dossier dans le formulaire | La liste apparaît directement classée dans ce dossier |
 
 Comme pour tout le reste : pas de vérification visuelle en navigateur
 réel possible côté Claude — à valider par toi.
 
-## Rappel — test en attente sur un autre chantier
+## Rappel — tests en attente sur d'autres chantiers
 
-Le protocole de test de l'extension du moteur d'Automatisations
-(migration 030, branches Oui/Non + action "Enrichir") reste également en
-attente de ta validation — voir `PROGRESS.md`, section "S32-auto". Pas
-perdu, juste pas répété ici (ce fichier ne couvre que le test courant).
+- Automatisations (migration 030, branches Oui/Non + "Enrichir") — voir
+  `PROGRESS.md`, section "S32-auto".
+- Segments Lot B (migration 031, Propriétaire/Mise à jour/Import CSV/
+  Corbeille) — voir `PROGRESS.md`, section "S32-segments : migration
+  031 appliquée en production".
+
+Pas perdus, juste pas répétés ici (ce fichier ne couvre que le test
+courant).
 
 ## Outillage disponible pour ce chantier
 

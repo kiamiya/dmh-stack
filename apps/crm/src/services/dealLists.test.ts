@@ -7,6 +7,7 @@ import {
   listDealIdsInList,
   listDeletedOpportunityLists,
   listLists,
+  moveListToFolder,
   removeDealFromList,
   restoreOpportunityList,
 } from "./dealLists";
@@ -109,6 +110,24 @@ describe("restoreOpportunityList", () => {
   it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
     const client = makeStubClient({ data: null, error: null });
     await expect(restoreOpportunityList(client, "list-1")).resolves.toBeUndefined();
+  });
+});
+
+describe("moveListToFolder", () => {
+  it("met à jour folder_id avec l'id fourni", async () => {
+    const updateSpy = vi.fn(() => query);
+    const query = { eq: () => Promise.resolve({ data: null, error: null }), update: updateSpy };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await moveListToFolder(client, "list-1", "folder-1");
+    expect(updateSpy).toHaveBeenCalledWith({ folder_id: "folder-1" });
+  });
+
+  it("déclasse la liste (folder_id null) si aucun dossier n'est fourni", async () => {
+    const updateSpy = vi.fn(() => query);
+    const query = { eq: () => Promise.resolve({ data: null, error: null }), update: updateSpy };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await moveListToFolder(client, "list-1", null);
+    expect(updateSpy).toHaveBeenCalledWith({ folder_id: null });
   });
 });
 

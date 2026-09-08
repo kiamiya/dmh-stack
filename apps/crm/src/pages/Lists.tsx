@@ -14,18 +14,35 @@ import { useClients } from "../hooks/useClients";
 import { useContactLists } from "../hooks/useContactLists";
 import { useCompanyLists } from "../hooks/useCompanyLists";
 import { useDealLists } from "../hooks/useDealLists";
+import { useListFolders } from "../hooks/useListFolders";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
-import { deleteList as deleteContactList, listDeletedContactLists, restoreContactList } from "../services/contactLists";
-import { deleteList as deleteCompanyList, listDeletedCompanyLists, restoreCompanyList } from "../services/companyLists";
-import { deleteList as deleteOpportunityList, listDeletedOpportunityLists, restoreOpportunityList } from "../services/dealLists";
+import {
+  deleteList as deleteContactList,
+  listDeletedContactLists,
+  moveListToFolder as moveContactListToFolder,
+  restoreContactList,
+} from "../services/contactLists";
+import {
+  deleteList as deleteCompanyList,
+  listDeletedCompanyLists,
+  moveListToFolder as moveCompanyListToFolder,
+  restoreCompanyList,
+} from "../services/companyLists";
+import {
+  deleteList as deleteOpportunityList,
+  listDeletedOpportunityLists,
+  moveListToFolder as moveOpportunityListToFolder,
+  restoreOpportunityList,
+} from "../services/dealLists";
 import type { CompanyList, ContactList, OpportunityList } from "@dmh/types";
 import { ImportListDialog } from "../components/ImportListDialog";
 import { toCsv } from "../lib/csv";
 import { useToast } from "../components/ui/toast";
 import type { ListEntityType } from "../lib/listsOverview";
 import { filterListRows } from "../lib/listsFilters";
+import { buildFolderTree, listsUnderFolder } from "../lib/folderTree";
 
 const ENTITY_LABELS: Record<ListEntityType, string> = {
   contact: "Contacts",
@@ -71,10 +88,65 @@ export function ListsPage() {
   const [filterClientId, setFilterClientId] = useState("");
   const [filterEntityType, setFilterEntityType] = useState<ListEntityType | "">("");
   const [filterMode, setFilterMode] = useState<"static" | "dynamic" | "">("");
+  const [filterFolderId, setFilterFolderId] = useState("");
+
+  // Dossiers du client sélectionné dans le filtre — n'a de sens que pour un seul
+  // client à la fois (décision de cadrage : dossiers rattachés à un client, pas
+  // transversaux). L'arbre/le filtre par dossier ne s'affichent donc que quand
+  // filterClientId est renseigné.
+  const { folders, loading: foldersLoading, create: createFolder, remove: removeFolder } = useListFolders(filterClientId);
+  const folderTree = useMemo(() => buildFolderTree(folders), [folders]);
+  const folderIds = useMemo(() => (filterFolderId ? listsUnderFolder(folders, filterFolderId) : undefined), [folders, filterFolderId]);
+
   const filteredRows = useMemo(
-    () => filterListRows(rows, { clientId: filterClientId, entityType: filterEntityType, mode: filterMode }),
-    [rows, filterClientId, filterEntityType, filterMode],
+    () => filterListRows(rows, { clientId: filterClientId, entityType: filterEntityType, mode: filterMode, folderIds }),
+    [rows, filterClientId, filterEntityType, filterMode, folderIds],
   );
+
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderParentId, setNewFolderParentId] = useState("");
+
+  async function handleCreateFolder(e: FormEvent) {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+    try {
+      await createFolder({ clientId: filterClientId, name: newFolderName.trim(), parentId: newFolderParentId || null, createdBy });
+      toast(`Dossier "${newFolderName.trim()}" créé.`, "success");
+      setNewFolderName("");
+      setNewFolderParentId("");
+      setNewFolderOpen(false);
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  async function handleDeleteFolder(id: string, name: string) {
+    if (!window.confirm(`Supprimer le dossier "${name}" ? Les listes qu'il contient ne seront pas supprimées, juste déclassées.`)) return;
+    try {
+      await removeFolder(id);
+      if (filterFolderId === id) setFilterFolderId("");
+      toast(`Dossier "${name}" supprimé.`, "success");
+      await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  const MOVE_TO_FOLDER_BY_ENTITY: Record<ListEntityType, (id: string, folderId: string | null) => Promise<void>> = {
+    contact: (id, folderId) => moveContactListToFolder(supabase, id, folderId),
+    company: (id, folderId) => moveCompanyListToFolder(supabase, id, folderId),
+    opportunity: (id, folderId) => moveOpportunityListToFolder(supabase, id, folderId),
+  };
+
+  async function handleMoveToFolder(id: string, entityType: ListEntityType, folderId: string) {
+    try {
+      await MOVE_TO_FOLDER_BY_ENTITY[entityType](id, folderId || null);
+      await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
 
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -83,11 +155,13 @@ export function ListsPage() {
   const [newName, setNewName] = useState("");
   const [newMode, setNewMode] = useState<"static" | "dynamic">("static");
   const [newGroups, setNewGroups] = useState<RuleGroupDraft[]>(emptyGroups("contact"));
+  const [newFolderId, setNewFolderId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const contactLists = useContactLists(newClientId);
   const companyLists = useCompanyLists(newClientId);
   const dealLists = useDealLists(newClientId);
+  const { folders: newListFolders } = useListFolders(newClientId);
 
   function handleEntityTypeChange(entityType: ListEntityType) {
     setNewEntityType(entityType);
@@ -111,7 +185,7 @@ export function ListsPage() {
 
     setSubmitting(true);
     try {
-      const input = { clientId: newClientId, name: newName.trim(), rules, createdBy };
+      const input = { clientId: newClientId, name: newName.trim(), rules, createdBy, folderId: newFolderId || null };
       if (newEntityType === "contact") await contactLists.create(input);
       else if (newEntityType === "company") await companyLists.create(input);
       else await dealLists.create(input);
@@ -119,6 +193,7 @@ export function ListsPage() {
       toast(`Liste "${newName.trim()}" créée.`, "success");
       setNewName("");
       setNewGroups(emptyGroups(newEntityType));
+      setNewFolderId("");
       setCreateOpen(false);
       await reload();
     } catch (err) {
@@ -215,6 +290,7 @@ export function ListsPage() {
       { header: "Mode", value: (r) => (r.mode === "dynamic" ? "Dynamique" : "Statique") },
       { header: "Critères", value: (r) => (r.criteriaCount != null ? String(r.criteriaCount) : "") },
       { header: "Client", value: (r) => r.clientName },
+      { header: "Dossier", value: (r) => r.folderName ?? "" },
       { header: "Membres", value: (r) => String(r.memberCount) },
       { header: "Enrichis", value: (r) => (r.enrichmentRate != null ? `${r.enrichmentRate}%` : "") },
       { header: "Créée le", value: (r) => r.createdAt.slice(0, 10) },
@@ -223,7 +299,7 @@ export function ListsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-6">
       <PageHeader
         kicker="Prospection · toutes les listes"
         title="Segments"
@@ -251,50 +327,155 @@ export function ListsPage() {
         les dynamiques).
       </p>
 
-      <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
-          <select
-            value={filterClientId}
-            onChange={(e) => setFilterClientId(e.target.value)}
-            className="rounded-md border border-border px-2 py-1 text-sm"
-          >
-            <option value="">Tous</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Type</label>
-          <select
-            value={filterEntityType}
-            onChange={(e) => setFilterEntityType(e.target.value as ListEntityType | "")}
-            className="rounded-md border border-border px-2 py-1 text-sm"
-          >
-            <option value="">Tous</option>
-            {(Object.keys(ENTITY_LABELS) as ListEntityType[]).map((t) => (
-              <option key={t} value={t}>
-                {ENTITY_LABELS[t]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Mode</label>
-          <select
-            value={filterMode}
-            onChange={(e) => setFilterMode(e.target.value as "static" | "dynamic" | "")}
-            className="rounded-md border border-border px-2 py-1 text-sm"
-          >
-            <option value="">Tous</option>
-            <option value="static">Statique</option>
-            <option value="dynamic">Dynamique</option>
-          </select>
-        </div>
-      </div>
+      <div className="flex items-start gap-4">
+        {filterClientId && (
+          <aside className="w-56 shrink-0">
+            <Card>
+              <CardContent className="space-y-2 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Dossiers</span>
+                  <button
+                    type="button"
+                    onClick={() => setNewFolderOpen((v) => !v)}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    + Dossier
+                  </button>
+                </div>
+
+                {newFolderOpen && (
+                  <form onSubmit={handleCreateFolder} className="space-y-1.5 border-t border-border pt-2">
+                    <input
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      placeholder="Nom du dossier"
+                      className="w-full rounded-md border border-border px-2 py-1 text-xs"
+                    />
+                    <select
+                      value={newFolderParentId}
+                      onChange={(e) => setNewFolderParentId(e.target.value)}
+                      className="w-full rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                      <option value="">Dossier racine</option>
+                      {folders
+                        .filter((f) => f.parent_id === null)
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            Sous-dossier de "{f.name}"
+                          </option>
+                        ))}
+                    </select>
+                    <Button type="submit" size="sm" disabled={!newFolderName.trim()}>
+                      Créer
+                    </Button>
+                  </form>
+                )}
+
+                {foldersLoading ? (
+                  <Skeleton className="h-8" />
+                ) : (
+                  <div className="space-y-0.5 border-t border-border pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilterFolderId("")}
+                      className={`block w-full rounded px-1.5 py-1 text-left text-xs ${filterFolderId === "" ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                    >
+                      Tous les dossiers
+                    </button>
+                    {folderTree.map((node) => (
+                      <div key={node.folder.id}>
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => setFilterFolderId(node.folder.id)}
+                            className={`flex-1 rounded px-1.5 py-1 text-left text-xs ${filterFolderId === node.folder.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                          >
+                            {node.folder.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFolder(node.folder.id, node.folder.name)}
+                            className="px-1 text-xs text-muted-foreground hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        {node.children.map((child) => (
+                          <div key={child.id} className="flex items-center pl-3">
+                            <button
+                              type="button"
+                              onClick={() => setFilterFolderId(child.id)}
+                              className={`flex-1 rounded px-1.5 py-1 text-left text-xs ${filterFolderId === child.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                            >
+                              {child.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFolder(child.id, child.name)}
+                              className="px-1 text-xs text-muted-foreground hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    {folders.length === 0 && <p className="px-1.5 text-xs text-muted-foreground">Aucun dossier pour ce client.</p>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </aside>
+        )}
+
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
+              <select
+                value={filterClientId}
+                onChange={(e) => {
+                  setFilterClientId(e.target.value);
+                  setFilterFolderId("");
+                }}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Type</label>
+              <select
+                value={filterEntityType}
+                onChange={(e) => setFilterEntityType(e.target.value as ListEntityType | "")}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous</option>
+                {(Object.keys(ENTITY_LABELS) as ListEntityType[]).map((t) => (
+                  <option key={t} value={t}>
+                    {ENTITY_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Mode</label>
+              <select
+                value={filterMode}
+                onChange={(e) => setFilterMode(e.target.value as "static" | "dynamic" | "")}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous</option>
+                <option value="static">Statique</option>
+                <option value="dynamic">Dynamique</option>
+              </select>
+            </div>
+          </div>
 
       {trashOpen && (
         <Card>
@@ -333,7 +514,10 @@ export function ListsPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <select
               value={newClientId}
-              onChange={(e) => setNewClientId(e.target.value)}
+              onChange={(e) => {
+                setNewClientId(e.target.value);
+                setNewFolderId("");
+              }}
               className="rounded-md border border-border px-3 py-2 text-sm"
             >
               <option value="">Client DMH…</option>
@@ -360,6 +544,20 @@ export function ListsPage() {
               placeholder="Nom de la liste"
               className="rounded-md border border-border px-3 py-2 text-sm sm:col-span-2"
             />
+            {newClientId && newListFolders.length > 0 && (
+              <select
+                value={newFolderId}
+                onChange={(e) => setNewFolderId(e.target.value)}
+                className="rounded-md border border-border px-3 py-2 text-sm sm:col-span-2"
+              >
+                <option value="">Dossier (optionnel)</option>
+                {newListFolders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.parent_id ? `— ${f.name}` : f.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="flex w-fit gap-1 rounded-md border border-border p-0.5">
@@ -404,6 +602,7 @@ export function ListsPage() {
                   <TableHead>Nom</TableHead>
                   <TableHead>Mode</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Dossier</TableHead>
                   <TableHead className="text-right">Membres</TableHead>
                   <TableHead className="text-right">Enrichis</TableHead>
                   <TableHead>Créée le</TableHead>
@@ -426,6 +625,24 @@ export function ListsPage() {
                     </TableCell>
                     <TableCell>{row.mode === "dynamic" ? "Dynamique" : "Statique"}</TableCell>
                     <TableCell className="text-muted-foreground">{row.clientName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {filterClientId ? (
+                        <select
+                          value={row.folderId ?? ""}
+                          onChange={(e) => handleMoveToFolder(row.id, row.entityType, e.target.value)}
+                          className="rounded-md border border-border bg-transparent px-1.5 py-1 text-xs"
+                        >
+                          <option value="">—</option>
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.parent_id ? `— ${f.name}` : f.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        (row.folderName ?? "—")
+                      )}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {row.enrichmentRate != null ? `${row.enrichmentRate}%` : "—"}
@@ -452,7 +669,7 @@ export function ListsPage() {
                 ))}
                 {filteredRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Aucune liste pour l'instant.
                     </TableCell>
                   </TableRow>
@@ -462,6 +679,8 @@ export function ListsPage() {
           </CardContent>
         </Card>
       )}
+        </div>
+      </div>
 
       <ImportListDialog open={importOpen} onOpenChange={setImportOpen} onImported={reload} />
     </div>

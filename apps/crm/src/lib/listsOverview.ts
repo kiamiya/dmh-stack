@@ -21,6 +21,9 @@ export interface ListOverviewRow {
   enrichmentRate: number | null;
   /** Date de création réelle (`created_at`) — pas de vraie date de "dernière modification" en base (`*_lists` n'a pas d'`updated_at`), donc jamais présentée comme telle. */
   createdAt: string;
+  /** Dossier réel (S32-segments Lot C) — null si la liste n'est classée dans aucun dossier. */
+  folderId: string | null;
+  folderName: string | null;
 }
 
 interface ListLike {
@@ -29,6 +32,7 @@ interface ListLike {
   name: string;
   rules: RuleGroup[] | null;
   created_at: string;
+  folder_id: string | null;
 }
 
 interface EntityLike {
@@ -51,6 +55,7 @@ function buildRows<E extends EntityLike>(
   entityType: ListEntityType,
   entities: E[],
   clients: Array<{ id: string; name: string }>,
+  folders: Array<{ id: string; name: string }>,
   staticMemberIds: Map<string, string[]>,
   completeness: ((entity: E) => number) | null,
 ): ListOverviewRow[] {
@@ -82,6 +87,8 @@ function buildRows<E extends EntityLike>(
       criteriaCount: countCriteria(list.rules),
       enrichmentRate: completeness ? average(matched.map(completeness)) : null,
       createdAt: list.created_at,
+      folderId: list.folder_id,
+      folderName: list.folder_id ? (folders.find((f) => f.id === list.folder_id)?.name ?? null) : null,
     };
   });
 }
@@ -92,24 +99,25 @@ function buildRows<E extends EntityLike>(
  * tous les cas : les listes dynamiques sont évaluées contre le jeu
  * d'entités déjà chargé (`matchesRuleGroups`, même logique que
  * Contacts.tsx/Opportunities.tsx) ; les statiques utilisent les vrais
- * ids de membres (jointure `*_list_members`). % d'enrichissement et
- * nombre de critères également réels (S32-segments) — jamais un nombre
- * approximatif ou une colonne sans donnée réelle derrière (toujours pas
- * de "Propriétaire"/"Origine" ici, cf. migration 031 pour Propriétaire).
+ * ids de membres (jointure `*_list_members`). % d'enrichissement,
+ * nombre de critères et dossier également réels (S32-segments) —
+ * jamais un nombre approximatif ou une colonne sans donnée réelle
+ * derrière (toujours pas de "Origine" ici).
  */
 export function computeListOverviewRows(
   contactLists: ContactList[],
   companyLists: CompanyList[],
   opportunityLists: OpportunityList[],
   clients: Array<{ id: string; name: string }>,
+  folders: Array<{ id: string; name: string }>,
   contacts: Array<EntityLike & ContactCompletenessFields>,
   companies: Array<EntityLike & CompanyCompletenessFields>,
   opportunities: EntityLike[],
   staticMemberIds: Map<string, string[]>,
 ): ListOverviewRow[] {
   return [
-    ...buildRows(contactLists, "contact", contacts, clients, staticMemberIds, computeContactCompleteness),
-    ...buildRows(companyLists, "company", companies, clients, staticMemberIds, computeCompanyCompleteness),
-    ...buildRows(opportunityLists, "opportunity", opportunities, clients, staticMemberIds, null),
+    ...buildRows(contactLists, "contact", contacts, clients, folders, staticMemberIds, computeContactCompleteness),
+    ...buildRows(companyLists, "company", companies, clients, folders, staticMemberIds, computeCompanyCompleteness),
+    ...buildRows(opportunityLists, "opportunity", opportunities, clients, folders, staticMemberIds, null),
   ];
 }

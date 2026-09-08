@@ -377,6 +377,7 @@ export interface ContactList {
   created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
+  folder_id: string | null;
 }
 
 /** Même principe que ContactList, pour les entreprises. */
@@ -389,6 +390,7 @@ export interface CompanyList {
   created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
+  folder_id: string | null;
 }
 
 /** Même principe que ContactList, pour les opportunités (table `deals`). */
@@ -401,4 +403,15 @@ export interface OpportunityList {
   created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
+  folder_id: string | null;
+}
+
+/** Dossier pour organiser les listes (Contacts/Entreprises/Opportunités) d'un client — arbre à 2 niveaux (S32-segments Lot C). Rattaché à un seul client, comme les listes elles-mêmes (pas de dossier transversal). */
+export interface ListFolder {
+  id: string;
+  client_id: string;
+  parent_id: string | null;
+  name: string;
+  created_by: string | null;
+  created_at: string;
 }

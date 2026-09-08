@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CompanyList, ContactList, OpportunityList } from "@dmh/types";
+import type { CompanyList, ContactList, ListFolder, OpportunityList } from "@dmh/types";
 import { supabase } from "../lib/supabase";
 import { useClients } from "./useClients";
 import { useContacts } from "./useContacts";
@@ -8,6 +8,7 @@ import { useOpportunities } from "./useOpportunities";
 import { listAllContactLists, listContactIdsInList } from "../services/contactLists";
 import { listAllCompanyLists, listCompanyIdsInList } from "../services/companyLists";
 import { listAllOpportunityLists, listDealIdsInList } from "../services/dealLists";
+import { listAllListFolders } from "../services/listFolders";
 import { computeListOverviewRows } from "../lib/listsOverview";
 
 /**
@@ -26,6 +27,7 @@ export function useListsOverview() {
   const [contactLists, setContactLists] = useState<ContactList[]>([]);
   const [companyLists, setCompanyLists] = useState<CompanyList[]>([]);
   const [opportunityLists, setOpportunityLists] = useState<OpportunityList[]>([]);
+  const [folders, setFolders] = useState<ListFolder[]>([]);
   const [staticMemberIds, setStaticMemberIds] = useState<Map<string, string[]>>(new Map());
   const [listsLoading, setListsLoading] = useState(true);
 
@@ -33,12 +35,18 @@ export function useListsOverview() {
     let cancelled = false;
     setListsLoading(true);
 
-    const promise = Promise.all([listAllContactLists(supabase), listAllCompanyLists(supabase), listAllOpportunityLists(supabase)])
-      .then(async ([cLists, coLists, oLists]) => {
+    const promise = Promise.all([
+      listAllContactLists(supabase),
+      listAllCompanyLists(supabase),
+      listAllOpportunityLists(supabase),
+      listAllListFolders(supabase),
+    ])
+      .then(async ([cLists, coLists, oLists, allFolders]) => {
         if (cancelled) return;
         setContactLists(cLists);
         setCompanyLists(coLists);
         setOpportunityLists(oLists);
+        setFolders(allFolders);
 
         const [contactIds, companyIds, opportunityIds] = await Promise.all([
           Promise.all(cLists.filter((l) => l.rules === null).map((l) => listContactIdsInList(supabase, l.id).then((ids) => [l.id, ids] as const))),
@@ -56,6 +64,7 @@ export function useListsOverview() {
           setContactLists([]);
           setCompanyLists([]);
           setOpportunityLists([]);
+          setFolders([]);
         }
       })
       .finally(() => {
@@ -76,8 +85,9 @@ export function useListsOverview() {
   }, [load]);
 
   const rows = useMemo(
-    () => computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberIds),
-    [contactLists, companyLists, opportunityLists, clients, contacts, companies, deals, staticMemberIds],
+    () =>
+      computeListOverviewRows(contactLists, companyLists, opportunityLists, clients, folders, contacts, companies, deals, staticMemberIds),
+    [contactLists, companyLists, opportunityLists, clients, folders, contacts, companies, deals, staticMemberIds],
   );
 
   return {

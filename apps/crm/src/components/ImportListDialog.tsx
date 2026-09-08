@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { useClients } from "../hooks/useClients";
 import { useContacts } from "../hooks/useContacts";
 import { useCompanies } from "../hooks/useCompanies";
+import { useListFolders } from "../hooks/useListFolders";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
@@ -44,12 +45,14 @@ export function ImportListDialog({ open, onOpenChange, onImported }: ImportListD
   const [entityType, setEntityType] = useState<ImportEntityType>("contact");
   const [companyMatchField, setCompanyMatchField] = useState<CompanyMatchField>("siren");
   const [name, setName] = useState("");
+  const [folderId, setFolderId] = useState("");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<Array<Record<string, string>>>([]);
   const [column, setColumn] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const { folders } = useListFolders(clientId);
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   function reset() {
@@ -57,6 +60,7 @@ export function ImportListDialog({ open, onOpenChange, onImported }: ImportListD
     setEntityType("contact");
     setCompanyMatchField("siren");
     setName("");
+    setFolderId("");
     setFileName("");
     setRows([]);
     setColumn("");
@@ -106,10 +110,10 @@ export function ImportListDialog({ open, onOpenChange, onImported }: ImportListD
     setError(null);
     try {
       if (entityType === "contact") {
-        const { id } = await createContactList(supabase, { clientId, name: name.trim(), createdBy });
+        const { id } = await createContactList(supabase, { clientId, name: name.trim(), createdBy, folderId: folderId || null });
         await addContactsToList(supabase, clientId, id, matchedIds);
       } else {
-        const { id } = await createCompanyList(supabase, { clientId, name: name.trim(), createdBy });
+        const { id } = await createCompanyList(supabase, { clientId, name: name.trim(), createdBy, folderId: folderId || null });
         await addCompaniesToList(supabase, clientId, id, matchedIds);
       }
 
@@ -202,6 +206,26 @@ export function ImportListDialog({ open, onOpenChange, onImported }: ImportListD
               className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
           </div>
+          {clientId && folders.length > 0 && (
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-folder">
+                Dossier (optionnel)
+              </label>
+              <select
+                id="import-folder"
+                value={folderId}
+                onChange={(e) => setFolderId(e.target.value)}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <option value="">Aucun</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.parent_id ? `— ${f.name}` : f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-file">
               Fichier CSV

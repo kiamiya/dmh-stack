@@ -96,7 +96,7 @@ Dernière mise à jour : 2026-09-04
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
-| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B faits, migration 031 appliquée en production (confirmée par Loïc le 2026-09-08) — reste la validation manuelle (voir TESTING.md) ; Lot C (Dossiers) reporté |
+| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B en production (validation manuelle en attente, voir TESTING.md) ; Lot C (Dossiers) code+tests verts, migration 032 écrite mais **non appliquée** (confirmation explicite de Loïc requise) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1429,3 +1429,58 @@ test manuel en 6 étapes (non-régression, Propriétaire réel, Mise à jour
 sur changement de membres, Supprimer→Corbeille, Restaurer, Import CSV
 réel) à dérouler par Loïc avant de considérer S32-segments Lot B
 terminé.
+
+### 2026-09-08 (suite) — S32-segments : Lot C (Dossiers)
+
+Après validation du Lot B, Loïc a dit "je ferais les tests plus tard,
+passe à la suite" — question posée pour clarifier ce que "la suite"
+signifiait (le reste du roadmap S1-S32 étant soit fait, soit bloqué
+business) : Loïc a confirmé vouloir reprendre le Lot C (Dossiers),
+explicitement reporté la veille. Cadrage posé avant d'exécuter :
+dossiers **rattachés à un client DMH** (comme les listes elles-mêmes),
+pas de dossier transversal multi-clients.
+
+**Migration `032_list_folders.sql` écrite** (pas encore appliquée) :
+- Nouvelle table `list_folders(id, client_id, parent_id, name,
+  created_by, created_at)` — même pattern RLS à 3 policies que
+  `contact_lists` (`client_isolation`/`staff_full_access`/
+  `client_user_access`). Arbre à 2 niveaux (`parent_id` null = racine).
+- `folder_id` (nullable, `on delete set null`) ajouté sur les 3 tables
+  `*_lists` — supprimer un dossier ne supprime jamais les listes qu'il
+  contenait, juste les déclasse.
+
+**Frontend** :
+- `packages/types` : nouveau `ListFolder`, `folder_id` ajouté aux 3
+  types de liste.
+- Nouveau service `listFolders.ts` + hook `useListFolders.ts` (même
+  forme que `contactLists.ts`/`useContactLists.ts`).
+- `lib/folderTree.ts` (nouveau, testé) : `buildFolderTree` (arbre à 2
+  niveaux pour l'affichage), `listsUnderFolder` (dossier sélectionné +
+  ses enfants directs, pour que sélectionner un dossier parent
+  agrège aussi les listes de ses sous-dossiers, comme le mockup).
+- `lib/listsOverview.ts` : `ListOverviewRow` gagne `folderId`/
+  `folderName`, résolus réellement (même principe que `clientName`).
+- `lib/listsFilters.ts` : `ListsFilters` gagne `folderIds`.
+- Les 3 services `*Lists.ts` gagnent `folder_id` en select/insert et
+  une fonction `moveListToFolder` (remplace le glisser-déposer du
+  mockup — non câblé même dans le mockup source — par un `<select>`
+  par ligne, aussi fonctionnel mais honnête).
+- `Lists.tsx` : le layout passe à 2 colonnes **uniquement quand un seul
+  client est sélectionné** dans le filtre (les dossiers n'ont de sens
+  que pour un client précis) — colonne de gauche = arbre de dossiers
+  (création, sélection = filtre, suppression avec confirmation
+  explicite "les listes seront déclassées, pas supprimées"). Formulaire
+  de création et `ImportListDialog.tsx` gagnent un select "Dossier
+  (optionnel)" une fois le client choisi.
+
+Vérifié : `pnpm --filter @dmh/crm typecheck`/`test` verts (454 tests,
++26 sur ce lot), `pnpm typecheck`/`pnpm test` racine verts (12
+packages), dev server + curl 200 sur `/lists`.
+
+**Point de reprise** : migration 032 écrite mais **non appliquée** —
+attendre la confirmation explicite de Loïc avant `supabase db push`
+(règle CLAUDE.md §5). Une fois appliquée : vérifier en lecture seule
+(table + colonnes + policies), puis test manuel (créer un dossier, y
+classer une liste, filtrer dessus, créer un sous-dossier, vérifier
+l'agrégation parent, supprimer un dossier et confirmer que ses listes
+sont déclassées et non supprimées) — voir `TESTING.md`.

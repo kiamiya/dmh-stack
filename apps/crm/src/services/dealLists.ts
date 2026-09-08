@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityList, RuleGroup } from "@dmh/types";
 
-const LIST_SELECT = "id, client_id, name, rules, created_at, created_by, updated_at, deleted_at";
+const LIST_SELECT = "id, client_id, name, rules, created_at, created_by, updated_at, deleted_at, folder_id";
 
 export async function listLists(client: SupabaseClient, clientId: string): Promise<OpportunityList[]> {
   const { data, error } = await client
@@ -39,16 +39,30 @@ export interface OpportunityListInsert {
   rules?: RuleGroup[] | null;
   /** Id staff_members du créateur, ou null (compte client, cf. AddTaskDialog.tsx pour le même pattern sur tasks.created_by) — jamais fabriqué ici. */
   createdBy?: string | null;
+  /** Dossier (S32-segments Lot C) — optionnel, non fourni ou null = liste non classée. */
+  folderId?: string | null;
 }
 
 export async function createList(client: SupabaseClient, input: OpportunityListInsert): Promise<{ id: string }> {
   const { data, error } = await client
     .from("opportunity_lists")
-    .insert({ client_id: input.clientId, name: input.name, rules: input.rules ?? null, created_by: input.createdBy ?? null })
+    .insert({
+      client_id: input.clientId,
+      name: input.name,
+      rules: input.rules ?? null,
+      created_by: input.createdBy ?? null,
+      folder_id: input.folderId ?? null,
+    })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
   return data as { id: string };
+}
+
+/** Déplace une liste vers un dossier (ou la déclasse si `folderId` est null) — remplace le glisser-déposer du mockup, non câblé même dans le mockup source. */
+export async function moveListToFolder(client: SupabaseClient, id: string, folderId: string | null): Promise<void> {
+  const { error } = await client.from("opportunity_lists").update({ folder_id: folderId }).eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 /** Suppression douce (Corbeille) — remplace le hard delete d'origine (migration 031). */
