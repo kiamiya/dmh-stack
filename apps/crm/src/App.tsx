@@ -20,6 +20,7 @@ import { IntegrationsPage } from "./pages/Integrations";
 import { EnrichmentMappingPage } from "./pages/EnrichmentMapping";
 import { CampaignsPage } from "./pages/Campaigns";
 import { ListsPage } from "./pages/Lists";
+import { HelpPage } from "./pages/Help";
 import { PublicBookingPage } from "./pages/PublicBooking";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Header } from "./components/Header";
@@ -129,6 +130,7 @@ export default function App() {
           <Route path="/settings/calendar" element={<CalendarSettingsPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/enrichment-mapping" element={<EnrichmentMappingPage />} />
+          <Route path="/settings/help" element={<HelpPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
         </Route>
       </Routes>

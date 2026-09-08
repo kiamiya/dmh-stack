@@ -60,6 +60,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { to: "/settings/custom-fields", label: "Réglages" },
       { to: "/integrations", label: "Intégrations API" },
       { to: "/enrichment-mapping", label: "Mapping enrichissement" },
+      { to: "/settings/help", label: "Aide" },
     ],
   },
 ];

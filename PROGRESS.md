@@ -1533,3 +1533,43 @@ tests, changement de configuration pur donc pas de nouveau test
 unitaire pertinent), dev server relancé + curl 200 sur `/pipeline` et
 `/opportunities`. Pas de vérification visuelle en navigateur réel
 possible côté Claude — à valider par Loïc.
+
+### 2026-09-08 (suite) — nouvelle page "Aide" (Données & réglages)
+
+Demande de Loïc : une page expliquant comment se servir du CRM, le
+remplir, et comment fonctionnent les API intégrées. Recherche faite
+avant rédaction (relecture de `README.md`, `enrichmentCascade.ts`,
+`Integrations.tsx`/`EnrichmentMapping.tsx`/`Campaigns.tsx`/
+`CalendarSettings.tsx`/`CustomFieldSettings.tsx`, grep sur les appels
+aux Edge Functions depuis l'UI) pour ne décrire que ce qui existe
+réellement — un principe explicite du contenu écrit : "si une
+fonctionnalité n'existe pas encore (ex. un bouton Enrichir cliquable),
+c'est dit explicitement plutôt que laissé de côté."
+
+**Découverte notable en écrivant la page** : aucune Edge Function
+d'enrichissement/génération/scoring n'est aujourd'hui déclenchable
+depuis un bouton du CRM sur une fiche existante — seuls l'import
+Pharow (traité par un développeur) et une règle d'Automatisation
+"Enrichir" sur les nouveaux prospects le font. Rendu explicite dans la
+page plutôt que tu déduises un flux qui n'existe pas en testant.
+
+`Help.tsx` (nouveau, route `/settings/help`, entrée "Aide" ajoutée en
+dernier dans le groupe "Données & réglages" de `Sidebar.tsx`) : page de
+contenu statique (pas de logique testable), sections Navigation/
+Remplir la base (Entreprises, Contacts, Prospects, pipeline,
+Opportunités, Tâches, Segments/Dossiers)/Automatiser/Suivre
+l'activité/Mon calendrier/Réglages/Intégrations API (détail par
+fournisseur : Pappers, Dropcontact, Claude, Smartlead, Lemlist,
+Google/Outlook).
+
+**Écart assumé par rapport à la demande précédente** ("utiliser tout
+l'espace") : cette page garde un `max-w-4xl` — du texte de
+documentation en pleine largeur nuit à la lisibilité (lignes trop
+longues), contrairement aux pages de données/tableaux. Signalé
+explicitement à Loïc, pas décidé silencieusement.
+
+Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 454
+tests — page de contenu statique, rien à tester unitairement), dev
+server + curl 200 sur `/settings/help`. Pas de vérification visuelle
+en navigateur réel possible côté Claude — à valider par Loïc (contenu
+et mise en page).
