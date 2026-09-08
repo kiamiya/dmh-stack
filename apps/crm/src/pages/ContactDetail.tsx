@@ -158,7 +158,7 @@ export function ContactDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <Link to="/contacts" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux contacts
       </Link>

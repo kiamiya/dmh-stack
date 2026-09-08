@@ -16,7 +16,7 @@ export function IntegrationsPage() {
   const { integrations, loading, error } = useIntegrations();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · fournisseurs" title="Intégrations" />
 
       <p className="text-sm text-muted-foreground">

@@ -13,7 +13,7 @@ export function EnrichmentMappingPage() {
   const toEnrichCount = prospects.filter((p) => p.status === "to_enrich").length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · pipeline" title="Mapping enrichissement" />
 
       <p className="text-sm text-muted-foreground">

@@ -13,7 +13,7 @@ export function ProspectDetailPage() {
   if (!id) return null;
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="p-6">
       <ProspectDetailContent
         id={id}
         headerSlot={

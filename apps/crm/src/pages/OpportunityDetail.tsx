@@ -104,7 +104,7 @@ export function OpportunityDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <Link to="/opportunities" className="text-sm text-muted-foreground hover:underline">
         ← Retour aux opportunités
       </Link>

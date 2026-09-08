@@ -1484,3 +1484,26 @@ attendre la confirmation explicite de Loïc avant `supabase db push`
 classer une liste, filtrer dessus, créer un sous-dossier, vérifier
 l'agrégation parent, supprimer un dossier et confirmer que ses listes
 sont déclassées et non supprimées) — voir `TESTING.md`.
+
+### 2026-09-08 (suite) — pleine largeur sur toutes les pages du CRM
+
+Retour de Loïc : "toutes tes pages sont centrées, peux tu utiliser tout
+l'espace des pages ?". Retiré `mx-auto max-w-*` du conteneur racine des
+17 pages internes de `apps/crm` (Dashboard, Reporting, Contacts,
+Companies, Opportunities, Tasks, Lists, Automations, Campaigns,
+Integrations, EnrichmentMapping, CalendarSettings,
+CustomFieldSettings, ContactDetail, CompanyDetail, OpportunityDetail,
+ProspectDetail/ProspectsList) — gardent leur `p-6`/`space-y-*`, juste
+plus de contrainte de largeur.
+
+**Exclus délibérément** (pages publiques/non authentifiées, un
+formulaire centré reste le bon choix visuel) : `Login.tsx` (déjà
+`min-h-screen items-center justify-center`) et `PublicBooking.tsx`
+(prise de RDV client externe, `max-w-md`/`max-w-lg`). `Pipeline.tsx`
+n'avait déjà aucune contrainte de largeur — rien à faire.
+
+Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 454
+tests côté CRM, changement CSS pur donc aucune régression de test
+attendue ni constatée), dev server + curl 200 sur les 13 routes
+principales. Pas de vérification visuelle en navigateur réel possible
+côté Claude — à valider par Loïc.

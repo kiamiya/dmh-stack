@@ -67,7 +67,7 @@ export function CalendarSettingsPage() {
   if (loading || !staffId) return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · RDV" title="Mon calendrier" />
 
       {hasAnyConnection && (

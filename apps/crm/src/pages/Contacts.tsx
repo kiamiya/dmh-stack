@@ -162,7 +162,7 @@ export function ContactsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-3 p-6">
+    <div className="space-y-3 p-6">
       <PageHeader
         kicker="Prospection · base de contacts"
         title="Contacts"

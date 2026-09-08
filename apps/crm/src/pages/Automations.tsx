@@ -236,7 +236,7 @@ export function AutomationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Marketing · règles automatiques" title="Automatisations" />
 
       <div>

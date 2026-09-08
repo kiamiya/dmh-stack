@@ -167,7 +167,7 @@ export function CompaniesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-3 p-6">
+    <div className="space-y-3 p-6">
       <PageHeader
         kicker="Prospection · base d'entreprises"
         title="Entreprises"

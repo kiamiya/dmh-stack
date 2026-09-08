@@ -111,7 +111,7 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Skeleton className="h-64" />
@@ -122,7 +122,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Pilotage · vue d'ensemble" title="Dashboard" />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

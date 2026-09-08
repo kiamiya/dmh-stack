@@ -278,7 +278,7 @@ export function ProspectsListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3 p-6">
+    <div className="space-y-3 p-6">
       <PageHeader
         kicker="Prospection · pipeline d'enrichissement"
         title="Prospects"

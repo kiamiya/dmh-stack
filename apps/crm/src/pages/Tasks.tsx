@@ -37,7 +37,7 @@ export function TasksPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-3 p-6">
+    <div className="space-y-3 p-6">
       <PageHeader
         kicker="Prospection · suivi des relances"
         title="Tâches"

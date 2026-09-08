@@ -11,7 +11,7 @@ export function CampaignsPage() {
   const campaigns = useMemo(() => computeCampaignStats(interactions), [interactions]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Marketing · campagnes LinkedIn" title="Campagnes" />
 
       <p className="text-sm text-muted-foreground">

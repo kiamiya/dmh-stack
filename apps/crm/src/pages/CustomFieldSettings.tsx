@@ -77,7 +77,7 @@ export function CustomFieldSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · propriétés" title="Champs personnalisés" />
 
       <div className="flex gap-1 border-b border-border">
