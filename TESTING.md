@@ -9,33 +9,21 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ⛔ bloqué — confirmation requise avant application de la migration 031
+## Statut : 🔄 migration appliquée — reste ta validation manuelle
 
 **Segments (/lists) — Lot B (Propriétaire, Mise à jour, Import CSV,
 Corbeille)**, S32-segments. Code écrit et vert (`pnpm typecheck`/`pnpm
 test` racine, 12 packages, 428 tests côté CRM). Migration
-`supabase/migrations/031_lists_metadata.sql` ajoute des colonnes sur
-`contact_lists`/`company_lists`/`opportunity_lists` (déjà en production)
-et active `pg_cron` — par la règle CLAUDE.md §5, je n'applique **pas**
-`supabase db push` sans ta confirmation explicite.
+`supabase/migrations/031_lists_metadata.sql` **appliquée en production
+le 2026-09-08** (confirmée par toi) — vérifiée en lecture seule après
+coup : les 9 colonnes ont le bon type, `pg_cron` actif, le job
+`purge-old-deleted-lists` programmé et actif. 0 liste en production à
+ce jour : rien à régresser.
 
-### Ce que fait la migration
+Détail complet dans `PROGRESS.md`, section "2026-09-08 — S32-segments :
+migration 031 appliquée en production".
 
-1. `created_by`, `updated_at` (+ triggers), `deleted_at` sur les 3 tables
-   de listes.
-2. Active `pg_cron` (vérifié absent avant cette migration) et programme
-   un job quotidien (3h du matin) qui supprime définitivement les listes
-   dans la Corbeille depuis plus de 30 jours.
-
-Détail complet dans `PROGRESS.md`, section "2026-09-07 (suite) —
-S32-segments : Lot B".
-
-### Étape 1 — confirmer l'application de la migration
-
-Dis-moi si je peux lancer `supabase db push` (ou fais-le toi-même). Rien
-ci-dessous n'est testable avant cette étape.
-
-### Étape 2 — protocole de test manuel (dans l'ordre)
+### Protocole de test manuel (dans l'ordre)
 
 | # | Test | Résultat attendu |
 |---|---|---|

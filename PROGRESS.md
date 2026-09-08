@@ -96,7 +96,7 @@ Dernière mise à jour : 2026-09-04
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
-| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A fait ; Lot B code+tests verts, migration 031 écrite mais **non appliquée** (confirmation explicite de Loïc requise avant `supabase db push`) ; Lot C (Dossiers) reporté |
+| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B faits, migration 031 appliquée en production (confirmée par Loïc le 2026-09-08) — reste la validation manuelle (voir TESTING.md) ; Lot C (Dossiers) reporté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1414,3 +1414,18 @@ tables déjà en production). Une fois appliquée : vérifier en lecture
 seule (colonnes présentes, job cron programmé), puis tester
 manuellement Supprimer/Restaurer et un import CSV réel (voir
 `TESTING.md` à mettre à jour).
+
+### 2026-09-08 — S32-segments : migration 031 appliquée en production
+
+Loïc a confirmé ("je confirme, tu peux faire la migration") —
+`supabase db push --linked` exécuté. Vérifié en lecture seule après
+coup : les 9 colonnes (`created_by`/`updated_at`/`deleted_at` × 3
+tables) ont le bon type/nullabilité, `pg_cron` actif (1.6.4), le job
+`purge-old-deleted-lists` est programmé (`0 3 * * *`, actif). 0 liste en
+production à ce jour — rien à régresser, comme pour l'automatisation.
+
+**Point de reprise** : `TESTING.md` mis à jour — reste le protocole de
+test manuel en 6 étapes (non-régression, Propriétaire réel, Mise à jour
+sur changement de membres, Supprimer→Corbeille, Restaurer, Import CSV
+réel) à dérouler par Loïc avant de considérer S32-segments Lot B
+terminé.
