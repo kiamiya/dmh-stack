@@ -1507,3 +1507,29 @@ tests côté CRM, changement CSS pur donc aucune régression de test
 attendue ni constatée), dev server + curl 200 sur les 13 routes
 principales. Pas de vérification visuelle en navigateur réel possible
 côté Claude — à valider par Loïc.
+
+### 2026-09-08 (suite) — bug Kanban Pipeline : clic sur une carte impossible
+
+Retour de Loïc : "on peut déplacer mais il est impossible de voir le
+détail ou de lire son intitulé" sur `/pipeline`. Cause identifiée : le
+`DndContext` (Pipeline.tsx et, même code dupliqué, la vue Kanban
+d'Opportunités) n'avait pas de distance d'activation — dnd-kit
+intercepte alors le moindre clic comme un début de glisser-déposer
+(`pointerdown` capturé avant que le clic natif sur le `<Link>` de la
+carte ne puisse se déclencher), rendant la fiche détail totalement
+inaccessible par clic — d'où l'impression de ne "rien pouvoir lire" (le
+seul moyen de voir le nom complet, non tronqué, était ce lien).
+
+**Corrigé** : `PointerSensor` configuré avec
+`activationConstraint: { distance: 8 }` (+ `KeyboardSensor` conservé
+pour l'accessibilité) sur les 2 `DndContext` (`Pipeline.tsx` et
+`Opportunities.tsx` vue Kanban, bug identique — corrigé au passage
+sans que Loïc l'ait signalé séparément, même cause exacte). Un clic
+sans déplacement fonctionne désormais normalement ; un vrai glisser
+(> 8px) déclenche toujours le changement de statut/étape.
+
+Vérifié : `pnpm typecheck`/`pnpm test` racine verts (12 packages, 454
+tests, changement de configuration pur donc pas de nouveau test
+unitaire pertinent), dev server relancé + curl 200 sur `/pipeline` et
+`/opportunities`. Pas de vérification visuelle en navigateur réel
+possible côté Claude — à valider par Loïc.

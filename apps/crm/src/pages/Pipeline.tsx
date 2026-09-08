@@ -1,4 +1,4 @@
-import { DndContext } from "@dnd-kit/core";
+import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import type { ProspectStatus } from "@dmh/types";
 import { useKanbanProspects } from "../hooks/useKanbanProspects";
@@ -12,6 +12,13 @@ export function PipelinePage() {
   const { prospects, loading, error, moveProspect } = useKanbanProspects();
   const { toast } = useToast();
   const groups = groupProspectsByStatus(prospects);
+  // Distance d'activation : sans elle, dnd-kit intercepte le moindre clic comme
+  // un début de glisser-déposer, ce qui empêche le clic sur le lien de la carte
+  // (vers la fiche détail) de jamais se déclencher.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -38,7 +45,7 @@ export function PipelinePage() {
           ))}
         </div>
       ) : (
-        <DndContext onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <KanbanBoardShell>
             {groups.map((group) => (
               <KanbanColumn key={group.column.status} column={group.column} prospects={group.prospects} />
