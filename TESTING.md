@@ -9,23 +9,15 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 lot S33 (revue dev CRM du 08/09) — validation navigateur + confirmation de 3 migrations en attente
+## Statut : 🔄 lot S33 (revue dev CRM du 08/09) — validation navigateur en attente (migrations toutes appliquées)
 
 Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.
 Détail dans `PROGRESS.md`, section "2026-09-10 — Revue dev CRM DMH (08/09) :
-lot S33".
-
-**⚠️ Avant de tester S33-7/S33-8/S33-9 ci-dessous** : ces 3 points nécessitent
-d'appliquer respectivement les migrations `033_pipeline_five_stages.sql`,
-`034_deal_contacts.sql` et `035_operator_is_not_set.sql` — écrites et testées
-(`pnpm test`), mais **pas appliquées** sur le vrai Supabase. Dis-moi si je
-peux lancer `supabase db push` (ou fais-le toi-même) avant de valider ces
-points. S33-1 à S33-6 ne nécessitent aucune migration.
-
-**❓ Un point à trancher avant de coder** : "logs/activités filtrables" — je
-ne l'ai volontairement pas construit, le CR contenant une décision explicite
-qui semble le reporter (voir `PROGRESS.md`, section "S33-10"). À confirmer
-avec toi.
+lot S33". Les migrations `032` (Lot C Dossiers, en attente depuis une session
+précédente), `033`, `034` et `035` ont toutes été appliquées en production
+le 2026-09-10 (confirmation explicite de Loïc) et vérifiées en base
+(`supabase db query --linked`). Il ne reste que la validation fonctionnelle
+en navigateur réel ci-dessous — plus aucune migration en attente.
 
 ### S33-1 — navigation (Contacts/Entreprises/Pipeline retirés de la sidebar)
 
@@ -93,14 +85,14 @@ un bug de cet import.
 | 2 | Sur la vue Liste (`/`), filtre "Statuts" | Les 12 statuts sont toujours proposés (inchangé) |
 | 3 | (Si un prospect existant a le statut Qualifié/Gagné/etc., via la base) | Il reste visible et filtrable en vue Liste, absent du Kanban (comportement voulu, pas un bug) |
 
-### S33-7 — pipeline Opportunités à 5 étapes *(nécessite migration 033)*
+### S33-7 — pipeline Opportunités à 5 étapes
 
 | # | Test | Résultat attendu |
 |---|---|---|
 | 1 | `/opportunities`, vue Kanban, choisir un client | 5 colonnes visibles : Nouveau, Qualifié, Proposition envoyée, Négociation, Gagné, Perdu (6 au total, Gagné/Perdu distincts) |
 | 2 | Vérifier une opportunité déjà classée avant la migration | Reste dans sa colonne d'origine (Négociation/Gagné/Perdu), pas déplacée |
 
-### S33-8 — opportunité liée à plusieurs contacts *(nécessite migration 034)*
+### S33-8 — opportunité liée à plusieurs contacts
 
 | # | Test | Résultat attendu |
 |---|---|---|
@@ -109,20 +101,31 @@ un bug de cet import.
 | 3 | Cliquer "+ Nouveau contact", créer un contact | Le nouveau contact est automatiquement lié à l'opportunité |
 | 4 | Cliquer "Retirer" sur un contact lié | Le contact disparaît de la liste (la fiche contact elle-même n'est pas supprimée) |
 
-### S33-9 — opérateurs "connu/inconnu" + dates *(nécessite migration 035)*
+### S33-9 — opérateurs "connu/inconnu" + dates
 
 | # | Test | Résultat attendu |
 |---|---|---|
 | 1 | Sur un éditeur de conditions (Segments, Automatisations), ouvrir la liste des opérateurs | "n'est pas renseigné (inconnu)" apparaît, sans champ valeur associé |
 | 2 | Créer une liste dynamique avec une condition "date de signature" + "supérieur à / après" + une date | Seules les opportunités signées après cette date apparaissent (vérifie que la comparaison de date fonctionne, pas juste les nombres) |
 
+### S33-10 — logs/activités filtrables
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/contacts`, choisir un client, créer une liste dynamique | Un 3e optgroup "Activité" apparaît dans le menu déroulant de champ (ex. "Email ouvert", "Réponse LinkedIn") |
+| 2 | Créer une condition "Email ouvert" + "est renseigné (connu)" | Seuls les contacts dont un prospect associé a déjà reçu un email ouvert apparaissent |
+| 3 | Créer une condition "Réponse LinkedIn" + "n'est pas renseigné (inconnu)" | Les contacts sans réponse LinkedIn enregistrée apparaissent |
+| 4 | Vérifier sur `/companies` et `/opportunities` | Pas d'optgroup "Activité" (limité aux Contacts, voir `PROGRESS.md`) |
+
+## Segments (Lot C, migration 032) — première validation navigateur
+
+Migration appliquée le 2026-09-10 (voir ci-dessus) mais **jamais encore
+validée en navigateur réel** — voir `PROGRESS.md`, section "S32-segments :
+Lot C (Dossiers)" pour le protocole de test complet (créer un dossier, un
+sous-dossier, classer une liste, supprimer un dossier parent...).
+
 ## Rappel — tests en attente sur d'autres chantiers
 
-- **⛔ Bloquant** : Segments (/lists) — Lot C (Dossiers), migration
-  `supabase/migrations/032_list_folders.sql` écrite mais **non appliquée** —
-  toujours en attente de ta confirmation explicite avant `supabase db push`
-  (voir `PROGRESS.md`, section "S32-segments : Lot C (Dossiers)"). Non lié à
-  ce lot S33, pas retesté ici.
 - Automatisations (migration 030, branches Oui/Non + "Enrichir") — voir
   `PROGRESS.md`, section "S32-auto".
 - Segments Lot B (migration 031, Propriétaire/Mise à jour/Import CSV/

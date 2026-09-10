@@ -96,7 +96,7 @@ Dernière mise à jour : 2026-09-04
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
-| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B en production (validation manuelle en attente, voir TESTING.md) ; Lot C (Dossiers) code+tests verts, migration 032 écrite mais **non appliquée** (confirmation explicite de Loïc requise) |
+| S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B en production (validation manuelle en attente, voir TESTING.md) ; Lot C (Dossiers) code+tests verts, **migration 032 appliquée en production le 2026-09-10** (confirmée par Loïc) — validation navigateur en attente |
 | S33-0 | Revue dev CRM (08/09) — audit champs personnalisés globaux vs par contact | ✅ fait — pas de code à écrire, voir Journal |
 | S33-1 | Revue dev CRM (08/09) — masquer Contacts/Entreprises/Pipeline de la sidebar (doublon avec Prospect) | ✅ fait côté code — routes `/contacts`, `/companies`, `/pipeline` conservées en deep-link, en attente de validation navigateur |
 | S33-2 | Revue dev CRM (08/09) — vue Kanban fusionnée dans l'onglet Prospect (toggle Liste/Kanban) | ✅ fait côté code — en attente de validation navigateur (toggle, drag-and-drop, clic carte) |
@@ -104,9 +104,9 @@ Dernière mise à jour : 2026-09-04
 | S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ✅ fait côté code — en attente de validation navigateur (voir TESTING.md) |
 | S33-5 | Revue dev CRM (08/09) — sous-navigation Vue globale/Kanban/Contacts/Entreprises (retour de Loïc après test) | ✅ fait côté code — en attente de validation navigateur |
 | S33-6 | Revue dev CRM (08/09) — séparer le Kanban Prospection du pipeline Opportunités (confirmé par Loïc) | ✅ fait côté code — en attente de validation navigateur |
-| S33-7 | Revue dev CRM (08/09) — pipeline Opportunités à 5 étapes (nouveau/qualifié/proposition envoyée/négociation/gagné-perdu) | ✅ fait côté code — migration 033 écrite, **non appliquée** (confirmation explicite requise) |
-| S33-8 | Revue dev CRM (08/09) — opportunité liée à plusieurs contacts (achat/juridique/comptable) | ✅ fait côté code — migration 034 écrite, **non appliquée** (confirmation explicite requise) |
-| S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait côté code (partiel, voir note) — migration 035 écrite, **non appliquée** |
+| S33-7 | Revue dev CRM (08/09) — pipeline Opportunités à 5 étapes (nouveau/qualifié/proposition envoyée/négociation/gagné-perdu) | ✅ fait — **migration 033 appliquée et vérifiée en production le 2026-09-10** |
+| S33-8 | Revue dev CRM (08/09) — opportunité liée à plusieurs contacts (achat/juridique/comptable) | ✅ fait — **migration 034 appliquée et vérifiée en production le 2026-09-10** |
+| S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait (partiel, voir note) — **migration 035 appliquée et vérifiée en production le 2026-09-10** |
 | S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ✅ fait côté code (confirmé par Loïc malgré l'ambiguïté du CR) — aucune migration nécessaire, en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -1842,3 +1842,19 @@ qu'elle filtre correctement) en attente de Loïc.
 - Tout le reste du CR (licence Lemlist, échange avec William, étude
   HubSpot par Delphine/Loïc, pilotage de projet) reste hors périmètre
   code — pas des tâches de développement.
+
+**Migrations 032/033/034/035 appliquées en production.** Bloqué un
+moment par un token d'accès CLI Supabase expiré (même type de blocage
+que le 2026-07-31) — résolu avec un nouveau token personnel fourni par
+Loïc (`supabase login --token ...`, jamais écrit dans un fichier du
+repo). Loïc a confirmé explicitement l'application des 4 migrations en
+attente, y compris la 032 (Lot C Dossiers, en attente depuis une
+session précédente, forcément incluse car les migrations s'appliquent
+dans l'ordre — signalé et confirmé avant de lancer `supabase db push`).
+`supabase db push --linked` exécuté avec succès. Vérifié en lecture
+seule directement en base (`supabase db query --linked`) :
+`pipeline_stages` du pipeline par défaut a bien les 6 étapes dans
+l'ordre (Nouveau/Qualifié/Proposition envoyée/Négociation/Gagné/Perdu),
+tables `deal_contacts` et `list_folders` existent, contrainte CHECK de
+`automation_conditions.operator` inclut bien `is_not_set`. Reste la
+validation fonctionnelle en navigateur réel (voir `TESTING.md`).
