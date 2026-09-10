@@ -1,6 +1,7 @@
 import type { AutomationConditionOperator, CustomFieldEntityType } from "@dmh/types";
 import { X } from "lucide-react";
 import { useFieldDefinitions } from "../hooks/useFieldDefinitions";
+import { ALL_INTERACTION_TYPES, getInteractionTypeLabel } from "../lib/interactionLabels";
 import { Button } from "./ui/button";
 
 export interface RuleConditionDraft {
@@ -45,6 +46,19 @@ const BASE_FIELDS: Record<CustomFieldEntityType, Array<{ value: string; label: s
     { value: "probability", label: "Probabilité" },
   ],
 };
+
+/**
+ * Champs "Activité" (logs/interactions, ex. email ouvert, réponse
+ * LinkedIn) — rendus filtrables via `is_set`/`is_not_set` (le CR du
+ * 08/09/2026 demande "connu/inconnu" pour ces événements). Seuls les
+ * Contacts en bénéficient : les interactions sont rattachées au
+ * prospect/contact, pas aux Entreprises/Opportunités (voir
+ * `services/interactions.ts`, `listActivityFlagsByContactForClient`).
+ */
+const ACTIVITY_FIELDS: Array<{ value: string; label: string }> = ALL_INTERACTION_TYPES.map((type) => ({
+  value: `activity_${type}`,
+  label: getInteractionTypeLabel(type),
+}));
 
 function emptyCondition(defaultField: string): RuleConditionDraft {
   return { field: defaultField, operator: "eq", value: "" };
@@ -129,6 +143,15 @@ export function RuleGroupsEditor({ entityType, clientId, groups, onChange }: Rul
                       {customFields.map((d) => (
                         <option key={d.field_key} value={d.field_key}>
                           {d.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {entityType === "contact" && (
+                    <optgroup label="Activité">
+                      {ACTIVITY_FIELDS.map((f) => (
+                        <option key={f.value} value={f.value}>
+                          {f.label}
                         </option>
                       ))}
                     </optgroup>

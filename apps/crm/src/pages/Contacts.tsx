@@ -6,6 +6,7 @@ import { useClients } from "../hooks/useClients";
 import { useContactLists } from "../hooks/useContactLists";
 import { matchesRuleGroups } from "../lib/segmentEvaluator";
 import { listValuesByEntityForClient } from "../services/customFields";
+import { listActivityFlagsByContactForClient } from "../services/interactions";
 import { supabase } from "../lib/supabase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Button } from "../components/ui/button";
@@ -59,6 +60,7 @@ export function ContactsPage() {
   const [listId, setListId] = useState(() => searchParams.get("list") ?? "");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
   const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
+  const [activityFlagsById, setActivityFlagsById] = useState<Record<string, Record<string, boolean>>>({});
   const [newListOpen, setNewListOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
@@ -87,20 +89,33 @@ export function ContactsPage() {
       .catch(() => setCustomFieldValuesById({}));
   }, [clientId]);
 
+  useEffect(() => {
+    if (!clientId) {
+      setActivityFlagsById({});
+      return;
+    }
+    listActivityFlagsByContactForClient(supabase, clientId)
+      .then(setActivityFlagsById)
+      .catch(() => setActivityFlagsById({}));
+  }, [clientId]);
+
   const filtered = useMemo(() => {
     let rows = contacts;
     if (clientId) rows = rows.filter((c) => c.client_id === clientId);
     if (activeList) {
       if (activeList.rules) {
         rows = rows.filter((c) =>
-          matchesRuleGroups({ ...c, ...customFieldValuesById[c.id] } as unknown as Record<string, unknown>, activeList.rules!),
+          matchesRuleGroups(
+            { ...c, ...customFieldValuesById[c.id], ...activityFlagsById[c.id] } as unknown as Record<string, unknown>,
+            activeList.rules!,
+          ),
         );
       } else if (listMemberIdSet) {
         rows = rows.filter((c) => listMemberIdSet.has(c.id));
       }
     }
     return rows;
-  }, [contacts, clientId, activeList, listMemberIdSet, customFieldValuesById]);
+  }, [contacts, clientId, activeList, listMemberIdSet, customFieldValuesById, activityFlagsById]);
 
   function handleExport() {
     const rowsToExport = selectedIds.size > 0 ? filtered.filter((c) => selectedIds.has(c.id)) : filtered;

@@ -34,6 +34,8 @@ const COLORS: Record<InteractionType, NonNullable<BadgeProps["variant"]>> = {
   note: "default",
 };
 
+export const ALL_INTERACTION_TYPES: InteractionType[] = Object.keys(LABELS) as InteractionType[];
+
 export function getInteractionTypeLabel(type: InteractionType): string {
   return LABELS[type];
 }

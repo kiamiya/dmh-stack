@@ -107,7 +107,7 @@ Dernière mise à jour : 2026-09-04
 | S33-7 | Revue dev CRM (08/09) — pipeline Opportunités à 5 étapes (nouveau/qualifié/proposition envoyée/négociation/gagné-perdu) | ✅ fait côté code — migration 033 écrite, **non appliquée** (confirmation explicite requise) |
 | S33-8 | Revue dev CRM (08/09) — opportunité liée à plusieurs contacts (achat/juridique/comptable) | ✅ fait côté code — migration 034 écrite, **non appliquée** (confirmation explicite requise) |
 | S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait côté code (partiel, voir note) — migration 035 écrite, **non appliquée** |
-| S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ❌ **non fait délibérément** — le CR décide explicitement "pour la version actuelle, se concentrer sur les propriétés (pas les événements marketing complexes)" ; à confirmer avec Loïc avant de le construire (voir Journal) |
+| S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ✅ fait côté code (confirmé par Loïc malgré l'ambiguïté du CR) — aucune migration nécessaire, en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1782,13 +1782,63 @@ complète en attente de Loïc.
   construit ce soir, seuls les 2 manques concrets cités par le CR
   (opérateur "inconnu", comparaison de dates) sont traités.
 
-**S33-10 — logs/activités filtrables : PAS fait, délibérément.** En
-relisant le CR avant de coder ce point, la section "Système de filtres
-et vues" contient une décision explicite qui contredit le "problème
-soulevé" correspondant : *"Décision : pour la version actuelle, se
-concentrer sur les propriétés (pas les événements marketing
-complexes)"*. La section "Logs et activités" dit par ailleurs
-*"Nécessité de rendre ces logs filtrables dans les vues"* — ambiguïté
-non tranchée dans le CR lui-même entre ces deux passages. Plutôt que de
-construire quelque chose que la réunion a peut-être explicitement
-décidé de reporter, signalé à Loïc pour arbitrage avant d'y toucher.
+**S33-10 — logs/activités filtrables : fait, après arbitrage de Loïc.**
+Signalé l'ambiguïté du CR (la section "Système de filtres" dit
+"se concentrer sur les propriétés, pas les événements marketing
+complexes", la section "Logs et activités" dit "nécessité de rendre
+ces logs filtrables") — Loïc a tranché en faveur de la seconde.
+
+- `services/interactions.ts` : nouvelle fonction
+  `listActivityFlagsByContactForClient` (+ test) — regroupe les
+  `interactions` par contact (via `prospects.contact_id`, les
+  interactions étant rattachées au prospect, pas directement au
+  contact) en indicateurs `activity_<type>` ("cet événement s'est-il
+  déjà produit"), un par type d'interaction (13 types, réutilise les
+  libellés déjà écrits dans `lib/interactionLabels.ts`, dont un nouvel
+  export `ALL_INTERACTION_TYPES` ajouté au passage).
+- `Contacts.tsx` : ces indicateurs sont chargés par client et fusionnés
+  dans l'enregistrement évalué par `matchesRuleGroups`, même pattern
+  que `customFieldValuesById` pour les champs personnalisés.
+- `RuleGroupsEditor.tsx` : nouvel optgroup "Activité" dans le menu
+  déroulant de champ, uniquement pour `entityType === "contact"`
+  (Entreprises/Opportunités n'ont pas d'interactions directement
+  rattachées). Se filtre naturellement via `is_set`/`is_not_set`
+  ("connu"/"inconnu" — l'événement s'est produit ou non), pas de valeur
+  à saisir.
+- Champs/Entreprises/Opportunités non concernés par cette carte
+  "Activité" — aucune migration nécessaire (la table `interactions`
+  existe déjà depuis S1).
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (70 fichiers, 492 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts. Validation navigateur
+réelle (créer une liste dynamique avec une condition "Activité", vérifier
+qu'elle filtre correctement) en attente de Loïc.
+
+**Audit demandé par Loïc — autres écarts identifiés par rapport au CR :**
+
+- **Opérateurs de filtre pleinement spécifiques par type de propriété**
+  (S33-9) : le CR dit littéralement "chaque type de propriété (texte,
+  date, liste déroulante) doit avoir SES PROPRES opérateurs de filtre".
+  Ce qui a été fait : ajouter l'opérateur manquant (`is_not_set`) et
+  corriger un vrai bug de comparaison de dates. Ce qui n'a **pas** été
+  fait : restreindre la liste d'opérateurs proposée selon le type réel
+  du champ (aujourd'hui, les 7 mêmes opérateurs sont toujours proposés,
+  qu'il s'agisse d'un champ texte, date ou liste déroulante) — un vrai
+  système d'opérateurs par type nécessiterait de connaître le type de
+  chaque champ natif (pas seulement les champs personnalisés, qui l'ont
+  déjà via `custom_field_definitions.field_type`) dans
+  `RuleGroupsEditor`/`ConditionRowsEditor`, une refonte plus large des 2
+  éditeurs. Pas fait ce soir faute de temps, signalé comme limite
+  ouverte.
+- **Campagnes multicanal (email/social paid/Google Ads) + actualisation
+  automatique (ex. toutes les 4h)** : décrit dans le CR
+  ("Fonctionnalités marketing... à visualiser"), mais `Campaigns.tsx`
+  reste aujourd'hui un tableau de bord LinkedIn/Lemlist en lecture
+  seule, sans actualisation automatique. **Pas un oubli de cette
+  session** : le périmètre réduit de cet écran a déjà été explicitement
+  acté avec Loïc lors d'une session précédente (voir section "S32",
+  "Campagnes/Mapping/Paramètres restent en périmètre réduit") — non
+  retouché ce soir, à confirmer si Loïc veut l'étendre.
+- Tout le reste du CR (licence Lemlist, échange avec William, étude
+  HubSpot par Delphine/Loïc, pilotage de projet) reste hors périmètre
+  code — pas des tâches de développement.

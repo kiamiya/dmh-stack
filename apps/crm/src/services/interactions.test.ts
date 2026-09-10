@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { listLinkedinInteractions } from "./interactions";
+import { listActivityFlagsByContactForClient, listLinkedinInteractions } from "./interactions";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -29,5 +29,36 @@ describe("listLinkedinInteractions", () => {
   it("lève une erreur avec le message Supabase en cas d'échec", async () => {
     const client = makeStubClient({ data: null, error: { message: "select refusé" } });
     await expect(listLinkedinInteractions(client)).rejects.toThrow("select refusé");
+  });
+});
+
+describe("listActivityFlagsByContactForClient", () => {
+  it("regroupe les interactions par contact en indicateurs activity_<type>", async () => {
+    const rows = [
+      { type: "email_opened", prospects: { contact_id: "c1" } },
+      { type: "linkedin_replied", prospects: { contact_id: "c1" } },
+      { type: "email_sent", prospects: { contact_id: "c2" } },
+    ];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listActivityFlagsByContactForClient(client, "client-1")).resolves.toEqual({
+      c1: { activity_email_opened: true, activity_linkedin_replied: true },
+      c2: { activity_email_sent: true },
+    });
+  });
+
+  it("ignore les lignes sans prospect/contact lié", async () => {
+    const rows = [{ type: "email_opened", prospects: null }];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listActivityFlagsByContactForClient(client, "client-1")).resolves.toEqual({});
+  });
+
+  it("retourne un objet vide si data est null", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(listActivityFlagsByContactForClient(client, "client-1")).resolves.toEqual({});
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "select refusé" } });
+    await expect(listActivityFlagsByContactForClient(client, "client-1")).rejects.toThrow("select refusé");
   });
 });

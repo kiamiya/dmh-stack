@@ -49,6 +49,38 @@ export async function listLinkedinInteractions(client: SupabaseClient): Promise<
   return (data ?? []) as unknown as LinkedinInteractionRow[];
 }
 
+/**
+ * Indicateurs d'activité par contact ("cet événement s'est-il déjà
+ * produit"), regroupés depuis `interactions` via `prospects.contact_id`
+ * (les interactions sont rattachées au prospect, pas directement au
+ * contact) — alimente les segments/listes dynamiques sur Contacts, pour
+ * rendre les logs filtrables (CR revue dev du 08/09/2026, "Logs et
+ * activités"). Une clé `activity_<type>` par type d'interaction déjà
+ * survenu ; absente si jamais survenue (évaluée via `is_set`/`is_not_set`
+ * dans `lib/segmentEvaluator.ts`, pas une valeur booléenne explicite).
+ */
+export async function listActivityFlagsByContactForClient(
+  client: SupabaseClient,
+  clientId: string,
+): Promise<Record<string, Record<string, boolean>>> {
+  const { data, error } = await client
+    .from("interactions")
+    .select("type, prospects!inner(contact_id)")
+    .eq("client_id", clientId);
+  if (error) throw new Error(error.message);
+
+  const result: Record<string, Record<string, boolean>> = {};
+  for (const row of (data ?? []) as unknown as Array<{
+    type: InteractionType;
+    prospects: { contact_id: string } | null;
+  }>) {
+    const contactId = row.prospects?.contact_id;
+    if (!contactId) continue;
+    (result[contactId] ??= {})[`activity_${row.type}`] = true;
+  }
+  return result;
+}
+
 export interface CreateNoteInput {
   prospectId: string;
   clientId: string;
