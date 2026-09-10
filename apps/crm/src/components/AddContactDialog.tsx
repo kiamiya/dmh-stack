@@ -16,8 +16,8 @@ import { SearchableSelect } from "./ui/searchable-select";
 export interface AddContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Appelé une fois le contact ET le prospect créés (statut `to_enrich`) — permet de rafraîchir la liste. */
-  onCreated?: () => void;
+  /** Appelé une fois le contact ET le prospect créés (statut `to_enrich`), avec l'id du contact créé — permet de rafraîchir la liste ou de lier directement le contact ailleurs (ex. à une opportunité). */
+  onCreated?: (contact: { id: string }) => void;
 }
 
 /**
@@ -88,7 +88,7 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
       await createProspect(supabase, { clientId, contactId: contact.id, companyId });
 
       toast(`${firstName.trim()} ${lastName.trim()} ajouté(e) au pipeline (à enrichir).`, "success");
-      onCreated?.();
+      onCreated?.(contact);
       reset();
       onOpenChange(false);
     } catch (err) {

@@ -12,6 +12,7 @@ const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
   lt: "<",
   contains: "contient",
   is_set: "est renseigné",
+  is_not_set: "n'est pas renseigné",
 };
 
 /** Pure : libellé du bloc "déclencheur" de la chaîne visuelle. */

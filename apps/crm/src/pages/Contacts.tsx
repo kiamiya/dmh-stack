@@ -144,7 +144,7 @@ export function ContactsPage() {
             .map((g) => ({
               conditions: g.conditions
                 .filter((c) => c.field.trim())
-                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" ? true : c.value })),
+                .map((c) => ({ field: c.field, operator: c.operator, value: c.operator === "is_set" || c.operator === "is_not_set" ? true : c.value })),
             }))
             .filter((g) => g.conditions.length > 0)
         : undefined;

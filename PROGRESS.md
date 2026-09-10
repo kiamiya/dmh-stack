@@ -103,6 +103,11 @@ Dernière mise à jour : 2026-09-04
 | S33-3 | Revue dev CRM (08/09) — panneau de sélection Contact/Entreprise/Opportunité ("+ Nouveau" du Header) | ✅ fait côté code — en attente de validation navigateur (3 chemins de création) |
 | S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ✅ fait côté code — en attente de validation navigateur (voir TESTING.md) |
 | S33-5 | Revue dev CRM (08/09) — sous-navigation Vue globale/Kanban/Contacts/Entreprises (retour de Loïc après test) | ✅ fait côté code — en attente de validation navigateur |
+| S33-6 | Revue dev CRM (08/09) — séparer le Kanban Prospection du pipeline Opportunités (confirmé par Loïc) | ✅ fait côté code — en attente de validation navigateur |
+| S33-7 | Revue dev CRM (08/09) — pipeline Opportunités à 5 étapes (nouveau/qualifié/proposition envoyée/négociation/gagné-perdu) | ✅ fait côté code — migration 033 écrite, **non appliquée** (confirmation explicite requise) |
+| S33-8 | Revue dev CRM (08/09) — opportunité liée à plusieurs contacts (achat/juridique/comptable) | ✅ fait côté code — migration 034 écrite, **non appliquée** (confirmation explicite requise) |
+| S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait côté code (partiel, voir note) — migration 035 écrite, **non appliquée** |
+| S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ❌ **non fait délibérément** — le CR décide explicitement "pour la version actuelle, se concentrer sur les propriétés (pas les événements marketing complexes)" ; à confirmer avec Loïc avant de le construire (voir Journal) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1717,3 +1722,73 @@ juste factorisé). Vérifié : `pnpm --filter crm typecheck`/`test` verts
 navigation pure, pas de logique à isoler). Testé en HMR pendant la
 session (rechargement à chaud sans erreur), validation navigateur
 complète en attente de Loïc.
+
+**S33-6 à S33-9 (backlog du CR, confirmés par Loïc) :**
+
+- **S33-6 — séparation Kanban Prospection/Opportunités** : confirmé
+  avec Loïc (le CR décrit bien 2 pipelines distincts : "Pipeline de
+  prospection... jusqu'au rendez-vous pris" et "Pipeline
+  opportunités..."). `lib/kanban.ts` : `KANBAN_COLUMNS` (utilisé
+  uniquement par le Kanban Prospects) restreint à 8 statuts (arrêt à
+  `meeting_booked`), au lieu des 12 statuts de `ALL_PROSPECT_STATUSES`
+  (inchangé, toujours utilisé pour les filtres/l'export/le changement de
+  statut en masse de la vue Liste). Un prospect dont Smartlead
+  positionnerait le statut sur `qualified`/`proposal_sent`/`won`/`lost`
+  (`mapLeadCategoryToProspectStatus`, `packages/smartlead`, inchangé)
+  reste visible dans la vue Liste, juste plus dans ce Kanban — décision
+  volontaire pour ne pas toucher au schéma ni à l'intégration Smartlead
+  déjà validée en production. Tests `lib/kanban.test.ts` mis à jour.
+- **S33-7 — pipeline Opportunités à 5 étapes** : le seed de la migration
+  015 ne posait que Négociation/Gagné/Perdu. Migration
+  `033_pipeline_five_stages.sql` : insère Nouveau/Qualifié/Proposition
+  envoyée avant Négociation sur le pipeline par défaut de chaque client
+  existant (idempotente, ne touche à aucun deal déjà classé). Écrite,
+  **pas appliquée**.
+- **S33-8 — opportunité liée à plusieurs contacts** : nouvelle table
+  `deal_contacts` (migration `034_deal_contacts.sql`), même pattern que
+  `contact_companies` (migration 013) — `deals.contact_id` reste le
+  contact "principal" (aucune rupture), la table ajoute les contacts
+  additionnels avec un rôle libre (achat/juridique/comptable...).
+  Nouveau service `services/dealContacts.ts` (+ test), hook
+  `useOpportunityDetail` étendu (`contacts`, `linkContact`,
+  `unlinkContact`), nouvelle carte "Contacts liés" sur
+  `OpportunityDetail.tsx` (lier un contact existant + rôle, créer un
+  nouveau contact directement depuis la fiche — `AddContactDialog`
+  retourne désormais le contact créé via `onCreated`, changement
+  rétrocompatible). Migration écrite, **pas appliquée**.
+- **S33-9 — opérateurs de filtre "connu/inconnu" + dates** : ajout de
+  l'opérateur `is_not_set` (symétrique de `is_set` déjà existant) —
+  `packages/types`, `lib/segmentEvaluator.ts`, les 2 éditeurs de
+  conditions (`ConditionRowsEditor.tsx`, `RuleGroupsEditor.tsx`,
+  `lib/automationChain.ts` pour le libellé dans la chaîne visuelle), et
+  la contrainte SQL `automation_conditions.operator` (migration
+  `035_operator_is_not_set.sql`, qui recrée aussi `run_automation_rules()`
+  pour gérer ce nouvel opérateur). **Bug réel trouvé en creusant ce
+  sujet** : `gt`/`lt` comparaient `Number(fieldValue) > Number(rule.value)`
+  côté client — ne fonctionnait jamais pour un champ date (une date ISO
+  n'est pas un nombre). Corrigé dans `lib/segmentEvaluator.ts`
+  (comparaison numérique en priorité, sinon `Date.parse`, sinon aucune
+  correspondance — jamais d'exception). **Pas corrigé côté SQL** : le
+  trigger `run_automation_rules()` fait `::numeric` sur `gt`/`lt`, ce qui
+  lèverait une exception Postgres sur une valeur non numérique — un vrai
+  bug, mais cette fonction est déjà en production et sensible (voir
+  S32-auto, "rétro-compatibilité stricte... à valider manuellement") ;
+  décision de ne pas la retoucher sous la pression du soir sans un
+  protocole de test dédié (comme `scripts/test-attribution.ts` en son
+  temps) — à traiter dans une session dédiée. **Limite assumée** :
+  l'ensemble des opérateurs proposés reste le même pour tous les types de
+  champ (texte/date/liste) — un vrai système d'opérateurs *restreints
+  par type* (ex. masquer "contient" pour un champ date) n'a pas été
+  construit ce soir, seuls les 2 manques concrets cités par le CR
+  (opérateur "inconnu", comparaison de dates) sont traités.
+
+**S33-10 — logs/activités filtrables : PAS fait, délibérément.** En
+relisant le CR avant de coder ce point, la section "Système de filtres
+et vues" contient une décision explicite qui contredit le "problème
+soulevé" correspondant : *"Décision : pour la version actuelle, se
+concentrer sur les propriétés (pas les événements marketing
+complexes)"*. La section "Logs et activités" dit par ailleurs
+*"Nécessité de rendre ces logs filtrables dans les vues"* — ambiguïté
+non tranchée dans le CR lui-même entre ces deux passages. Plutôt que de
+construire quelque chose que la réunion a peut-être explicitement
+décidé de reporter, signalé à Loïc pour arbitrage avant d'y toucher.

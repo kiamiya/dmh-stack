@@ -14,12 +14,13 @@ export interface RuleGroupDraft {
 }
 
 const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
-  eq: "égal à",
-  neq: "différent de",
-  gt: "supérieur à",
-  lt: "inférieur à",
+  eq: "égal à (est)",
+  neq: "différent de (n'est pas)",
+  gt: "supérieur à / après",
+  lt: "inférieur à / avant",
   contains: "contient",
-  is_set: "est renseigné",
+  is_set: "est renseigné (connu)",
+  is_not_set: "n'est pas renseigné (inconnu)",
 };
 
 const BASE_FIELDS: Record<CustomFieldEntityType, Array<{ value: string; label: string }>> = {
@@ -144,7 +145,7 @@ export function RuleGroupsEditor({ entityType, clientId, groups, onChange }: Rul
                     </option>
                   ))}
                 </select>
-                {cond.operator !== "is_set" && (
+                {cond.operator !== "is_set" && cond.operator !== "is_not_set" && (
                   <input
                     value={cond.value}
                     onChange={(e) => updateCondition(gi, ci, { value: e.target.value })}

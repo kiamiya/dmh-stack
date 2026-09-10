@@ -299,7 +299,7 @@ export interface ClientUser {
  */
 export type AutomationEntityType = "contact" | "company" | "opportunity" | "task" | "prospect";
 export type AutomationTriggerType = "record_created" | "stage_changed";
-export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set";
+export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set" | "is_not_set";
 export type AutomationActionType = "create_task" | "trigger_enrichment";
 export type AutomationActionBranch = "always" | "if_true" | "if_false";
 

@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
+import { SearchableSelect } from "../components/ui/searchable-select";
+import { AddContactDialog } from "../components/AddContactDialog";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency } from "../lib/deals";
@@ -18,7 +20,8 @@ import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 
 export function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { deal, stages, loading, error, changeStage, save } = useOpportunityDetail(id!);
+  const { deal, stages, contacts, loading, error, changeStage, save, linkContact, unlinkContact } =
+    useOpportunityDetail(id!);
   const { toast } = useToast();
 
   const { lists: contactLists, listMemberIds: listContactListMemberIds } = useContactLists(deal?.client_id ?? "");
@@ -27,6 +30,9 @@ export function OpportunityDetailPage() {
   const { companies: allCompanies } = useCompanies();
   const [contactListMemberIds, setContactListMemberIds] = useState<string[]>([]);
   const [companyListMemberIds, setCompanyListMemberIds] = useState<string[]>([]);
+  const [linkContactId, setLinkContactId] = useState("");
+  const [linkContactRole, setLinkContactRole] = useState("");
+  const [addContactOpen, setAddContactOpen] = useState(false);
 
   const [dealValue, setDealValue] = useState("");
   const [probability, setProbability] = useState("");
@@ -210,15 +216,61 @@ export function OpportunityDetailPage() {
               deal.company_name
             )}
           </div>
-          <div>
-            Contact :{" "}
-            {deal.contact_id && deal.contacts ? (
-              <Link to={`/contacts/${deal.contact_id}`} className="text-foreground hover:underline">
-                {deal.contacts.first_name} {deal.contacts.last_name}
-              </Link>
-            ) : (
-              "—"
-            )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contacts liés ({contacts.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {contacts.map((rel) => (
+            <div key={rel.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Link to={`/contacts/${rel.contact_id}`} className="font-medium text-foreground hover:underline">
+                  {rel.contacts ? `${rel.contacts.first_name} ${rel.contacts.last_name}` : "—"}
+                </Link>
+                {rel.role && <span className="text-muted-foreground">({rel.role})</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                {rel.is_primary && <Badge variant="green">Principal</Badge>}
+                <Button variant="ghost" size="sm" onClick={() => unlinkContact(rel.id)}>
+                  Retirer
+                </Button>
+              </div>
+            </div>
+          ))}
+          {contacts.length === 0 && <p className="text-sm text-muted-foreground">Aucun contact lié.</p>}
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <SearchableSelect
+              value={linkContactId}
+              onChange={setLinkContactId}
+              placeholder="Lier un contact existant…"
+              options={allContacts
+                .filter((c) => !contacts.some((rel) => rel.contact_id === c.id))
+                .map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}` }))}
+            />
+            <input
+              value={linkContactRole}
+              onChange={(e) => setLinkContactRole(e.target.value)}
+              placeholder="Rôle (ex. achat, juridique…)"
+              className="w-44 rounded-md border border-border px-2 py-1.5 text-sm"
+            />
+            <Button
+              variant="outline"
+              disabled={!linkContactId}
+              onClick={() => {
+                linkContact(linkContactId, linkContactRole.trim() || null);
+                setLinkContactId("");
+                setLinkContactRole("");
+              }}
+            >
+              Lier
+            </Button>
+            <Button variant="outline" onClick={() => setAddContactOpen(true)} className="shrink-0">
+              + Nouveau contact
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -246,6 +298,12 @@ export function OpportunityDetailPage() {
       />
 
       <MeetingsCard dealId={deal.id} />
+
+      <AddContactDialog
+        open={addContactOpen}
+        onOpenChange={setAddContactOpen}
+        onCreated={(contact) => linkContact(contact.id, null)}
+      />
     </div>
   );
 }

@@ -36,6 +36,21 @@ describe("matchesSegment", () => {
     expect(matchesSegment(contact, [{ field: "linkedin_url", operator: "is_set", value: null }])).toBe(false);
   });
 
+  it("is_not_set : inverse exact de is_set", () => {
+    expect(matchesSegment(contact, [{ field: "linkedin_url", operator: "is_not_set", value: null }])).toBe(true);
+    expect(matchesSegment(contact, [{ field: "email", operator: "is_not_set", value: null }])).toBe(false);
+  });
+
+  it("gt / lt : comparaison de dates (ISO), pas seulement numérique", () => {
+    const withDate = { signed_at: "2026-06-15" };
+    expect(matchesSegment(withDate, [{ field: "signed_at", operator: "gt", value: "2026-01-01" }])).toBe(true);
+    expect(matchesSegment(withDate, [{ field: "signed_at", operator: "lt", value: "2026-01-01" }])).toBe(false);
+  });
+
+  it("gt / lt : une valeur ni numérique ni date valide ne matche jamais (pas d'exception)", () => {
+    expect(matchesSegment(contact, [{ field: "job_title", operator: "gt", value: 5 }])).toBe(false);
+  });
+
   it("plusieurs règles combinées en ET", () => {
     const rules = [
       { field: "job_title", operator: "contains" as const, value: "commercial" },

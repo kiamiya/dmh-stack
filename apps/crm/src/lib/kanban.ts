@@ -1,5 +1,5 @@
 import type { ProspectStatus } from "@dmh/types";
-import { ALL_PROSPECT_STATUSES, getStatusLabel } from "./status";
+import { getStatusLabel } from "./status";
 
 export interface KanbanColumn {
   status: ProspectStatus;
@@ -7,12 +7,28 @@ export interface KanbanColumn {
 }
 
 /**
- * Une colonne par statut (contrairement à `apps/dashboard/src/lib/pipeline.ts`
- * qui fusionne les 3 statuts d'enrichissement et won/lost pour la vue
- * client) — le staff interne a besoin de voir le pipeline complet, sans
- * simplification.
+ * Colonnes du Kanban "Pipeline de prospection" — un sous-ensemble des 12
+ * statuts (voir `ALL_PROSPECT_STATUSES`, toujours utilisé tel quel pour les
+ * filtres/l'export/le changement de statut en masse de la vue Liste).
+ * Décision de la revue dev du 08/09/2026 (CR "Structure des pipelines") :
+ * ce pipeline s'arrête au rendez-vous pris — `qualified`/`proposal_sent`/
+ * `won`/`lost` appartiennent au pipeline Opportunités (`pipeline_stages`),
+ * pas à celui-ci. Un prospect dont Smartlead positionnerait le statut sur
+ * l'une de ces 4 valeurs (`mapLeadCategoryToProspectStatus`) reste visible
+ * dans la vue Liste (badge, filtres, export) — juste plus dans ce Kanban.
  */
-export const KANBAN_COLUMNS: KanbanColumn[] = ALL_PROSPECT_STATUSES.map((status) => ({
+const PROSPECTION_KANBAN_STATUSES: ProspectStatus[] = [
+  "to_enrich",
+  "enriched_pappers",
+  "enriched_contact",
+  "ready",
+  "in_sequence",
+  "replied",
+  "meeting_booked",
+  "not_interested",
+];
+
+export const KANBAN_COLUMNS: KanbanColumn[] = PROSPECTION_KANBAN_STATUSES.map((status) => ({
   status,
   label: getStatusLabel(status),
 }));
