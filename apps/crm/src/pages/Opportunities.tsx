@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useClients } from "../hooks/useClients";
+import { useKanbanDndSensors } from "../hooks/useKanbanDndSensors";
 import { usePipelineStages } from "../hooks/usePipelineStages";
 import { useDealLists } from "../hooks/useDealLists";
 import { matchesRuleGroups } from "../lib/segmentEvaluator";
@@ -44,13 +45,7 @@ export function OpportunitiesPage() {
   // `*_lists.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que tasks.created_by, AddTaskDialog.tsx).
   const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
   const now = useMemo(() => new Date(), []);
-  // Distance d'activation : sans elle, dnd-kit intercepte le moindre clic comme
-  // un début de glisser-déposer, ce qui empêche le clic sur la carte (vers la
-  // fiche détail) de jamais se déclencher — même bug que Pipeline.tsx.
-  const kanbanSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
-  );
+  const kanbanSensors = useKanbanDndSensors();
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<"list" | "kanban">("list");
   const [kanbanClientId, setKanbanClientId] = useState("");

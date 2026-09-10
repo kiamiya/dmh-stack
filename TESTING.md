@@ -9,49 +9,48 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ⛔ bloqué — confirmation requise avant application de la migration 032
+## Statut : 🔄 lot S33 (revue dev CRM du 08/09) — validation navigateur en attente
 
-**Segments (/lists) — Lot C (Dossiers)**, S32-segments. Code écrit et
-vert (`pnpm typecheck`/`pnpm test` racine, 12 packages, 454 tests côté
-CRM). Migration `supabase/migrations/032_list_folders.sql` crée une
-nouvelle table `list_folders` et ajoute `folder_id` sur les 3 tables de
-listes (déjà en production) — par la règle CLAUDE.md §5, je n'applique
-**pas** `supabase db push` sans ta confirmation explicite.
+Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.
+3 tâches codées et testées (`pnpm typecheck`/`pnpm test` verts), aucune
+migration nécessaire. Détail dans `PROGRESS.md`, section "2026-09-10 —
+Revue dev CRM DMH (08/09) : lot S33".
 
-### Ce que fait la migration
-
-1. Nouvelle table `list_folders` (arbre à 2 niveaux, rattachée à un
-   client DMH — décision de cadrage prise avec toi), avec les mêmes 3
-   policies RLS que `contact_lists`.
-2. `folder_id` (nullable) ajouté sur `contact_lists`/`company_lists`/
-   `opportunity_lists` — supprimer un dossier ne supprime jamais les
-   listes qu'il contenait, juste les déclasse (`on delete set null`).
-
-Détail complet dans `PROGRESS.md`, section "2026-09-08 (suite) —
-S32-segments : Lot C (Dossiers)".
-
-### Étape 1 — confirmer l'application de la migration
-
-Dis-moi si je peux lancer `supabase db push` (ou fais-le toi-même). Rien
-ci-dessous n'est testable avant cette étape.
-
-### Étape 2 — protocole de test manuel (dans l'ordre)
+### S33-1 — navigation (Contacts/Entreprises/Pipeline retirés de la sidebar)
 
 | # | Test | Résultat attendu |
 |---|---|---|
-| 1 | Ouvrir `/segments`, sélectionner un client dans le filtre "Client DMH" | Une colonne "Dossiers" apparaît à gauche (vide au départ) |
-| 2 | Cliquer "+ Dossier", créer un dossier racine | Le dossier apparaît dans l'arbre |
-| 3 | Créer un sous-dossier (choisir le dossier créé comme parent) | Le sous-dossier apparaît indenté sous le dossier racine |
-| 4 | Dans le tableau, changer le "Dossier" d'une liste existante via le menu déroulant de la colonne | La liste apparaît quand on clique sur ce dossier dans l'arbre |
-| 5 | Cliquer sur le dossier racine (celui qui a le sous-dossier) | Les listes classées dans le sous-dossier apparaissent aussi (agrégation parent) |
-| 6 | Supprimer le dossier racine (bouton ×, confirmer) | Le sous-dossier disparaît aussi, mais la liste qui y était classée reste intacte (juste déclassée — vérifiable via la colonne "Dossier" qui repasse à "—") |
-| 7 | Créer une liste ou importer un CSV en choisissant un dossier dans le formulaire | La liste apparaît directement classée dans ce dossier |
+| 1 | Ouvrir la sidebar, groupe "Prospection" | Seuls "Prospects", "Opportunités", "Tâches", "Segments" apparaissent — plus "Contacts"/"Entreprises"/"Pipeline" |
+| 2 | Aller sur une fiche Prospect, cliquer le lien vers l'entreprise ou le contact liés | La fiche Contact/Entreprise s'ouvre normalement (`/contacts/:id`, `/companies/:id`) |
+| 3 | Taper l'URL `/contacts` ou `/companies` directement dans le navigateur | La page s'affiche normalement (deep-link toujours actif, juste plus dans le menu) |
 
-Comme pour tout le reste : pas de vérification visuelle en navigateur
-réel possible côté Claude — à valider par toi.
+### S33-2 — vue Kanban fusionnée dans "Prospects"
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir "Prospects" (`/`), cliquer le toggle "Kanban" en haut à droite | Le tableau disparaît, remplacé par les colonnes Kanban (mêmes statuts qu'avant sur `/pipeline`) |
+| 2 | Glisser une carte d'une colonne à une autre | Le statut du prospect change, la carte reste dans sa nouvelle colonne après rechargement |
+| 3 | Cliquer sur une carte (pas glisser, un simple clic) | La fiche détail du prospect s'ouvre (vérifie que le correctif du bug de clic, factorisé dans `useKanbanDndSensors`, fonctionne toujours ici) |
+| 4 | Cliquer le toggle "Liste" | Retour au tableau, filtres/tri toujours fonctionnels |
+| 5 | Ouvrir l'URL `/pipeline` directement | Redirection automatique vers `/?view=kanban`, le Kanban s'affiche |
+
+### S33-3 — panneau "+ Nouveau" (Header)
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Cliquer "+ Nouveau" en haut à droite (visible depuis n'importe quel écran) | Un panneau avec 3 choix apparaît : Contact / Entreprise / Opportunité |
+| 2 | Choisir "Contact", remplir et valider | Le contact (+ prospect associé) est créé, comme avant avec "+ Contact" |
+| 3 | Choisir "Entreprise", remplir et valider | L'entreprise est créée, redirection vers sa fiche |
+| 4 | Choisir "Opportunité", remplir et valider | L'opportunité est créée, redirection vers sa fiche |
+| 5 | Rouvrir "+ Nouveau" après une création | Le panneau repart bien sur l'écran de choix (pas bloqué sur le dernier dialogue ouvert) |
 
 ## Rappel — tests en attente sur d'autres chantiers
 
+- **⛔ Bloquant** : Segments (/lists) — Lot C (Dossiers), migration
+  `supabase/migrations/032_list_folders.sql` écrite mais **non appliquée** —
+  toujours en attente de ta confirmation explicite avant `supabase db push`
+  (voir `PROGRESS.md`, section "S32-segments : Lot C (Dossiers)"). Non lié à
+  ce lot S33, pas retesté ici.
 - Automatisations (migration 030, branches Oui/Non + "Enrichir") — voir
   `PROGRESS.md`, section "S32-auto".
 - Segments Lot B (migration 031, Propriétaire/Mise à jour/Import CSV/
@@ -63,6 +62,6 @@ courant).
 
 ## Outillage disponible pour ce chantier
 
-- `pnpm --filter @dmh/crm dev` (port 5173), page `/lists`.
+- `pnpm --filter @dmh/crm dev` (port 5173).
 - `supabase db query --linked --project-ref hkonylfpcstbvxswyxyh "<SQL>"`
   pour inspecter l'état réel sans modifier quoi que ce soit.

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { openProspectLinkState } from "../lib/navigation";
 import {
   createColumnHelper,
@@ -10,12 +10,15 @@ import {
 } from "@tanstack/react-table";
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
 import { TriangleAlert } from "lucide-react";
+import { DndContext } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { PageHeader } from "../components/ui/page-header";
+import { Skeleton } from "../components/ui/skeleton";
 import { ALL_PROSPECT_STATUSES, getStatusColor, getStatusLabel } from "../lib/status";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
@@ -29,9 +32,12 @@ import { createSavedView, loadSavedViews, removeSavedView, saveSavedViews } from
 import type { SavedView } from "../lib/savedViews";
 import { useProspects } from "../hooks/useProspects";
 import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useKanbanDndSensors } from "../hooks/useKanbanDndSensors";
 import { useToast } from "../components/ui/toast";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { AddContactDialog } from "../components/AddContactDialog";
+import { KanbanBoardShell, KanbanColumn } from "../components/KanbanColumn";
+import { groupProspectsByStatus } from "../lib/kanban";
 import type { ProspectListRow } from "../services/prospects";
 import type { ProspectStatus } from "@dmh/types";
 
@@ -60,6 +66,7 @@ function downloadCsv(content: string, filename: string) {
 
 export function ProspectsListPage() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const {
     prospects,
     loading,
@@ -72,7 +79,11 @@ export function ProspectsListPage() {
   } = useProspects();
   const staff = useStaffMembers();
   const { toast } = useToast();
+  const kanbanSensors = useKanbanDndSensors();
 
+  const [view, setView] = useState<"list" | "kanban">(() =>
+    searchParams.get("view") === "kanban" ? "kanban" : "list",
+  );
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [filters, setFilters] = useState<ProspectFilters>(EMPTY_PROSPECT_FILTERS);
@@ -263,6 +274,19 @@ export function ProspectsListPage() {
     }
   }
 
+  async function handleKanbanDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const prospectId = String(active.id);
+    const targetStatus = over.id as ProspectStatus;
+    const current = prospects.find((p) => p.id === prospectId);
+    if (!current || current.status === targetStatus) return;
+
+    const result = await bulkUpdateStatus([prospectId], targetStatus);
+    if (!result.ok) toast(`Échec du changement de statut : ${result.error}`, "destructive");
+  }
+
   function handleExport() {
     const rowsToExport = selectedIds.length > 0 ? filtered.filter((p) => selectedIds.includes(p.id)) : filtered;
     const csv = toCsv(rowsToExport, [
@@ -284,6 +308,22 @@ export function ProspectsListPage() {
         title="Prospects"
         actions={
           <>
+            <div className="flex rounded-md border border-border p-0.5">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("kanban")}
+                className={`rounded px-2 py-1 text-xs font-medium ${view === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+              >
+                Kanban
+              </button>
+            </div>
             <Button variant="outline" size="sm" onClick={() => setAddCompanyOpen(true)}>
               + Entreprise
             </Button>
@@ -341,6 +381,8 @@ export function ProspectsListPage() {
         }
       />
 
+      {view === "list" && (
+      <>
       <div className="flex flex-wrap items-center gap-1 border-b border-border">
         <button
           type="button"
@@ -352,21 +394,21 @@ export function ProspectsListPage() {
         >
           Toutes
         </button>
-        {savedViews.map((view) => (
+        {savedViews.map((savedView) => (
           <div
-            key={view.id}
+            key={savedView.id}
             className={cn(
               "group flex items-center gap-1 border-b-2 px-3 py-1.5 text-sm font-medium",
-              activeViewId === view.id ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+              activeViewId === savedView.id ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            <button type="button" onClick={() => setFilters(view.filters)} className="max-w-[10rem] truncate">
-              {view.name}
+            <button type="button" onClick={() => setFilters(savedView.filters)} className="max-w-[10rem] truncate">
+              {savedView.name}
             </button>
             <button
               type="button"
-              onClick={() => handleDeleteView(view.id)}
-              aria-label={`Supprimer la vue ${view.name}`}
+              onClick={() => handleDeleteView(savedView.id)}
+              aria-label={`Supprimer la vue ${savedView.name}`}
               className="hidden text-muted-foreground hover:text-destructive group-hover:inline"
             >
               ×
@@ -576,6 +618,28 @@ export function ProspectsListPage() {
             )}
           </TableBody>
         </Table>
+      )}
+      </>
+      )}
+
+      {view === "kanban" && !loading && !error && (
+        <div className="flex h-[calc(100vh-14rem)] flex-col gap-3">
+          <DndContext sensors={kanbanSensors} onDragEnd={handleKanbanDragEnd}>
+            <KanbanBoardShell>
+              {groupProspectsByStatus(filtered).map((group) => (
+                <KanbanColumn key={group.column.status} column={group.column} prospects={group.prospects} />
+              ))}
+            </KanbanBoardShell>
+          </DndContext>
+        </div>
+      )}
+
+      {view === "kanban" && loading && (
+        <div className="grid h-[calc(100vh-14rem)] grid-flow-col auto-cols-fr gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-full" />
+          ))}
+        </div>
       )}
 
       <AddCompanyDialog open={addCompanyOpen} onOpenChange={setAddCompanyOpen} />

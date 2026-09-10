@@ -97,6 +97,11 @@ Dernière mise à jour : 2026-09-04
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
 | S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
 | S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B en production (validation manuelle en attente, voir TESTING.md) ; Lot C (Dossiers) code+tests verts, migration 032 écrite mais **non appliquée** (confirmation explicite de Loïc requise) |
+| S33-0 | Revue dev CRM (08/09) — audit champs personnalisés globaux vs par contact | ✅ fait — pas de code à écrire, voir Journal |
+| S33-1 | Revue dev CRM (08/09) — masquer Contacts/Entreprises/Pipeline de la sidebar (doublon avec Prospect) | ✅ fait côté code — routes `/contacts`, `/companies`, `/pipeline` conservées en deep-link, en attente de validation navigateur |
+| S33-2 | Revue dev CRM (08/09) — vue Kanban fusionnée dans l'onglet Prospect (toggle Liste/Kanban) | ✅ fait côté code — en attente de validation navigateur (toggle, drag-and-drop, clic carte) |
+| S33-3 | Revue dev CRM (08/09) — panneau de sélection Contact/Entreprise/Opportunité ("+ Nouveau" du Header) | ✅ fait côté code — en attente de validation navigateur (3 chemins de création) |
+| S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ⬜ en cours |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1573,3 +1578,57 @@ tests — page de contenu statique, rien à tester unitairement), dev
 server + curl 200 sur `/settings/help`. Pas de vérification visuelle
 en navigateur réel possible côté Claude — à valider par Loïc (contenu
 et mise en page).
+
+### 2026-09-10 — Revue dev CRM DMH (08/09) : lot S33
+
+Réunion Delphine/Loïc du 08/09/2026 (`D:\DL\Revue dev CRM DMH.docx`),
+prochaine réunion le 11/09/2026 10h. Plan découpé et validé avec Loïc
+avant codage (voir `.claude/plans` de la session), tracé ici comme lot
+S33. 3 agents d'exploration lancés avant tout code pour cartographier
+précisément les doublons/fonctionnalités visées.
+
+**S33-0 (audit champs personnalisés)** : vérifié que le modèle actuel
+(`custom_field_definitions` + `custom_field_values`, migration
+`014_custom_fields.sql`, écran global `/settings/custom-fields`) est
+déjà structuré au niveau du client, jamais par fiche — le point du CR
+("champ personnalisé... pas associé à un contact spécifique") était
+déjà résolu, aucune ligne de code à écrire.
+
+**S33-1 (navigation)** : retiré "Contacts", "Entreprises" et "Pipeline"
+du groupe "Prospection" de `Sidebar.tsx`. Les routes `/contacts`,
+`/companies`, `/pipeline` restent actives dans `App.tsx` (deep-links
+depuis les fiches liées) — décision explicite de Loïc de masquer
+seulement la sidebar, pas de supprimer l'accès direct.
+
+**S33-2 (Kanban dans Prospect)** : `ProspectsList.tsx` gagne un toggle
+Liste/Kanban (même pattern que `Opportunities.tsx`), lisant/écrivant
+`?view=kanban` dans l'URL. La vue Kanban réutilise telle quelle
+`KanbanColumn`/`KanbanBoardShell`/`lib/kanban.ts` (plus de nouveau
+composant), et le changement de statut par glisser-déposer réutilise
+`useProspects().bulkUpdateStatus` (pas besoin du hook séparé
+`useKanbanProspects`, supprimé — devenu mort). `pages/Pipeline.tsx`
+devient une redirection vers `/?view=kanban` (garde les favoris/le
+raccourci CommandPalette valides). Le correctif du bug "clic
+impossible sur les cartes Kanban" (`activationConstraint: { distance:
+8 }`, voir entrée du 2026-09-08) était dupliqué à l'identique entre
+`Pipeline.tsx` et `Opportunities.tsx` — factorisé dans un nouveau hook
+partagé `hooks/useKanbanDndSensors.ts`, réutilisé par les deux Kanban
+(Prospects et Opportunités) pour ne pas le tripler.
+
+**S33-3 (panneau de création)** : nouveau `components/CreateEntityDialog.tsx`
+— panneau à 3 choix (Contact/Entreprise/Opportunité) qui ouvre ensuite
+le dialogue existant correspondant (`AddContactDialog`,
+`AddCompanyDialog`, `AddDealDialog` — aucun dupliqué). Remplace le
+bouton du Header "+ Nouvel enrichissement", qui était mal nommé : il
+n'ouvrait en réalité que la création d'entreprise (`AddCompanyDialog`),
+exactement le doublon signalé dans le CR. Les boutons contextuels "+
+Contact"/"+ Entreprise" sur `Contacts.tsx`/`ProspectsList.tsx` ne sont
+pas touchés (le CR visait spécifiquement le bouton du Header mal
+étiqueté).
+
+Vérifié après chaque étape : `pnpm --filter crm typecheck` et
+`pnpm --filter crm test` (64 fichiers, 454 tests) verts. Aucune
+migration nécessaire pour S33-0 à S33-3 (réutilisation du schéma et
+des services existants). Validation navigateur réelle en attente de
+Loïc pour S33-1/2/3 (voir `TESTING.md`) — S33-4 (import CSV avec
+enrichissement automatique) en cours, voir plus bas.

@@ -38,9 +38,6 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "Prospection",
     items: [
       { to: "/", label: "Prospects" },
-      { to: "/pipeline", label: "Pipeline" },
-      { to: "/contacts", label: "Contacts" },
-      { to: "/companies", label: "Entreprises" },
       { to: "/opportunities", label: "Opportunités" },
       { to: "/tasks", label: "Tâches" },
       { to: "/lists", label: "Segments" },

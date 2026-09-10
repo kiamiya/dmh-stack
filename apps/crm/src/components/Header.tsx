@@ -5,7 +5,7 @@ import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
 import { DropdownMenu, DropdownMenuItem } from "./ui/dropdown-menu";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
-import { AddCompanyDialog } from "./AddCompanyDialog";
+import { CreateEntityDialog } from "./CreateEntityDialog";
 import { Button } from "./ui/button";
 import { useTheme } from "../hooks/useTheme";
 import { themeLabel } from "../lib/theme";
@@ -36,7 +36,7 @@ export function Header({ onSearchInput }: HeaderProps) {
   const { session } = useSession();
   const navigate = useNavigate();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [addCompanyOpen, setAddCompanyOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const { theme, cycleTheme } = useTheme();
   const { tasks } = useTasks();
@@ -87,8 +87,8 @@ export function Header({ onSearchInput }: HeaderProps) {
           ))}
         </div>
 
-        <Button size="sm" blueprint onClick={() => setAddCompanyOpen(true)} className="shrink-0 whitespace-nowrap">
-          + Nouvel enrichissement
+        <Button size="sm" blueprint onClick={() => setCreateOpen(true)} className="shrink-0 whitespace-nowrap">
+          + Nouveau
         </Button>
 
         <DropdownMenu
@@ -153,11 +153,7 @@ export function Header({ onSearchInput }: HeaderProps) {
         </div>
       </div>
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
-      <AddCompanyDialog
-        open={addCompanyOpen}
-        onOpenChange={setAddCompanyOpen}
-        onCreated={(company) => navigate(`/companies/${company.id}`)}
-      />
+      <CreateEntityDialog open={createOpen} onOpenChange={setCreateOpen} />
     </header>
   );
 }
