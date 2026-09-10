@@ -25,6 +25,17 @@ export async function listContacts(client: SupabaseClient): Promise<ContactListR
   return (data ?? []) as unknown as ContactListRow[];
 }
 
+/** Emails déjà utilisés pour ce client (pas de doublon) — utilisé par l'import CSV pour dédupliquer avant création. */
+export async function listContactEmailsForClient(client: SupabaseClient, clientId: string): Promise<string[]> {
+  const { data, error } = await client
+    .from("contacts")
+    .select("email")
+    .eq("client_id", clientId)
+    .not("email", "is", null);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => (row as { email: string }).email).filter(Boolean);
+}
+
 export interface ContactDetailRow {
   id: string;
   client_id: string;

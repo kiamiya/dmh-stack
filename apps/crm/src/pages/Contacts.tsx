@@ -12,6 +12,7 @@ import { Button } from "../components/ui/button";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { AddContactDialog } from "../components/AddContactDialog";
+import { ImportEntitiesDialog } from "../components/ImportEntitiesDialog";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { useStaffMembers } from "../hooks/useStaffMembers";
@@ -49,6 +50,7 @@ export function ContactsPage() {
   // `*_lists.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que tasks.created_by, AddTaskDialog.tsx).
   const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
 
@@ -170,6 +172,9 @@ export function ContactsPage() {
           <>
             <Button variant="outline" size="sm" onClick={handleExport}>
               Exporter
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              Importer
             </Button>
             <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
               + Nouveau contact
@@ -339,6 +344,12 @@ export function ContactsPage() {
       )}
 
       <AddContactDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => reload()} />
+      <ImportEntitiesDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        entityType="contact"
+        onImported={() => reload()}
+      />
     </div>
   );
 }

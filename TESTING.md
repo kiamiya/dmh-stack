@@ -44,6 +44,26 @@ Revue dev CRM DMH (08/09) : lot S33".
 | 4 | Choisir "Opportunité", remplir et valider | L'opportunité est créée, redirection vers sa fiche |
 | 5 | Rouvrir "+ Nouveau" après une création | Le panneau repart bien sur l'écran de choix (pas bloqué sur le dernier dialogue ouvert) |
 
+### S33-4 — import CSV Contacts/Entreprises
+
+**Pré-requis pour vérifier l'enrichissement automatique** : un client DMH
+avec une automatisation active (`/automations`, `entity_type` = "Prospect",
+déclencheur "à la création", action "Enrichir" — provider `pappers`) et le
+secret Vault `app_service_role_key` rempli (voir S32-auto plus bas, déjà
+signalé comme en attente). Sans ça, le prospect est bien créé en statut "à
+enrichir" mais rien ne se passe automatiquement — comportement attendu, pas
+un bug de cet import.
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/contacts`, cliquer "Importer", choisir un client, uploader un CSV avec colonnes Prénom/Nom/Entreprise/Email | Les colonnes sont pré-associées automatiquement, l'aperçu affiche le nombre de lignes prêtes |
+| 2 | Modifier manuellement une correspondance de colonne dans le menu déroulant | L'aperçu (lignes prêtes/ignorées) se met à jour immédiatement |
+| 3 | Importer un CSV avec une ligne sans prénom et une ligne avec un email déjà utilisé par un contact existant | Ces 2 lignes apparaissent dans "ignorée(s)" avec la raison, les autres sont importées |
+| 4 | Importer deux lignes qui partagent la même entreprise (même nom, casse différente) | Une seule entreprise créée, réutilisée pour la 2e ligne (vérifiable sur `/companies`) |
+| 5 | Après import, ouvrir un des nouveaux contacts | Le contact et son entreprise existent, un prospect en statut "à enrichir" est visible sur `/?view=kanban` |
+| 6 | (Si le pré-requis ci-dessus est rempli) Attendre quelques secondes puis rafraîchir la fiche entreprise | Les champs SIREN/secteur/effectif se remplissent (enrichissement Pappers réellement déclenché) |
+| 7 | Sur `/companies`, cliquer "Importer", uploader un CSV Nom/Ville/Site web | Les entreprises sont créées, aucun prospect ni enrichissement (limite attendue, voir `PROGRESS.md`) |
+
 ## Rappel — tests en attente sur d'autres chantiers
 
 - **⛔ Bloquant** : Segments (/lists) — Lot C (Dossiers), migration

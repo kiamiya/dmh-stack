@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createContact, getContact, listContacts, updateContact } from "./contacts";
+import { createContact, getContact, listContactEmailsForClient, listContacts, updateContact } from "./contacts";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -10,6 +10,7 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     order: () => query,
     eq: () => query,
     update: () => query,
+    not: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
   };
@@ -73,6 +74,21 @@ describe("getContact", () => {
   it("lève une erreur si Supabase en renvoie une", async () => {
     const client = makeStubClient({ data: null, error: { message: "introuvable" } });
     await expect(getContact(client, "missing")).rejects.toThrow("introuvable");
+  });
+});
+
+describe("listContactEmailsForClient", () => {
+  it("retourne les emails non nuls", async () => {
+    const client = makeStubClient({ data: [{ email: "alice@acme.test" }, { email: "bob@acme.test" }], error: null });
+    await expect(listContactEmailsForClient(client, "client-1")).resolves.toEqual([
+      "alice@acme.test",
+      "bob@acme.test",
+    ]);
+  });
+
+  it("retourne un tableau vide si data est null", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(listContactEmailsForClient(client, "client-1")).resolves.toEqual([]);
   });
 });
 

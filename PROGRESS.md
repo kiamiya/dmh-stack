@@ -101,7 +101,7 @@ Dernière mise à jour : 2026-09-04
 | S33-1 | Revue dev CRM (08/09) — masquer Contacts/Entreprises/Pipeline de la sidebar (doublon avec Prospect) | ✅ fait côté code — routes `/contacts`, `/companies`, `/pipeline` conservées en deep-link, en attente de validation navigateur |
 | S33-2 | Revue dev CRM (08/09) — vue Kanban fusionnée dans l'onglet Prospect (toggle Liste/Kanban) | ✅ fait côté code — en attente de validation navigateur (toggle, drag-and-drop, clic carte) |
 | S33-3 | Revue dev CRM (08/09) — panneau de sélection Contact/Entreprise/Opportunité ("+ Nouveau" du Header) | ✅ fait côté code — en attente de validation navigateur (3 chemins de création) |
-| S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ⬜ en cours |
+| S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ✅ fait côté code — en attente de validation navigateur (voir TESTING.md) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1630,5 +1630,69 @@ Vérifié après chaque étape : `pnpm --filter crm typecheck` et
 `pnpm --filter crm test` (64 fichiers, 454 tests) verts. Aucune
 migration nécessaire pour S33-0 à S33-3 (réutilisation du schéma et
 des services existants). Validation navigateur réelle en attente de
-Loïc pour S33-1/2/3 (voir `TESTING.md`) — S33-4 (import CSV avec
-enrichissement automatique) en cours, voir plus bas.
+Loïc pour S33-1/2/3 (voir `TESTING.md`).
+
+**S33-4 (import CSV Contacts/Entreprises, avec enrichissement
+automatique pour les contacts)** : décision prise avec Loïc de viser
+l'enrichissement automatique complet (pas un import brut). En
+recherchant comment l'invoquer, découverte importante en relisant
+`supabase/migrations/030_automation_branching_and_enrichment.sql` :
+l'enrichissement automatique **existe déjà**, câblé au niveau base —
+le trigger `prospects_automation` (après chaque `insert` sur
+`prospects`) appelle `run_automation_rules('prospect')`, qui, si le
+client a une automatisation active (`entity_type = 'prospect'`,
+déclencheur "à la création") avec une action `trigger_enrichment`,
+fait un vrai appel HTTP (`pg_net`) vers `enrich-pappers`/
+`enrich-dropcontact`. Donc créer un contact + prospect `to_enrich` —
+exactement ce que fait déjà `AddContactDialog` pour une création
+manuelle — suffit à déclencher l'enrichissement réel, **sans appeler
+aucune Edge Function depuis le nouveau code d'import** : le CSV
+d'import reproduit fidèlement ce chemin existant plutôt que d'inventer
+un second mécanisme.
+
+Nouveaux fichiers, tous testés :
+- `lib/importColumnMapping.ts` (+ test) : suggestion automatique de
+  colonne CSV → champ cible (ex. "Prénom" → `firstName`), en 2 passes
+  (correspondance exacte d'abord, puis sous-chaîne) pour éviter qu'un
+  alias générique comme "nom" ne matche à tort "Nom de l'entreprise"
+  au lieu de "Nom" — bug réel trouvé en écrivant le premier jet, corrigé
+  avant de committer.
+- `lib/contactImportPlan.ts` / `lib/companyImportPlan.ts` (+ tests) :
+  validation et dédup pures (ligne invalide, email/nom déjà utilisé —
+  en base ou en double dans le même fichier), séparées de l'exécution
+  pour rester testables sans Supabase, même principe que
+  `packages/pharow/src/importer.ts`.
+- `services/entityImport.ts` (+ test, client Supabase stub par table) :
+  exécute le plan — `importContacts` crée l'entreprise (réutilisée si
+  le nom correspond déjà, insensible à la casse), le contact, puis le
+  prospect `to_enrich` ; `importCompanies` crée uniquement l'entreprise.
+  Une ligne en erreur n'interrompt pas les suivantes (erreurs collectées).
+- `services/contacts.ts` : nouvelle fonction
+  `listContactEmailsForClient` (+ test) pour dédupliquer par email au
+  sein d'un client avant import.
+- `components/ImportEntitiesDialog.tsx` : dialogue générique
+  (`entityType: "contact" | "company"`), upload CSV + correspondance de
+  colonnes (auto-détectée, corrigible) + aperçu (lignes prêtes/ignorées
+  avec raison) avant de confirmer. Bouton "Importer" ajouté sur
+  `Contacts.tsx` et `Companies.tsx`, à côté des boutons "+ Nouveau
+  contact"/"+ Entreprise" existants (non touchés).
+
+**Limite assumée, documentée à Loïc plutôt que masquée** : un import
+"Entreprises" seul (sans données de contact) ne peut déclencher aucun
+enrichissement automatique — le mécanisme `trigger_enrichment` ne se
+déclenche que sur la création d'un **prospect**, qui exige toujours à
+la fois un `contact_id` et un `company_id` (`services/prospects.ts`).
+Une entreprise importée seule reste donc dans le même état qu'une
+entreprise créée manuellement via "+ Entreprise" : pas de prospect, pas
+d'enrichissement tant qu'aucun contact ne lui est rattaché. Pas une
+limite que j'ai choisi de contourner par un hack (ex. un faux contact
+vide juste pour déclencher l'enrichissement) — cohérent avec la
+préoccupation de qualité de données soulevée dans la même réunion.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (68 fichiers, 475 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts (12 packages). Aucune
+migration nécessaire (réutilise `custom_field_definitions`,
+`companies`, `contacts`, `prospects` et le moteur d'automatisation
+existants). Validation fonctionnelle réelle (upload d'un vrai CSV,
+vérification que l'enrichissement se déclenche si une automatisation
+est configurée) en attente de Loïc — voir `TESTING.md`.
