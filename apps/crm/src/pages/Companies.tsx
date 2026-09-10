@@ -19,6 +19,7 @@ import { computeCompanyCompleteness } from "../lib/companyCompleteness";
 import { toCsv } from "../lib/csv";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { ImportEntitiesDialog } from "../components/ImportEntitiesDialog";
+import { ProspectSubNav } from "../components/ProspectSubNav";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { useStaffMembers } from "../hooks/useStaffMembers";
@@ -175,6 +176,7 @@ export function CompaniesPage() {
         title="Entreprises"
         actions={
           <>
+            <ProspectSubNav active="companies" />
             <Button variant="outline" size="sm" onClick={handleExport}>
               Exporter
             </Button>

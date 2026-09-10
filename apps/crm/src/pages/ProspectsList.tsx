@@ -37,6 +37,7 @@ import { useToast } from "../components/ui/toast";
 import { AddCompanyDialog } from "../components/AddCompanyDialog";
 import { AddContactDialog } from "../components/AddContactDialog";
 import { KanbanBoardShell, KanbanColumn } from "../components/KanbanColumn";
+import { ProspectSubNav } from "../components/ProspectSubNav";
 import { groupProspectsByStatus } from "../lib/kanban";
 import type { ProspectListRow } from "../services/prospects";
 import type { ProspectStatus } from "@dmh/types";
@@ -308,22 +309,7 @@ export function ProspectsListPage() {
         title="Prospects"
         actions={
           <>
-            <div className="flex rounded-md border border-border p-0.5">
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
-              >
-                Liste
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("kanban")}
-                className={`rounded px-2 py-1 text-xs font-medium ${view === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
-              >
-                Kanban
-              </button>
-            </div>
+            <ProspectSubNav active={view} onLocalChange={setView} />
             <Button variant="outline" size="sm" onClick={() => setAddCompanyOpen(true)}>
               + Entreprise
             </Button>

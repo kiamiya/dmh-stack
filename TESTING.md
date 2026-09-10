@@ -44,6 +44,16 @@ Revue dev CRM DMH (08/09) : lot S33".
 | 4 | Choisir "Opportunité", remplir et valider | L'opportunité est créée, redirection vers sa fiche |
 | 5 | Rouvrir "+ Nouveau" après une création | Le panneau repart bien sur l'écran de choix (pas bloqué sur le dernier dialogue ouvert) |
 
+### S33-5 — sous-navigation Vue globale/Kanban/Contacts/Entreprises
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur "Prospects" (`/`), regarder la barre d'actions | 4 boutons/liens : "Vue globale", "Kanban", "Contacts", "Entreprises" |
+| 2 | Cliquer "Contacts" depuis `/` | Navigue vers `/contacts`, la même barre à 4 entrées est visible, "Contacts" est actif |
+| 3 | Depuis `/contacts`, cliquer "Kanban" | Navigue vers `/?view=kanban`, le Kanban s'affiche directement |
+| 4 | Depuis `/companies`, cliquer "Vue globale" | Navigue vers `/`, la vue tableau des prospects s'affiche |
+| 5 | Sur `/`, basculer Liste ↔ Kanban via ces mêmes boutons | Comportement identique à avant (S33-2, pas de navigation, juste une bascule locale) |
+
 ### S33-4 — import CSV Contacts/Entreprises
 
 **Pré-requis pour vérifier l'enrichissement automatique** : un client DMH

@@ -13,6 +13,7 @@ import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { AddContactDialog } from "../components/AddContactDialog";
 import { ImportEntitiesDialog } from "../components/ImportEntitiesDialog";
+import { ProspectSubNav } from "../components/ProspectSubNav";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { useStaffMembers } from "../hooks/useStaffMembers";
@@ -170,6 +171,7 @@ export function ContactsPage() {
         title="Contacts"
         actions={
           <>
+            <ProspectSubNav active="contacts" />
             <Button variant="outline" size="sm" onClick={handleExport}>
               Exporter
             </Button>

@@ -102,6 +102,7 @@ Dernière mise à jour : 2026-09-04
 | S33-2 | Revue dev CRM (08/09) — vue Kanban fusionnée dans l'onglet Prospect (toggle Liste/Kanban) | ✅ fait côté code — en attente de validation navigateur (toggle, drag-and-drop, clic carte) |
 | S33-3 | Revue dev CRM (08/09) — panneau de sélection Contact/Entreprise/Opportunité ("+ Nouveau" du Header) | ✅ fait côté code — en attente de validation navigateur (3 chemins de création) |
 | S33-4 | Revue dev CRM (08/09) — import CSV Contacts/Entreprises avec enrichissement automatique | ✅ fait côté code — en attente de validation navigateur (voir TESTING.md) |
+| S33-5 | Revue dev CRM (08/09) — sous-navigation Vue globale/Kanban/Contacts/Entreprises (retour de Loïc après test) | ✅ fait côté code — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1696,3 +1697,23 @@ migration nécessaire (réutilise `custom_field_definitions`,
 existants). Validation fonctionnelle réelle (upload d'un vrai CSV,
 vérification que l'enrichissement se déclenche si une automatisation
 est configurée) en attente de Loïc — voir `TESTING.md`.
+
+**S33-5 (sous-navigation Prospect/Contacts/Entreprises)** : après avoir
+testé S33-1 en navigateur, Loïc a demandé un moyen d'atteindre les vues
+Contacts/Entreprises depuis l'onglet Prospect, en plus du toggle Liste/
+Kanban déjà en place — cohérent avec la décision du CR de garder ces
+écrans accessibles sans les remettre dans la sidebar. Nouveau composant
+partagé `components/ProspectSubNav.tsx` : 4 entrées (Vue globale/
+Kanban/Contacts/Entreprises), utilisé sur les 3 pages concernées
+(`ProspectsList.tsx`, `Contacts.tsx`, `Companies.tsx`). "Vue globale"/
+"Kanban" restent une bascule d'état locale sur `ProspectsList.tsx` (pas
+de navigation, cohérent avec S33-2) ; depuis `Contacts.tsx`/
+`Companies.tsx`, ces deux mêmes entrées redeviennent de vrais liens
+vers `/` et `/?view=kanban` (la page courante n'a pas cet état local).
+"Contacts"/"Entreprises" sont toujours de vrais liens. Remplace le
+toggle Liste/Kanban codé en dur dans `ProspectsList.tsx` (même rendu,
+juste factorisé). Vérifié : `pnpm --filter crm typecheck`/`test` verts
+(mêmes 475 tests, aucun nouveau test unitaire nécessaire — composant de
+navigation pure, pas de logique à isoler). Testé en HMR pendant la
+session (rechargement à chaud sans erreur), validation navigateur
+complète en attente de Loïc.
