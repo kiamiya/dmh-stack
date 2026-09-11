@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
   const { data: prospect, error: prospectError } = await supabase
     .from("prospects")
-    .select("id, contact_id, company_id, status")
+    .select("id, client_id, contact_id, company_id, status")
     .eq("id", prospectId)
     .single();
 
@@ -183,6 +183,29 @@ Deno.serve(async (req) => {
 
     if (updateContactError) {
       throw new Error(`Échec mise à jour contacts: ${updateContactError.message}`);
+    }
+
+    // Traçabilité par champ (correction Claude Design, "Champs enrichis" de
+    // la Fiche Contact) — confiance dérivée de la vraie réponse Dropcontact
+    // (jamais un chiffre inventé), best-effort (ne bloque jamais
+    // l'enrichissement en cas d'échec).
+    if (email) {
+      const CONFIDENCE_BY_LEVEL: Record<string, number> = { valid: 95, accept: 75, risky: 40, not_found: 0 };
+      await supabase.from("field_provenance").upsert(
+        [
+          {
+            client_id: prospect.client_id,
+            entity_type: "contact",
+            entity_id: contact.id,
+            field_name: "email",
+            source: "dropcontact",
+            value: email,
+            confidence: CONFIDENCE_BY_LEVEL[confidence] ?? null,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "entity_type,entity_id,field_name,source" },
+      );
     }
 
     if (!manual) {

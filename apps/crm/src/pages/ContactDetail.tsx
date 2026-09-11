@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useContactDetail } from "../hooks/useContactDetail";
 import { useCompanies } from "../hooks/useCompanies";
@@ -27,12 +27,29 @@ import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 import { getInteractionTypeColor, getInteractionTypeLabel } from "../lib/interactionLabels";
 import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
+import { listFieldProvenance } from "../services/fieldProvenance";
+import type { FieldProvenanceRow } from "../services/fieldProvenance";
+import { groupFieldProvenance } from "../lib/fieldProvenance";
 
 const DATA_SOURCE_LABELS: Record<string, string> = {
   pharow: "Pharow",
   dropcontact: "Dropcontact",
   linkedin: "LinkedIn",
   manual: "Manuel",
+};
+
+const PROVENANCE_FIELD_LABELS: Record<string, string> = {
+  siren: "SIREN",
+  naf_label: "Secteur",
+  employee_range: "Effectif",
+  revenue: "CA",
+  website: "Site web",
+  email: "Email",
+};
+
+const PROVENANCE_SOURCE_LABELS: Record<string, string> = {
+  pappers: "Pappers",
+  dropcontact: "Dropcontact",
 };
 
 export function ContactDetailPage() {
@@ -50,6 +67,20 @@ export function ContactDetailPage() {
   const { tasks } = useTasks();
   const { toast } = useToast();
   const { lists, addContacts: addContactToList } = useContactLists(contact?.client_id ?? "");
+  const [provenanceRows, setProvenanceRows] = useState<FieldProvenanceRow[]>([]);
+  useEffect(() => {
+    if (!contact) {
+      setProvenanceRows([]);
+      return;
+    }
+    const primaryCompanyIdForProvenance = (companies.find((rel) => rel.is_primary) ?? companies[0])?.company_id;
+    const primaryCompanyForProvenance = allCompanies.companies.find((c) => c.id === primaryCompanyIdForProvenance);
+    const requests = [listFieldProvenance(supabase, "contact", contact.id)];
+    if (primaryCompanyForProvenance) requests.push(listFieldProvenance(supabase, "company", primaryCompanyForProvenance.id));
+    Promise.all(requests)
+      .then((results) => setProvenanceRows(results.flat()))
+      .catch(() => setProvenanceRows([]));
+  }, [contact, companies, allCompanies.companies]);
   const [addToListId, setAddToListId] = useState("");
   const [addingToList, setAddingToList] = useState(false);
   const [enriching, setEnriching] = useState(false);
@@ -123,6 +154,7 @@ export function ContactDetailPage() {
   const linkableCompanies = allCompanies.companies.filter((c) => !linkedCompanyIds.has(c.id));
   const primaryCompanyId = (companies.find((rel) => rel.is_primary) ?? companies[0])?.company_id;
   const primaryCompany = allCompanies.companies.find((c) => c.id === primaryCompanyId);
+  const provenanceGroups = groupFieldProvenance(provenanceRows);
   const relatedDeals = deals.filter((d) => d.contact_id === contact.id);
   const relatedTasks = tasks.filter((t) => t.contact_id === contact.id);
   const mergeCandidates = allContacts.contacts.filter(
@@ -286,6 +318,53 @@ export function ContactDetailPage() {
             <div>Effectif : {primaryCompany.employee_range ?? "—"}</div>
             <div>CA : {primaryCompany.revenue ? formatCurrency(primaryCompany.revenue) : "—"}</div>
             <div>Ville : {primaryCompany.city ?? "—"}</div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!masked && provenanceGroups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Champs enrichis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="pb-1.5 font-normal">Champ</th>
+                  <th className="pb-1.5 font-normal">Valeur</th>
+                  <th className="pb-1.5 font-normal">Source</th>
+                  <th className="pb-1.5 font-normal">Confiance</th>
+                  <th className="pb-1.5 font-normal">Âge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {provenanceGroups.map((g) => {
+                  const latest = g.entries[0]!;
+                  return (
+                    <tr key={g.field} className="border-t border-border">
+                      <td className="py-1.5 text-foreground">
+                        {PROVENANCE_FIELD_LABELS[g.field] ?? g.field}
+                        {g.hasConflict && (
+                          <Badge variant="yellow" className="ml-2">
+                            Conflit
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-1.5 text-foreground">{latest.value ?? "—"}</td>
+                      <td className="py-1.5 text-muted-foreground">{PROVENANCE_SOURCE_LABELS[latest.source] ?? latest.source}</td>
+                      <td className="py-1.5 text-muted-foreground">{latest.confidence != null ? `${latest.confidence}%` : "—"}</td>
+                      <td className="py-1.5 text-muted-foreground">{g.ageDays != null ? `${g.ageDays}j` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {provenanceGroups.some((g) => g.hasConflict) && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Un ou plusieurs champs ont des valeurs différentes selon la source — la plus récente est affichée ci-dessus.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .select("id, name, siren")
+    .select("id, name, siren, client_id")
     .eq("id", prospect.company_id)
     .single();
 
@@ -128,6 +128,34 @@ Deno.serve(async (req) => {
 
     if (updateCompanyError) {
       throw new Error(`Échec mise à jour companies: ${updateCompanyError.message}`);
+    }
+
+    // Traçabilité par champ (correction Claude Design, "Champs enrichis" de
+    // la Fiche Contact) — un enregistrement par champ réellement renseigné
+    // par Pappers, confiance 100 (donnée de registre légal, aucune
+    // ambiguïté contrairement à un email deviné). Best-effort : une
+    // erreur ici ne doit jamais faire échouer l'enrichissement lui-même.
+    const provenanceFields: Array<[string, unknown]> = [
+      ["siren", mapped.siren ?? company.siren],
+      ["naf_label", mapped.nafLabel],
+      ["employee_range", mapped.employeeRange],
+      ["revenue", mapped.revenue],
+      ["website", mapped.website],
+    ];
+    const provenanceRows = provenanceFields
+      .filter(([, value]) => value !== null && value !== undefined)
+      .map(([field_name, value]) => ({
+        client_id: company.client_id,
+        entity_type: "company",
+        entity_id: company.id,
+        field_name,
+        source: "pappers",
+        value: String(value),
+        confidence: 100,
+        updated_at: new Date().toISOString(),
+      }));
+    if (provenanceRows.length > 0) {
+      await supabase.from("field_provenance").upsert(provenanceRows, { onConflict: "entity_type,entity_id,field_name,source" });
     }
 
     if (!manual) {

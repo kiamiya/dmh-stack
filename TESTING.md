@@ -85,6 +85,16 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 7 | "Regrouper par" → "Commercial" (sans client sélectionné) | Table regroupée par commercial, "Non assigné" pour les opportunités sans commercial |
 | 8 | Choisir un client puis rouvrir "Regrouper par" | L'option "Compte client" a disparu (un seul client affiché, grouper par client n'a plus de sens) |
 
+### S35-7 — Fiche Contact : bloc "Champs enrichis" *(nécessite migration 042)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur la fiche d'un contact enrichi (email via Dropcontact) et dont l'entreprise est enrichie (Pappers) | Une carte "Champs enrichis" apparaît sous "Société", avec une ligne par champ (Email, SIREN, Secteur, Effectif, CA, Site web selon ce qui est renseigné) |
+| 2 | Regarder les colonnes Source/Confiance/Âge | Source = "Dropcontact" ou "Pappers" selon le champ ; Confiance = 100% pour les champs Pappers, un % dérivé de la vérification email pour Dropcontact ; Âge = nombre de jours réel |
+| 3 | Cliquer "Enrichir" sur cette fiche (ré-enrichissement manuel) | Après rafraîchissement, l'Âge repasse à "0j" pour les champs concernés |
+| 4 | Fiche d'un contact jamais enrichi | Pas de carte "Champs enrichis" (aucune ligne à montrer) |
+| 5 | Basculer en "Portail client" (bascule Header) sur une fiche qui a la carte en mode Force de vente | La carte "Champs enrichis" disparaît (réservée en interne) |
+
 ## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)
