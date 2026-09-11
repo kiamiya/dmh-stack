@@ -20,6 +20,7 @@ import { useToast } from "../components/ui/toast";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
 import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
+import { useSelectedClient } from "../lib/selectedClient";
 import { toCsv } from "../lib/csv";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "job_title", operator: "eq", value: "" }] }];
@@ -54,7 +55,13 @@ export function ContactsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams] = useSearchParams();
-  const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
+  const { clientId, setClientId } = useSelectedClient();
+
+  useEffect(() => {
+    const deepLinkedClient = searchParams.get("client");
+    if (deepLinkedClient) setClientId(deepLinkedClient);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { lists, create: createList, remove: removeList, addContacts: addContactsToList, listMemberIds } = useContactLists(clientId);
   const [listId, setListId] = useState(() => searchParams.get("list") ?? "");

@@ -29,6 +29,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ProspectDetailPanel } from "./components/ProspectDetailPanel";
 import { useCommandPaletteState } from "./hooks/useCommandPaletteState";
 import { ViewModeProvider, useViewMode } from "./lib/viewMode";
+import { SelectedClientProvider } from "./lib/selectedClient";
 
 /**
  * Disposition façon HubSpot/Brevo depuis S28 : nav en barre latérale gauche
@@ -79,14 +80,17 @@ function ProtectedLayoutContent() {
  * Layout protégé (S28, `<Outlet/>` S30) — enveloppe le contenu dans
  * `ViewModeProvider` (S32 : bascule "Force de vente / Portail client" du
  * mockup "Relais", un vrai mode masqué dans le CRM plutôt qu'un lien vers
- * `apps/dashboard`) pour que n'importe quelle page en dessous puisse lire
- * le mode courant sans prop-drilling.
+ * `apps/dashboard`) et `SelectedClientProvider` (S34 : sélecteur de client
+ * DMH global demandé par le CR du 11/09/2026) pour que n'importe quelle
+ * page en dessous puisse les lire sans prop-drilling.
  */
 function ProtectedLayout() {
   return (
     <ProtectedRoute>
       <ViewModeProvider>
-        <ProtectedLayoutContent />
+        <SelectedClientProvider>
+          <ProtectedLayoutContent />
+        </SelectedClientProvider>
       </ViewModeProvider>
     </ProtectedRoute>
   );

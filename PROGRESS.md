@@ -113,6 +113,7 @@ Dernière mise à jour : 2026-09-04
 | S34-C0 | Revue dev CRM (11/09) — relations hiérarchiques entreprises (maison mère/filiale, demande explicite de Loïc) | ✅ fait — **migration 037 appliquée et vérifiée en production le 2026-09-11** |
 | S34-3 | Revue dev CRM (11/09) — Opportunités en vue Kanban par défaut | ✅ fait — en attente de validation navigateur |
 | S34-4/5 | Revue dev CRM (11/09) — menu de vue (Enregistrer/Dupliquer/Renommer/Supprimer/Partager le lien) sur Prospects + filtres synchronisés dans l'URL | ✅ fait côté code (Prospects uniquement pour l'instant, pas encore Segments/Tâches) — en attente de validation navigateur |
+| S34-6 | Revue dev CRM (11/09) — sélecteur de client DMH global (Header) | ✅ fait côté code — Contacts/Entreprises/Opportunités branchés (Prospects non branché, voir note) — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1963,3 +1964,33 @@ explicite de Loïc) — `supabase db push --linked` exécuté avec succès,
 vérifié en base (`information_schema.columns`) : `deals.name` et
 `companies.parent_company_id` existent bien. Plus aucune migration en
 attente à ce stade.
+
+**S34-6 (sélecteur de client DMH global)** : nouveau `lib/selectedClient.tsx`
+(`SelectedClientProvider`/`useSelectedClient`, même patron que
+`lib/viewMode.tsx`), posé dans `App.tsx` au niveau du layout protégé,
+persisté en `sessionStorage` (pas `localStorage` — un choix qui vaut pour
+la session de travail en cours dans cet onglet, pas une préférence à
+vie). Nouveau `<select>` dans `Header.tsx` ("Tous les clients" + liste),
+visible sur toutes les pages protégées.
+
+`Contacts.tsx`/`Companies.tsx` : le `clientId` local devient le `clientId`
+partagé (même interface, changement mécanique bas risque) — un lien
+profond `?client=...` pousse toujours sa valeur dans le contexte partagé
+au montage (comportement deep-link préservé). `Opportunities.tsx` : les
+deux states client jusqu'ici indépendants (`kanbanClientId` pour le
+Kanban, `listViewClientId` pour la Liste — point de vigilance déjà
+identifié dans le plan) sont unifiés en un seul `clientId` partagé —
+changer de vue (Liste ↔ Kanban) conserve maintenant le même client
+sélectionné, une vraie amélioration au passage.
+
+**Pas branché** : `ProspectsList.tsx` garde `filters.clientId` local (dans
+l'objet de filtres du système de vues enregistrées) — le brancher sur le
+contexte global aurait exigé une synchronisation bidirectionnelle
+(contexte global ↔ filtre sauvegardable) risquée à faire sous contrainte
+de temps sans fragiliser le menu de vue tout juste construit (S34-4/5) ;
+laissé de côté, à reprendre dans une session dédiée.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (504 tests) verts,
+`pnpm typecheck`/`pnpm test` racine verts. Pas de nouveau test unitaire
+(contexte React pur, même convention que `viewMode.tsx` qui n'en a pas
+non plus).

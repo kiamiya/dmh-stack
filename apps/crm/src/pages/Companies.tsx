@@ -24,6 +24,7 @@ import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
+import { useSelectedClient } from "../lib/selectedClient";
 
 function downloadCsv(content: string, filename: string) {
   const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
@@ -49,7 +50,13 @@ export function CompaniesPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams] = useSearchParams();
-  const [clientId, setClientId] = useState(() => searchParams.get("client") ?? "");
+  const { clientId, setClientId } = useSelectedClient();
+
+  useEffect(() => {
+    const deepLinkedClient = searchParams.get("client");
+    if (deepLinkedClient) setClientId(deepLinkedClient);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { lists, create: createList, remove: removeList, addCompanies: addCompaniesToList, listMemberIds } = useCompanyLists(clientId);
   const [listId, setListId] = useState(() => searchParams.get("list") ?? "");

@@ -13,6 +13,8 @@ import { useTasks } from "../hooks/useTasks";
 import { computeTasksDueToday } from "../lib/taskStats";
 import { useViewMode } from "../lib/viewMode";
 import type { ViewMode } from "../lib/viewMode";
+import { useSelectedClient } from "../lib/selectedClient";
+import { useClients } from "../hooks/useClients";
 import { getInitials } from "../lib/avatar";
 
 const THEME_ICON = { light: Sun, dark: Moon, system: CircleDot } as const;
@@ -43,6 +45,8 @@ export function Header({ onSearchInput }: HeaderProps) {
   const dueToday = computeTasksDueToday(tasks);
   const ThemeIcon = THEME_ICON[theme];
   const { viewMode, setViewMode } = useViewMode();
+  const { clientId, setClientId } = useSelectedClient();
+  const clients = useClients();
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -70,6 +74,21 @@ export function Header({ onSearchInput }: HeaderProps) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+        <select
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          title="Filtrer toute la session de travail sur un client DMH"
+          aria-label="Client DMH"
+          className="shrink-0 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+        >
+          <option value="">Tous les clients</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
         <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
           {VIEW_MODE_OPTIONS.map((opt) => (
             <button

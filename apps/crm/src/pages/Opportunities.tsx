@@ -32,6 +32,7 @@ import { useToast } from "../components/ui/toast";
 import { useTasks } from "../hooks/useTasks";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
+import { useSelectedClient } from "../lib/selectedClient";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "status", operator: "eq", value: "" }] }];
 
@@ -48,16 +49,21 @@ export function OpportunitiesPage() {
   const kanbanSensors = useKanbanDndSensors();
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<"list" | "kanban">("kanban");
-  const [kanbanClientId, setKanbanClientId] = useState("");
-  const { stages, addStage } = usePipelineStages(kanbanClientId);
+  const { clientId, setClientId } = useSelectedClient();
+  const { stages, addStage } = usePipelineStages(clientId);
   const [newStageName, setNewStageName] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
 
-  // Filtre/liste de la vue "Liste" — état indépendant de kanbanClientId
-  // pour ne pas toucher au fonctionnement déjà validé de l'onglet Kanban.
+  // Sélecteur de client DMH global (S34) : Liste et Kanban partagent
+  // désormais le même client sélectionné (avant S34, deux states
+  // indépendants — changer de vue imposait de reprendre le client).
   const [searchParams] = useSearchParams();
-  const [listViewClientId, setListViewClientId] = useState(() => searchParams.get("client") ?? "");
-  const { lists: dealLists, create: createDealList, remove: removeDealList, addDeals: addDealsToList, listMemberIds: listDealMemberIds } = useDealLists(listViewClientId);
+  useEffect(() => {
+    const deepLinkedClient = searchParams.get("client");
+    if (deepLinkedClient) setClientId(deepLinkedClient);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const { lists: dealLists, create: createDealList, remove: removeDealList, addDeals: addDealsToList, listMemberIds: listDealMemberIds } = useDealLists(clientId);
   const [listId, setListId] = useState(() => searchParams.get("list") ?? "");
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
   const [customFieldValuesById, setCustomFieldValuesById] = useState<Record<string, Record<string, unknown>>>({});
@@ -81,18 +87,18 @@ export function OpportunitiesPage() {
   }, [activeList?.id, activeList?.rules]);
 
   useEffect(() => {
-    if (!listViewClientId) {
+    if (!clientId) {
       setCustomFieldValuesById({});
       return;
     }
-    listValuesByEntityForClient(supabase, "opportunity", listViewClientId)
+    listValuesByEntityForClient(supabase, "opportunity", clientId)
       .then(setCustomFieldValuesById)
       .catch(() => setCustomFieldValuesById({}));
-  }, [listViewClientId]);
+  }, [clientId]);
 
   const listViewDeals = useMemo(() => {
     let rows = deals;
-    if (listViewClientId) rows = rows.filter((d) => d.client_id === listViewClientId);
+    if (clientId) rows = rows.filter((d) => d.client_id === clientId);
     if (activeList) {
       if (activeList.rules) {
         rows = rows.filter((d) =>
@@ -103,7 +109,7 @@ export function OpportunitiesPage() {
       }
     }
     return rows;
-  }, [deals, listViewClientId, activeList, listMemberIdSet, customFieldValuesById]);
+  }, [deals, clientId, activeList, listMemberIdSet, customFieldValuesById]);
 
   const weightedPipelineValue = useMemo(() => computeWeightedPipelineValue(listViewDeals), [listViewDeals]);
   const negotiationCount = useMemo(() => listViewDeals.filter((d) => d.status === "negotiation").length, [listViewDeals]);
@@ -190,7 +196,7 @@ export function OpportunitiesPage() {
             }))
             .filter((g) => g.conditions.length > 0)
         : undefined;
-    await createDealList({ clientId: listViewClientId, name: newListName.trim(), rules, createdBy });
+    await createDealList({ clientId: clientId, name: newListName.trim(), rules, createdBy });
     toast(`Liste "${newListName.trim()}" créée.`, "success");
     resetNewListForm();
   }
@@ -277,9 +283,9 @@ export function OpportunitiesPage() {
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
               <select
-                value={listViewClientId}
+                value={clientId}
                 onChange={(e) => {
-                  setListViewClientId(e.target.value);
+                  setClientId(e.target.value);
                   setListId("");
                   setSelectedIds(new Set());
                 }}
@@ -293,7 +299,7 @@ export function OpportunitiesPage() {
                 ))}
               </select>
             </div>
-            {listViewClientId && (
+            {clientId && (
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Liste</label>
                 <div className="flex gap-2">
@@ -320,7 +326,7 @@ export function OpportunitiesPage() {
                 </div>
               </div>
             )}
-            {!listViewClientId && (
+            {!clientId && (
               <p className="text-xs text-muted-foreground">Choisis un client DMH pour créer/filtrer des listes.</p>
             )}
           </div>
@@ -330,12 +336,12 @@ export function OpportunitiesPage() {
               Pipe pondéré <strong className="font-semibold">{formatCurrency(weightedPipelineValue)}</strong> · {negotiationCount} affaire(s) en négociation
               {averageCycleDays !== null && <> · cycle moyen {averageCycleDays} j</>}
             </span>
-            <Button variant="outline" size="sm" onClick={() => setGroupByClient((v) => !v)} disabled={!!listViewClientId}>
+            <Button variant="outline" size="sm" onClick={() => setGroupByClient((v) => !v)} disabled={!!clientId}>
               {groupByClient ? "Vue à plat" : "Grouper par client"}
             </Button>
           </div>
 
-          {newListOpen && listViewClientId && (
+          {newListOpen && clientId && (
             <form onSubmit={handleCreateDealList} className="space-y-3 rounded-md border border-border p-3">
               <input
                 value={newListName}
@@ -360,7 +366,7 @@ export function OpportunitiesPage() {
                 </button>
               </div>
               {newListMode === "dynamic" && (
-                <RuleGroupsEditor entityType="opportunity" clientId={listViewClientId} groups={newListGroups} onChange={setNewListGroups} />
+                <RuleGroupsEditor entityType="opportunity" clientId={clientId} groups={newListGroups} onChange={setNewListGroups} />
               )}
               <Button type="submit" size="sm" disabled={!newListName.trim()}>
                 Créer la liste
@@ -368,7 +374,7 @@ export function OpportunitiesPage() {
             </form>
           )}
 
-          {selectedIds.size > 0 && listViewClientId && (
+          {selectedIds.size > 0 && clientId && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
               <span className="font-medium text-foreground">{selectedIds.size} sélectionné(s)</span>
               <select
@@ -462,8 +468,8 @@ export function OpportunitiesPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground">Client DMH</label>
             <select
-              value={kanbanClientId}
-              onChange={(e) => setKanbanClientId(e.target.value)}
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
               className="rounded-md border border-border px-2 py-1 text-sm"
             >
               <option value="">Choisir un client…</option>
@@ -475,13 +481,13 @@ export function OpportunitiesPage() {
             </select>
           </div>
 
-          {!kanbanClientId && (
+          {!clientId && (
             <p className="text-sm text-muted-foreground">
               Choisis un client pour voir son Kanban — les étapes sont propres à chaque client.
             </p>
           )}
 
-          {kanbanClientId && (
+          {clientId && (
             <>
               <form onSubmit={handleAddStage} className="flex items-end gap-2">
                 <div>
