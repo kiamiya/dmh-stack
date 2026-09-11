@@ -19,6 +19,38 @@ export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
   clientId: null,
 };
 
+/**
+ * Pure : sérialise les filtres actifs dans des paramètres d'URL — condition
+ * technique pour qu'un lien copié ("Partager le lien de la vue", demande du
+ * CR du 11/09/2026) reproduise exactement l'état de la vue chez qui l'ouvre.
+ * Un critère vide/null n'ajoute aucun paramètre (URL la plus courte
+ * possible pour une vue non filtrée).
+ */
+export function filtersToSearchParams(filters: ProspectFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("q", filters.search);
+  for (const status of filters.statuses) params.append("status", status);
+  if (filters.scoreMin !== null) params.set("scoreMin", String(filters.scoreMin));
+  if (filters.scoreMax !== null) params.set("scoreMax", String(filters.scoreMax));
+  if (filters.nafLabel) params.set("naf", filters.nafLabel);
+  if (filters.clientId) params.set("client", filters.clientId);
+  return params;
+}
+
+/** Pure : reconstruit des filtres à partir de paramètres d'URL (symétrique de `filtersToSearchParams`) — clé absente = valeur vide/nulle, jamais une erreur. */
+export function searchParamsToFilters(params: URLSearchParams): ProspectFilters {
+  const scoreMinRaw = params.get("scoreMin");
+  const scoreMaxRaw = params.get("scoreMax");
+  return {
+    search: params.get("q") ?? "",
+    statuses: params.getAll("status") as ProspectFilters["statuses"],
+    scoreMin: scoreMinRaw !== null && scoreMinRaw !== "" ? Number(scoreMinRaw) : null,
+    scoreMax: scoreMaxRaw !== null && scoreMaxRaw !== "" ? Number(scoreMaxRaw) : null,
+    nafLabel: params.get("naf"),
+    clientId: params.get("client"),
+  };
+}
+
 export function matchesSearch(prospect: ProspectListRow, query: string): boolean {
   if (!query.trim()) return true;
   const q = query.trim().toLowerCase();

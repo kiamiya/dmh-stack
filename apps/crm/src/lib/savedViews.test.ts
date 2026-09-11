@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSavedView, loadSavedViews, removeSavedView, saveSavedViews } from "./savedViews";
+import { createSavedView, duplicateSavedView, loadSavedViews, removeSavedView, renameSavedView, saveSavedViews } from "./savedViews";
 import { EMPTY_PROSPECT_FILTERS } from "./prospectFilters";
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -55,5 +55,32 @@ describe("removeSavedView", () => {
     const v1 = createSavedView("v1", "A", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
     const v2 = createSavedView("v2", "B", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
     expect(removeSavedView([v1, v2], "v1")).toEqual([v2]);
+  });
+});
+
+describe("renameSavedView", () => {
+  it("renomme la vue ciblée et trimme le nom", () => {
+    const v1 = createSavedView("v1", "A", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
+    const [renamed] = renameSavedView([v1], "v1", "  B  ");
+    expect(renamed.name).toBe("B");
+  });
+
+  it("n'a aucun effet si l'id est introuvable", () => {
+    const v1 = createSavedView("v1", "A", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
+    expect(renameSavedView([v1], "missing", "B")).toEqual([v1]);
+  });
+});
+
+describe("duplicateSavedView", () => {
+  it("ajoute une copie avec un nouvel id, suffixée (copie)", () => {
+    const v1 = createSavedView("v1", "A", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
+    const result = duplicateSavedView([v1], "v1", "v2", "2026-08-02T00:00:00Z");
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual({ id: "v2", name: "A (copie)", filters: EMPTY_PROSPECT_FILTERS, createdAt: "2026-08-02T00:00:00Z" });
+  });
+
+  it("retourne la liste inchangée si l'id source est introuvable", () => {
+    const v1 = createSavedView("v1", "A", EMPTY_PROSPECT_FILTERS, "2026-08-01T00:00:00Z");
+    expect(duplicateSavedView([v1], "missing", "v2", "2026-08-02T00:00:00Z")).toEqual([v1]);
   });
 });

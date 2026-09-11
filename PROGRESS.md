@@ -111,6 +111,8 @@ Dernière mise à jour : 2026-09-04
 | S34-1 | Revue dev CRM (11/09) — formulaire Contact : téléphone + réordonnancement des champs | ✅ fait côté code — en attente de validation navigateur |
 | S34-2 | Revue dev CRM (11/09) — formulaire Opportunité : nom libre + tâche de relance à la création | ✅ fait côté code — migration 036 (`deals.name`) écrite, **non appliquée** |
 | S34-C0 | Revue dev CRM (11/09) — relations hiérarchiques entreprises (maison mère/filiale, demande explicite de Loïc) | ✅ fait côté code — migration 037 (`companies.parent_company_id`) écrite, **non appliquée** |
+| S34-3 | Revue dev CRM (11/09) — Opportunités en vue Kanban par défaut | ✅ fait — en attente de validation navigateur |
+| S34-4/5 | Revue dev CRM (11/09) — menu de vue (Enregistrer/Dupliquer/Renommer/Supprimer/Partager le lien) sur Prospects + filtres synchronisés dans l'URL | ✅ fait côté code (Prospects uniquement pour l'instant, pas encore Segments/Tâches) — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1933,3 +1935,25 @@ Vérifié à chaque étape : `pnpm --filter crm typecheck`/`test` (497 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts (12 packages). Migrations
 036/037 écrites mais **non appliquées** — confirmation explicite à
 demander avant `supabase db push`, même processus que S33.
+
+**S34-3/4/5 (Phase B, partielle) :** Opportunités passe en Kanban par
+défaut (`Opportunities.tsx`, `useState("list")` → `"kanban")`) — Prospects/
+Tâches étaient déjà en Liste par défaut. `lib/savedViews.ts` gagne
+`renameSavedView`/`duplicateSavedView` (+ tests) ; `lib/prospectFilters.ts`
+gagne `filtersToSearchParams`/`searchParamsToFilters` (+ tests, aller-retour
+vérifié) pour synchroniser les filtres actifs dans l'URL en continu
+(`setSearchParams` à chaque changement, pas seulement lu à l'ouverture
+comme avant) — condition technique du "partage de lien de vue" demandé
+par le CR. `ProspectsList.tsx` : boutons Dupliquer/Renommer ajoutés à
+côté du × déjà existant sur chaque onglet de vue enregistrée, bouton
+"Partager le lien de la vue" (copie `window.location.href`).
+
+**Pas encore fait (reste de la Phase B)** : ce menu de vue n'existe que
+sur Prospects — pas encore répliqué sur Segments (`/lists`) ni Tâches
+(`/tasks`), qui en ont autant besoin selon le mockup Claude Design.
+Sélecteur de client DMH global (contexte React partagé entre pages) pas
+commencé — chaque page garde son `<select>` local indépendant pour
+l'instant. Point de reprise pour la prochaine session sur ce chantier.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (70 fichiers, 504 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts.

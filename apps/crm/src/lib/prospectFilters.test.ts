@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROSPECT_FILTERS, extractDistinctClients, extractDistinctNafLabels, filterProspects } from "./prospectFilters";
+import {
+  EMPTY_PROSPECT_FILTERS,
+  extractDistinctClients,
+  extractDistinctNafLabels,
+  filterProspects,
+  filtersToSearchParams,
+  searchParamsToFilters,
+} from "./prospectFilters";
+import type { ProspectFilters } from "./prospectFilters";
 import type { ProspectListRow } from "../services/prospects";
 
 function row(overrides: Partial<ProspectListRow> = {}): ProspectListRow {
@@ -114,5 +122,28 @@ describe("extractDistinctClients", () => {
       { id: "c2", name: "Alpha" },
       { id: "c1", name: "Zeta" },
     ]);
+  });
+});
+
+describe("filtersToSearchParams / searchParamsToFilters", () => {
+  it("un jeu de filtres vide ne produit aucun paramètre", () => {
+    expect(filtersToSearchParams(EMPTY_PROSPECT_FILTERS).toString()).toBe("");
+  });
+
+  it("aller-retour : les filtres sont reconstruits à l'identique", () => {
+    const filters: ProspectFilters = {
+      search: "acier",
+      statuses: ["to_enrich", "replied"],
+      scoreMin: 5,
+      scoreMax: 9,
+      nafLabel: "Mécanique",
+      clientId: "client-1",
+    };
+    const params = filtersToSearchParams(filters);
+    expect(searchParamsToFilters(params)).toEqual(filters);
+  });
+
+  it("searchParamsToFilters sur des paramètres vides retourne l'équivalent de EMPTY_PROSPECT_FILTERS", () => {
+    expect(searchParamsToFilters(new URLSearchParams())).toEqual(EMPTY_PROSPECT_FILTERS);
   });
 });

@@ -24,11 +24,25 @@ import { formatScore, getScoreColor } from "../lib/score";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
 import { cn } from "../lib/cn";
-import { EMPTY_PROSPECT_FILTERS, extractDistinctClients, extractDistinctNafLabels, filterProspects } from "../lib/prospectFilters";
+import {
+  EMPTY_PROSPECT_FILTERS,
+  extractDistinctClients,
+  extractDistinctNafLabels,
+  filterProspects,
+  filtersToSearchParams,
+  searchParamsToFilters,
+} from "../lib/prospectFilters";
 import type { ProspectFilters } from "../lib/prospectFilters";
 import { toCsv } from "../lib/csv";
 import { applyColumnOrder, loadColumnPreferences, moveColumn, saveColumnPreferences } from "../lib/columnPreferences";
-import { createSavedView, loadSavedViews, removeSavedView, saveSavedViews } from "../lib/savedViews";
+import {
+  createSavedView,
+  duplicateSavedView,
+  loadSavedViews,
+  removeSavedView,
+  renameSavedView,
+  saveSavedViews,
+} from "../lib/savedViews";
 import type { SavedView } from "../lib/savedViews";
 import { useProspects } from "../hooks/useProspects";
 import { useStaffMembers } from "../hooks/useStaffMembers";
@@ -67,7 +81,7 @@ function downloadCsv(content: string, filename: string) {
 
 export function ProspectsListPage() {
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     prospects,
     loading,
@@ -87,13 +101,14 @@ export function ProspectsListPage() {
   );
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
-  const [filters, setFilters] = useState<ProspectFilters>(EMPTY_PROSPECT_FILTERS);
+  const [filters, setFilters] = useState<ProspectFilters>(() => searchParamsToFilters(searchParams));
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnOrder, setColumnOrder] = useState<string[]>(CONFIGURABLE_COLUMN_IDS);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState("");
 
   useEffect(() => {
@@ -105,21 +120,65 @@ export function ProspectsListPage() {
     setSavedViews(loadSavedViews(localStorage));
   }, []);
 
-  function handleSaveView() {
-    if (!newViewName.trim()) return;
-    const view = createSavedView(crypto.randomUUID(), newViewName, filters, new Date().toISOString());
-    const next = [...savedViews, view];
-    setSavedViews(next);
-    saveSavedViews(localStorage, next);
-    setSaveViewOpen(false);
+  /** Partage de lien de vue (demande du CR du 11/09/2026) : les filtres actifs (+ Liste/Kanban) sont toujours reflétés dans l'URL, jamais seulement lus à l'ouverture — un lien copié à tout instant reproduit exactement cet état chez qui l'ouvre. */
+  useEffect(() => {
+    const params = filtersToSearchParams(filters);
+    if (view === "kanban") params.set("view", "kanban");
+    setSearchParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, view]);
+
+  function openCreateViewDialog() {
+    setRenamingViewId(null);
     setNewViewName("");
-    toast(`Vue "${view.name}" enregistrée.`, "success");
+    setSaveViewOpen(true);
+  }
+
+  function openRenameViewDialog(id: string, currentName: string) {
+    setRenamingViewId(id);
+    setNewViewName(currentName);
+    setSaveViewOpen(true);
+  }
+
+  function handleSubmitViewDialog() {
+    if (!newViewName.trim()) return;
+    if (renamingViewId) {
+      const next = renameSavedView(savedViews, renamingViewId, newViewName);
+      setSavedViews(next);
+      saveSavedViews(localStorage, next);
+      toast(`Vue renommée "${newViewName.trim()}".`, "success");
+    } else {
+      const view = createSavedView(crypto.randomUUID(), newViewName, filters, new Date().toISOString());
+      const next = [...savedViews, view];
+      setSavedViews(next);
+      saveSavedViews(localStorage, next);
+      toast(`Vue "${view.name}" enregistrée.`, "success");
+    }
+    setSaveViewOpen(false);
+    setRenamingViewId(null);
+    setNewViewName("");
   }
 
   function handleDeleteView(id: string) {
     const next = removeSavedView(savedViews, id);
     setSavedViews(next);
     saveSavedViews(localStorage, next);
+  }
+
+  function handleDuplicateView(id: string) {
+    const next = duplicateSavedView(savedViews, id, crypto.randomUUID(), new Date().toISOString());
+    setSavedViews(next);
+    saveSavedViews(localStorage, next);
+    toast("Vue dupliquée.", "success");
+  }
+
+  async function handleCopyViewLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Lien de la vue copié.", "success");
+    } catch {
+      toast("Impossible de copier le lien.", "destructive");
+    }
   }
 
   function persistColumnPrefs(order: string[], visibility: VisibilityState) {
@@ -393,8 +452,27 @@ export function ProspectsListPage() {
             </button>
             <button
               type="button"
+              onClick={() => handleDuplicateView(savedView.id)}
+              aria-label={`Dupliquer la vue ${savedView.name}`}
+              title="Dupliquer"
+              className="hidden text-muted-foreground hover:text-foreground group-hover:inline"
+            >
+              ⧉
+            </button>
+            <button
+              type="button"
+              onClick={() => openRenameViewDialog(savedView.id, savedView.name)}
+              aria-label={`Renommer la vue ${savedView.name}`}
+              title="Renommer"
+              className="hidden text-muted-foreground hover:text-foreground group-hover:inline"
+            >
+              ✎
+            </button>
+            <button
+              type="button"
               onClick={() => handleDeleteView(savedView.id)}
               aria-label={`Supprimer la vue ${savedView.name}`}
+              title="Supprimer"
               className="hidden text-muted-foreground hover:text-destructive group-hover:inline"
             >
               ×
@@ -403,16 +481,23 @@ export function ProspectsListPage() {
         ))}
         <button
           type="button"
-          onClick={() => setSaveViewOpen(true)}
+          onClick={openCreateViewDialog}
           className="px-3 py-1.5 text-sm text-accent hover:underline"
         >
           + Nouvelle vue
+        </button>
+        <button
+          type="button"
+          onClick={handleCopyViewLink}
+          className="ml-auto px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Partager le lien de la vue
         </button>
       </div>
 
       <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
         <DialogHeader>
-          <DialogTitle>Enregistrer la vue actuelle</DialogTitle>
+          <DialogTitle>{renamingViewId ? "Renommer la vue" : "Enregistrer la vue actuelle"}</DialogTitle>
         </DialogHeader>
         <DialogContent>
           <input
@@ -427,8 +512,8 @@ export function ProspectsListPage() {
           <Button variant="outline" onClick={() => setSaveViewOpen(false)}>
             Annuler
           </Button>
-          <Button onClick={handleSaveView} disabled={!newViewName.trim()}>
-            Enregistrer
+          <Button onClick={handleSubmitViewDialog} disabled={!newViewName.trim()}>
+            {renamingViewId ? "Renommer" : "Enregistrer"}
           </Button>
         </DialogFooter>
       </Dialog>

@@ -37,3 +37,16 @@ export function createSavedView(id: string, name: string, filters: ProspectFilte
 export function removeSavedView(views: SavedView[], id: string): SavedView[] {
   return views.filter((v) => v.id !== id);
 }
+
+/** Pure : renomme une vue existante (aucun effet si l'id est introuvable). */
+export function renameSavedView(views: SavedView[], id: string, name: string): SavedView[] {
+  return views.map((v) => (v.id === id ? { ...v, name: name.trim() } : v));
+}
+
+/** Pure : duplique une vue existante sous un nouveau nom/id (id/date fournis par l'appelant, comme `createSavedView`). Retourne `views` inchangé si l'id source est introuvable. */
+export function duplicateSavedView(views: SavedView[], sourceId: string, newId: string, createdAt: string): SavedView[] {
+  const source = views.find((v) => v.id === sourceId);
+  if (!source) return views;
+  const copy: SavedView = { id: newId, name: `${source.name} (copie)`, filters: source.filters, createdAt };
+  return [...views, copy];
+}

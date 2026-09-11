@@ -41,6 +41,17 @@ attente de confirmation avant de pouvoir tester S34-2/S34-C0 —
 | 3 | Ouvrir la fiche de la maison mère | La filiale apparaît dans sa liste "Filiales", lien cliquable |
 | 4 | Cliquer "Retirer" sur la maison mère depuis la fiche filiale | Repasse à "Aucune", la filiale disparaît de la liste de l'ex-maison mère |
 
+### S34-3/4/5 — Kanban Opportunités par défaut + menu de vue Prospects + partage de lien
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir `/opportunities` | S'ouvre directement en Kanban (plus besoin de cliquer le toggle) |
+| 2 | Sur `/`, filtrer puis "+ Nouvelle vue", donner un nom | La vue apparaît comme onglet |
+| 3 | Survoler l'onglet d'une vue enregistrée | 3 icônes apparaissent : ⧉ (dupliquer), ✎ (renommer), × (supprimer) |
+| 4 | Cliquer ⧉ | Une copie "<nom> (copie)" apparaît comme nouvel onglet |
+| 5 | Cliquer ✎, changer le nom, valider | L'onglet est renommé sans changer ses filtres |
+| 6 | Appliquer un filtre (ex. un statut), cliquer "Partager le lien de la vue", coller l'URL copiée dans un nouvel onglet | Les mêmes filtres sont actifs (l'URL contient `status=...` etc.) |
+
 ## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 
 Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.
