@@ -22,12 +22,13 @@ export interface DealRow {
   updated_at: string;
   contact_list_id: string | null;
   company_list_id: string | null;
+  assigned_to: string | null;
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
 }
 
 const DEAL_SELECT =
-  "id, client_id, company_name, name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, created_at, updated_at, contact_list_id, company_list_id, contacts(first_name, last_name), companies(name)";
+  "id, client_id, company_name, name, deal_value, status, signed_at, attributed_to_dmh, commission_amount, contact_id, company_id, pipeline_id, stage_id, probability, expected_close_date, created_at, updated_at, contact_list_id, company_list_id, assigned_to, contacts(first_name, last_name), companies(name)";
 
 export async function listDeals(client: SupabaseClient): Promise<DealRow[]> {
   const { data, error } = await client.from("deals").select(DEAL_SELECT).order("signed_at", { ascending: false });
@@ -53,6 +54,7 @@ export interface DealInsert {
   prospectId?: string | null;
   pipelineId?: string | null;
   stageId?: string | null;
+  assignedTo?: string | null;
 }
 
 /**
@@ -75,6 +77,7 @@ export async function createDeal(client: SupabaseClient, input: DealInsert): Pro
       prospect_id: input.prospectId ?? null,
       pipeline_id: input.pipelineId ?? null,
       stage_id: input.stageId ?? null,
+      assigned_to: input.assignedTo ?? null,
       status: "negotiation",
     })
     .select("id")
@@ -106,6 +109,7 @@ export interface DealUpdate {
   companyId?: string | null;
   contactListId?: string | null;
   companyListId?: string | null;
+  assignedTo?: string | null;
 }
 
 export async function updateDeal(client: SupabaseClient, id: string, patch: DealUpdate): Promise<void> {
@@ -119,6 +123,7 @@ export async function updateDeal(client: SupabaseClient, id: string, patch: Deal
       ...(patch.companyId !== undefined && { company_id: patch.companyId }),
       ...(patch.contactListId !== undefined && { contact_list_id: patch.contactListId }),
       ...(patch.companyListId !== undefined && { company_list_id: patch.companyListId }),
+      ...(patch.assignedTo !== undefined && { assigned_to: patch.assignedTo }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

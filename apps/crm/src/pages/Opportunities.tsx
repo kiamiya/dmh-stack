@@ -13,21 +13,36 @@ import { listValuesByEntityForClient } from "../services/customFields";
 import { supabase } from "../lib/supabase";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { AddDealDialog } from "../components/AddDealDialog";
 import { OpportunityKanbanBoardShell, OpportunityKanbanColumn } from "../components/OpportunityKanbanColumn";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
+import { SavedViewTabs } from "../components/SavedViewTabs";
+import { QuickFilterChips } from "../components/QuickFilterChips";
 import { PageHeader } from "../components/ui/page-header";
 import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import {
   computeAverageCycleDays,
   computeDealAgeDays,
+  computeDealWeightedValue,
   computeNextActionForDeal,
   computeWeightedPipelineValue,
 } from "../lib/opportunityStats";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { validateStageForm } from "../lib/pipelineForm";
+import { EMPTY_DEAL_FILTERS, filterDeals } from "../lib/dealFilters";
+import type { DealFilters } from "../lib/dealFilters";
+import {
+  createSavedView,
+  duplicateSavedView,
+  loadSavedViews,
+  removeSavedView,
+  renameSavedView,
+  saveSavedViews,
+} from "../lib/savedViews";
+import type { SavedView } from "../lib/savedViews";
 import { useToast } from "../components/ui/toast";
 import { useTasks } from "../hooks/useTasks";
 import { useStaffMembers } from "../hooks/useStaffMembers";
@@ -35,6 +50,17 @@ import { useSession } from "../lib/useSession";
 import { useSelectedClient } from "../lib/selectedClient";
 
 const EMPTY_GROUPS: RuleGroupDraft[] = [{ conditions: [{ field: "status", operator: "eq", value: "" }] }];
+const SAVED_VIEWS_STORAGE_KEY = "dmh-crm-saved-views-opportunities";
+
+const SYSTEM_TABS: Array<{ id: string; label: string; preset: DealFilters["preset"] }> = [
+  { id: "all", label: "Toutes les affaires", preset: "all" },
+  { id: "mine", label: "Mes affaires", preset: "mine" },
+  { id: "large", label: "Grands comptes", preset: "large" },
+  { id: "followup", label: "À relancer", preset: "followup" },
+  { id: "won_quarter", label: "Gagnées ce trimestre", preset: "won_quarter" },
+];
+
+type GroupBy = "none" | "client" | "assignee";
 
 export function OpportunitiesPage() {
   const { deals, loading, error, create, changeStage } = useOpportunities();
@@ -48,11 +74,23 @@ export function OpportunitiesPage() {
   const now = useMemo(() => new Date(), []);
   const kanbanSensors = useKanbanDndSensors();
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<"list" | "kanban">("kanban");
+  const [displayMode, setDisplayMode] = useState<"list" | "kanban">("kanban");
   const { clientId, setClientId } = useSelectedClient();
   const { stages, addStage } = usePipelineStages(clientId);
   const [newStageName, setNewStageName] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+
+  const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
+  const [savedViews, setSavedViews] = useState<SavedView<DealFilters>[]>([]);
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
+  const [newViewName, setNewViewName] = useState("");
+
+  useEffect(() => {
+    setSavedViews(loadSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY));
+  }, []);
 
   // Sélecteur de client DMH global (S34) : Liste et Kanban partagent
   // désormais le même client sélectionné (avant S34, deux states
@@ -72,7 +110,6 @@ export function OpportunitiesPage() {
   const [newListMode, setNewListMode] = useState<"static" | "dynamic">("static");
   const [newListGroups, setNewListGroups] = useState<RuleGroupDraft[]>(EMPTY_GROUPS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [groupByClient, setGroupByClient] = useState(false);
   const [bulkListId, setBulkListId] = useState("");
 
   const activeList = dealLists.find((l) => l.id === listId) ?? null;
@@ -96,6 +133,27 @@ export function OpportunitiesPage() {
       .catch(() => setCustomFieldValuesById({}));
   }, [clientId]);
 
+  const activeViewId = useMemo(() => {
+    const match = savedViews.find((v) => JSON.stringify(v.filters) === JSON.stringify(filters));
+    return match?.id ?? null;
+  }, [savedViews, filters]);
+  const activeSystemTabId = useMemo(
+    () => (activeViewId ? null : SYSTEM_TABS.find((t) => JSON.stringify({ ...EMPTY_DEAL_FILTERS, preset: t.preset }) === JSON.stringify(filters))?.id ?? null),
+    [filters, activeViewId],
+  );
+  const activeSavedView = savedViews.find((v) => v.id === activeViewId) ?? null;
+
+  const chipCounts = useMemo(
+    () => ({
+      myPortfolio: createdBy ? filterDeals(deals, { ...EMPTY_DEAL_FILTERS, myPortfolio: true }, createdBy, now).length : 0,
+      amountAbove100k: filterDeals(deals, { ...EMPTY_DEAL_FILTERS, amountAbove100k: true }, createdBy, now).length,
+      probAbove60: filterDeals(deals, { ...EMPTY_DEAL_FILTERS, probAbove60: true }, createdBy, now).length,
+      noMovement30d: filterDeals(deals, { ...EMPTY_DEAL_FILTERS, noMovement30d: true }, createdBy, now).length,
+      openUnder10d: filterDeals(deals, { ...EMPTY_DEAL_FILTERS, openUnder10d: true }, createdBy, now).length,
+    }),
+    [deals, createdBy, now],
+  );
+
   const listViewDeals = useMemo(() => {
     let rows = deals;
     if (clientId) rows = rows.filter((d) => d.client_id === clientId);
@@ -108,29 +166,35 @@ export function OpportunitiesPage() {
         rows = rows.filter((d) => listMemberIdSet.has(d.id));
       }
     }
-    return rows;
-  }, [deals, clientId, activeList, listMemberIdSet, customFieldValuesById]);
+    return filterDeals(rows, filters, createdBy, now);
+  }, [deals, clientId, activeList, listMemberIdSet, customFieldValuesById, filters, createdBy, now]);
 
   const weightedPipelineValue = useMemo(() => computeWeightedPipelineValue(listViewDeals), [listViewDeals]);
   const negotiationCount = useMemo(() => listViewDeals.filter((d) => d.status === "negotiation").length, [listViewDeals]);
   const averageCycleDays = useMemo(() => computeAverageCycleDays(listViewDeals), [listViewDeals]);
 
-  const dealsByClient = useMemo(() => {
+  const dealsByGroup = useMemo(() => {
+    if (groupBy === "none") return null;
     const groups = new Map<string, typeof listViewDeals>();
     for (const d of listViewDeals) {
-      const group = groups.get(d.client_id);
+      const key = groupBy === "client" ? d.client_id : (d.assigned_to ?? "__unassigned__");
+      const group = groups.get(key);
       if (group) group.push(d);
-      else groups.set(d.client_id, [d]);
+      else groups.set(key, [d]);
     }
-    return Array.from(groups.entries()).map(([clientId, rows]) => ({
-      clientId,
-      clientName: clients.find((c) => c.id === clientId)?.name ?? "—",
+    return Array.from(groups.entries()).map(([key, rows]) => ({
+      key,
+      label:
+        groupBy === "client"
+          ? (clients.find((c) => c.id === key)?.name ?? "—")
+          : (staff.find((s) => s.id === key)?.name ?? "Non assigné"),
       rows,
     }));
-  }, [listViewDeals, clients]);
+  }, [listViewDeals, groupBy, clients, staff]);
 
   function renderDealRow(d: (typeof listViewDeals)[number]) {
     const nextAction = computeNextActionForDeal(d.id, tasks);
+    const weighted = computeDealWeightedValue(d);
     return (
       <TableRow key={d.id}>
         <TableCell>
@@ -142,8 +206,10 @@ export function OpportunitiesPage() {
           </Link>
         </TableCell>
         <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>
+        <TableCell>{staff.find((s) => s.id === d.assigned_to)?.name ?? "—"}</TableCell>
         <TableCell>{formatCurrency(d.deal_value)}</TableCell>
         <TableCell>{d.probability != null ? `${d.probability}%` : "—"}</TableCell>
+        <TableCell>{weighted != null ? formatCurrency(weighted) : "—"}</TableCell>
         <TableCell>
           <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>
         </TableCell>
@@ -244,136 +310,254 @@ export function OpportunitiesPage() {
     }
   }
 
+  function openCreateView() {
+    setRenamingViewId(null);
+    setNewViewName("");
+    setSaveViewOpen(true);
+  }
+
+  function handleSubmitView() {
+    if (!newViewName.trim()) return;
+    if (renamingViewId) {
+      const next = renameSavedView(savedViews, renamingViewId, newViewName);
+      setSavedViews(next);
+      saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
+      toast(`Vue renommée "${newViewName.trim()}".`, "success");
+    } else {
+      const view = createSavedView(crypto.randomUUID(), newViewName, filters, new Date().toISOString());
+      const next = [...savedViews, view];
+      setSavedViews(next);
+      saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
+      toast(`Vue "${view.name}" enregistrée.`, "success");
+    }
+    setSaveViewOpen(false);
+    setRenamingViewId(null);
+    setNewViewName("");
+  }
+
+  async function handleCopyViewLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Lien copié.", "success");
+    } catch {
+      toast("Impossible de copier le lien.", "destructive");
+    }
+  }
+
+  const viewMenuActions = [
+    { label: "Partager le lien de la vue", onClick: handleCopyViewLink },
+    ...(activeSavedView
+      ? [
+          {
+            label: "Dupliquer la vue",
+            onClick: () => {
+              const next = duplicateSavedView(savedViews, activeSavedView.id, crypto.randomUUID(), new Date().toISOString());
+              setSavedViews(next);
+              saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
+              toast("Vue dupliquée.", "success");
+            },
+          },
+          {
+            label: "Renommer la vue",
+            onClick: () => {
+              setRenamingViewId(activeSavedView.id);
+              setNewViewName(activeSavedView.name);
+              setSaveViewOpen(true);
+            },
+          },
+          {
+            label: "Supprimer la vue",
+            onClick: () => {
+              const next = removeSavedView(savedViews, activeSavedView.id);
+              setSavedViews(next);
+              saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
+              setFilters(EMPTY_DEAL_FILTERS);
+            },
+            danger: true,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="space-y-3 p-6">
       <PageHeader
         kicker="Prospection · affaires en cours"
         title="Opportunités"
         actions={
-          <>
-            <div className="flex rounded-md border border-border p-0.5">
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
-              >
-                Liste
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("kanban")}
-                className={`rounded px-2 py-1 text-xs font-medium ${view === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
-              >
-                Kanban
-              </button>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-              + Opportunité
-            </Button>
-          </>
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            + Opportunité
+          </Button>
         }
       />
+
+      <SavedViewTabs
+        tabs={[
+          ...SYSTEM_TABS.map((t) => ({ id: t.id, label: t.label })),
+          ...savedViews.map((v) => ({ id: v.id, label: v.name })),
+        ]}
+        activeId={activeSystemTabId ?? activeViewId ?? "all"}
+        onSelect={(id) => {
+          const systemTab = SYSTEM_TABS.find((t) => t.id === id);
+          if (systemTab) {
+            setFilters({ ...EMPTY_DEAL_FILTERS, preset: systemTab.preset });
+            return;
+          }
+          const target = savedViews.find((v) => v.id === id);
+          if (target) setFilters(target.filters);
+        }}
+        onCreate={openCreateView}
+        menuActions={viewMenuActions}
+        extra={
+          <div className="flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setDisplayMode("list")}
+              className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Liste
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode("kanban")}
+              className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Kanban
+            </button>
+          </div>
+        }
+      />
+
+      <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+        <DialogHeader>
+          <DialogTitle>{renamingViewId ? "Renommer la vue" : "Enregistrer la vue actuelle"}</DialogTitle>
+        </DialogHeader>
+        <DialogContent>
+          <input
+            autoFocus
+            value={newViewName}
+            onChange={(e) => setNewViewName(e.target.value)}
+            placeholder="Nom de la vue…"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm"
+          />
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSaveViewOpen(false)}>
+            Annuler
+          </Button>
+          <Button onClick={handleSubmitView} disabled={!newViewName.trim()}>
+            {renamingViewId ? "Renommer" : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      <QuickFilterChips
+        chips={[
+          { key: "myPortfolio", label: "Mon portefeuille", count: chipCounts.myPortfolio, active: filters.myPortfolio },
+          { key: "amountAbove100k", label: "Montant ≥ 100k€", count: chipCounts.amountAbove100k, active: filters.amountAbove100k },
+          { key: "probAbove60", label: "Proba. ≥ 60%", count: chipCounts.probAbove60, active: filters.probAbove60 },
+          { key: "noMovement30d", label: "Sans mouvement 30j", count: chipCounts.noMovement30d, active: filters.noMovement30d },
+          { key: "openUnder10d", label: "Ouvertes < 10j", count: chipCounts.openUnder10d, active: filters.openUnder10d },
+        ]}
+        onToggle={(key) => setFilters((f) => ({ ...f, [key]: !f[key as keyof DealFilters] }))}
+        showAdvanced={showAdvanced}
+        onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+        hasActiveFilters={filters.myPortfolio || filters.amountAbove100k || filters.probAbove60 || filters.noMovement30d || filters.openUnder10d}
+        onReset={() =>
+          setFilters((f) => ({ ...f, myPortfolio: false, amountAbove100k: false, probAbove60: false, noMovement30d: false, openUnder10d: false }))
+        }
+      >
+        {displayMode === "list" && (
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Regrouper par</label>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              className="rounded-md border border-border px-2 py-1 text-sm"
+            >
+              <option value="none">Aucun</option>
+              {!clientId && <option value="client">Compte client</option>}
+              <option value="assignee">Commercial</option>
+            </select>
+          </div>
+        )}
+        {clientId && (
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Segment</label>
+            <div className="flex gap-2">
+              <select
+                value={listId}
+                onChange={(e) => setListId(e.target.value)}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Toutes les opportunités</option>
+                {dealLists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} {l.rules ? "(dynamique)" : ""}
+                  </option>
+                ))}
+              </select>
+              {listId && (
+                <Button variant="ghost" size="sm" onClick={() => { removeDealList(listId); setListId(""); }}>
+                  Supprimer la liste
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setNewListOpen((v) => !v)}>
+                + Nouvelle liste
+              </Button>
+            </div>
+          </div>
+        )}
+        {!clientId && (
+          <p className="text-xs text-muted-foreground">Choisis un client DMH (en haut) pour créer/filtrer des listes.</p>
+        )}
+      </QuickFilterChips>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
+        <span className="text-foreground">
+          Pipe pondéré <strong className="font-semibold">{formatCurrency(weightedPipelineValue)}</strong> · {negotiationCount} affaire(s) en négociation
+          {averageCycleDays !== null && <> · cycle moyen {averageCycleDays} j</>}
+        </span>
+      </div>
+
+      {newListOpen && clientId && (
+        <form onSubmit={handleCreateDealList} className="space-y-3 rounded-md border border-border p-3">
+          <input
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            placeholder="Nom de la liste"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm"
+          />
+          <div className="flex w-fit gap-1 rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setNewListMode("static")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Statique
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewListMode("dynamic")}
+              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+            >
+              Dynamique (critères)
+            </button>
+          </div>
+          {newListMode === "dynamic" && (
+            <RuleGroupsEditor entityType="opportunity" clientId={clientId} groups={newListGroups} onChange={setNewListGroups} />
+          )}
+          <Button type="submit" size="sm" disabled={!newListName.trim()}>
+            Créer la liste
+          </Button>
+        </form>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {loading && <p className="text-sm text-muted-foreground">Chargement…</p>}
 
-      {!loading && !error && view === "list" && (
+      {!loading && !error && displayMode === "list" && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
-              <select
-                value={clientId}
-                onChange={(e) => {
-                  setClientId(e.target.value);
-                  setListId("");
-                  setSelectedIds(new Set());
-                }}
-                className="rounded-md border border-border px-2 py-1 text-sm"
-              >
-                <option value="">Tous</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {clientId && (
-              <div>
-                <label className="mb-1 block text-xs text-muted-foreground">Liste</label>
-                <div className="flex gap-2">
-                  <select
-                    value={listId}
-                    onChange={(e) => setListId(e.target.value)}
-                    className="rounded-md border border-border px-2 py-1 text-sm"
-                  >
-                    <option value="">Toutes les opportunités</option>
-                    {dealLists.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} {l.rules ? "(dynamique)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {listId && (
-                    <Button variant="ghost" size="sm" onClick={() => { removeDealList(listId); setListId(""); }}>
-                      Supprimer la liste
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" onClick={() => setNewListOpen((v) => !v)}>
-                    + Nouvelle liste
-                  </Button>
-                </div>
-              </div>
-            )}
-            {!clientId && (
-              <p className="text-xs text-muted-foreground">Choisis un client DMH pour créer/filtrer des listes.</p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
-            <span className="text-foreground">
-              Pipe pondéré <strong className="font-semibold">{formatCurrency(weightedPipelineValue)}</strong> · {negotiationCount} affaire(s) en négociation
-              {averageCycleDays !== null && <> · cycle moyen {averageCycleDays} j</>}
-            </span>
-            <Button variant="outline" size="sm" onClick={() => setGroupByClient((v) => !v)} disabled={!!clientId}>
-              {groupByClient ? "Vue à plat" : "Grouper par client"}
-            </Button>
-          </div>
-
-          {newListOpen && clientId && (
-            <form onSubmit={handleCreateDealList} className="space-y-3 rounded-md border border-border p-3">
-              <input
-                value={newListName}
-                onChange={(e) => setNewListName(e.target.value)}
-                placeholder="Nom de la liste"
-                className="w-full rounded-md border border-border px-3 py-2 text-sm"
-              />
-              <div className="flex w-fit gap-1 rounded-md border border-border p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setNewListMode("static")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
-                >
-                  Statique
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewListMode("dynamic")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
-                >
-                  Dynamique (critères)
-                </button>
-              </div>
-              {newListMode === "dynamic" && (
-                <RuleGroupsEditor entityType="opportunity" clientId={clientId} groups={newListGroups} onChange={setNewListGroups} />
-              )}
-              <Button type="submit" size="sm" disabled={!newListName.trim()}>
-                Créer la liste
-              </Button>
-            </form>
-          )}
-
           {selectedIds.size > 0 && clientId && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 p-3 text-sm">
               <span className="font-medium text-foreground">{selectedIds.size} sélectionné(s)</span>
@@ -398,19 +582,21 @@ export function OpportunitiesPage() {
             </div>
           )}
 
-          {groupByClient ? (
+          {dealsByGroup ? (
             <div className="space-y-4">
-              {dealsByClient.map((group) => (
-                <div key={group.clientId} className="space-y-1.5">
-                  <span className="font-heading text-sm font-semibold text-foreground">{group.clientName}</span>
+              {dealsByGroup.map((group) => (
+                <div key={group.key} className="space-y-1.5">
+                  <span className="font-heading text-sm font-semibold text-foreground">{group.label}</span>
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-8"></TableHead>
                         <TableHead>Entreprise</TableHead>
                         <TableHead>Contact</TableHead>
+                        <TableHead>Commercial</TableHead>
                         <TableHead>Montant</TableHead>
                         <TableHead>Proba.</TableHead>
+                        <TableHead>Pondéré</TableHead>
                         <TableHead>Statut</TableHead>
                         <TableHead>Ancienneté</TableHead>
                         <TableHead>Prochaine action</TableHead>
@@ -422,7 +608,7 @@ export function OpportunitiesPage() {
                   </Table>
                 </div>
               ))}
-              {dealsByClient.length === 0 && (
+              {dealsByGroup.length === 0 && (
                 <p className="text-center text-sm text-muted-foreground">Aucune opportunité.</p>
               )}
             </div>
@@ -439,8 +625,10 @@ export function OpportunitiesPage() {
                   </TableHead>
                   <TableHead>Entreprise</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Commercial</TableHead>
                   <TableHead>Montant</TableHead>
                   <TableHead>Proba.</TableHead>
+                  <TableHead>Pondéré</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Ancienneté</TableHead>
                   <TableHead>Prochaine action</TableHead>
@@ -452,7 +640,7 @@ export function OpportunitiesPage() {
                 {listViewDeals.map(renderDealRow)}
                 {listViewDeals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       Aucune opportunité.
                     </TableCell>
                   </TableRow>
@@ -463,27 +651,11 @@ export function OpportunitiesPage() {
         </div>
       )}
 
-      {!loading && !error && view === "kanban" && (
+      {!loading && !error && displayMode === "kanban" && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Client DMH</label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="rounded-md border border-border px-2 py-1 text-sm"
-            >
-              <option value="">Choisir un client…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {!clientId && (
             <p className="text-sm text-muted-foreground">
-              Choisis un client pour voir son Kanban — les étapes sont propres à chaque client.
+              Choisis un client (en haut) pour voir son Kanban — les étapes sont propres à chaque client.
             </p>
           )}
 
@@ -511,7 +683,7 @@ export function OpportunitiesPage() {
                     <OpportunityKanbanColumn
                       key={stage.id}
                       stage={stage}
-                      deals={deals.filter((d) => d.stage_id === stage.id)}
+                      deals={listViewDeals.filter((d) => d.stage_id === stage.id)}
                     />
                   ))}
                 </OpportunityKanbanBoardShell>

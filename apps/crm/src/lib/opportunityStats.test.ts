@@ -3,6 +3,7 @@ import {
   computeAverageCycleDays,
   computeConversionRate,
   computeDealAgeDays,
+  computeDealWeightedValue,
   computeNextActionForDeal,
   computePipelineValueByStatus,
   computeWeightedPipelineValue,
@@ -64,6 +65,21 @@ describe("computeWeightedPipelineValue", () => {
 
   it("retourne 0 sur une liste vide", () => {
     expect(computeWeightedPipelineValue([])).toBe(0);
+  });
+});
+
+describe("computeDealWeightedValue", () => {
+  it("pondère une opportunité en négociation par sa probabilité", () => {
+    expect(computeDealWeightedValue({ status: "negotiation", deal_value: 10000, probability: 50 })).toBe(5000);
+  });
+
+  it("compte 0 sans probabilité renseignée", () => {
+    expect(computeDealWeightedValue({ status: "negotiation", deal_value: 10000, probability: null })).toBe(0);
+  });
+
+  it("retourne null pour une opportunité déjà close", () => {
+    expect(computeDealWeightedValue({ status: "won", deal_value: 10000, probability: 100 })).toBeNull();
+    expect(computeDealWeightedValue({ status: "lost", deal_value: 10000, probability: 20 })).toBeNull();
   });
 });
 

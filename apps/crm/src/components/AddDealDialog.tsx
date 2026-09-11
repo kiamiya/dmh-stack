@@ -29,6 +29,7 @@ export interface AddDealDialogProps {
     signedAt?: string | null;
     pipelineId?: string | null;
     stageId?: string | null;
+    assignedTo?: string | null;
   }) => Promise<{ id: string }>;
 }
 
@@ -43,6 +44,7 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
   const [dealValue, setDealValue] = useState("");
   const [signedAt, setSignedAt] = useState("");
   const [stageId, setStageId] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
   const [scheduleFollowUp, setScheduleFollowUp] = useState(false);
   const [followUpDueDate, setFollowUpDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +93,7 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
     setDealValue("");
     setSignedAt("");
     setStageId("");
+    setAssignedTo("");
     setScheduleFollowUp(false);
     setFollowUpDueDate("");
     setError(null);
@@ -122,6 +125,7 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
         signedAt: signedAt || null,
         pipelineId: pipeline?.id ?? null,
         stageId: stageId || null,
+        assignedTo: assignedTo || null,
       });
 
       if (scheduleFollowUp && followUpDueDate) {
@@ -231,6 +235,24 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
               className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
             >
               {stages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-assigned">
+              Commercial (optionnel)
+            </label>
+            <select
+              id="deal-assigned"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <option value="">Non assigné</option>
+              {staff.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>

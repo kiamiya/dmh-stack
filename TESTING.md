@@ -72,6 +72,19 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 8 | Créer une vue avec des filtres actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionne comme sur Prospects/Segments ; ces actions n'apparaissent PAS sur un onglet système |
 | 9 | Regarder les 2 cartes sous les filtres | "Charge de l'équipe" (par commercial, actives + en retard) et "Génération automatique" (lien vers `/automations`) |
 
+### S35-6 — Pipeline : chrome commun Liste/Kanban + colonnes *(nécessite migration 041)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/opportunities`, regarder sous le titre | Un seul bandeau d'onglets (Toutes les affaires/Mes affaires/Grands comptes/À relancer/Gagnées ce trimestre), pas un sélecteur Client DMH dupliqué |
+| 2 | Basculer Liste ↔ Kanban | Le même onglet actif et les mêmes filtres rapides restent appliqués dans les deux vues |
+| 3 | Choisir un client dans le Header (sélecteur global) | Kanban ET Liste se scopent sur ce client, sans redemander le client localement |
+| 4 | Cliquer le chip "Montant ≥ 100k€" | Filtre les deux vues (Liste et Kanban) |
+| 5 | Créer une opportunité, assigner un "Commercial" | La colonne "Commercial" de la liste l'affiche ; le chip/onglet "Mes affaires" la montre si c'est le compte connecté |
+| 6 | Regarder la colonne "Pondéré" d'une opportunité en négociation avec une probabilité | Affiche le montant pondéré ; une opportunité gagnée/perdue affiche "—" |
+| 7 | "Regrouper par" → "Commercial" (sans client sélectionné) | Table regroupée par commercial, "Non assigné" pour les opportunités sans commercial |
+| 8 | Choisir un client puis rouvrir "Regrouper par" | L'option "Compte client" a disparu (un seul client affiché, grouper par client n'a plus de sens) |
+
 ## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)

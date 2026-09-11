@@ -42,6 +42,16 @@ export function computeWeightedPipelineValue(
 }
 
 /**
+ * Pure : valeur pondérée d'UNE opportunité (colonne "Pondéré" du mockup
+ * Pipeline) — `null` pour une opportunité déjà close (gagnée/perdue),
+ * même logique d'exclusion que `computeWeightedPipelineValue`.
+ */
+export function computeDealWeightedValue(deal: { status: DealStatus; deal_value: number; probability: number | null }): number | null {
+  if (deal.status !== "negotiation") return null;
+  return (deal.deal_value * (deal.probability ?? 0)) / 100;
+}
+
+/**
  * Pure : taux de conversion en % parmi les opportunités déjà closes
  * (gagnées ou perdues) — les opportunités encore en négociation ne
  * comptent pas, elles n'ont pas encore d'issue. Retourne 0 si aucune
