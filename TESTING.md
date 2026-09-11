@@ -11,10 +11,12 @@
 
 ## Statut : 🔄 lots S33 + S34 (revues dev CRM du 08/09 et du 11/09) — validation navigateur en attente
 
-**Nouveau (S34-12/13 ci-dessous)** : lien cliquable tâche → fiche liée, et
-mode "dépiler les tâches une à une". Aucune migration nécessaire. Les
-migrations `036` (nom libre d'opportunité) et `037` (maison mère/filiale)
-sont déjà appliquées et vérifiées en production (2026-09-11).
+**Nouveau (S34-12/13/15/16 ci-dessous)** : lien cliquable tâche → fiche
+liée, mode "dépiler les tâches une à une", dashboards nommés personnels,
+export PDF. **1 migration en attente de confirmation** avant de pouvoir
+tester S34-15 : `038_dashboards.sql` (table `dashboards`). Dis-moi si je
+peux lancer `supabase db push`. Les migrations `036`/`037` sont déjà
+appliquées et vérifiées en production (2026-09-11).
 
 ### S34-1 — formulaire Contact (téléphone + réordonnancement)
 
@@ -112,6 +114,29 @@ réelle ci-dessous (consomme un vrai appel API, pas fait automatiquement).
 | 7 | Arriver au bout de la file | Message "File terminée — bravo !" |
 | 8 | Cliquer "Fermer" en cours de route, puis rouvrir "Dépiler" | La file recommence au début (pas de reprise à l'endroit quitté — comportement attendu, pas un bug) |
 | 9 | Avec 0 tâche non terminée | Le bouton "Dépiler (0)" est désactivé |
+
+### S34-15 — dashboards nommés personnels *(nécessite migration 038)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/dashboard`, en-tête | Bouton "Vue d'ensemble" actif par défaut, "+ Nouveau dashboard" visible |
+| 2 | Cliquer "+ Nouveau dashboard", donner un nom | Un nouvel onglet apparaît avec ce nom, actif automatiquement |
+| 3 | Cliquer "Gérer les blocs (0)" | Une modale s'ouvre avec les 14 blocs groupés par catégorie (Vue d'ensemble/Évolution/Scores & Deals/Opportunités & Tâches/Activité), tous décochés |
+| 4 | Cocher 2-3 blocs, "Enregistrer" | Seuls ces blocs s'affichent en grille sous les 4 cartes KPI |
+| 5 | Survoler l'onglet du dashboard créé | 3 icônes ⧉/✎/× apparaissent |
+| 6 | Cliquer ⧉ | Une copie "<nom> (copie)" apparaît avec les mêmes blocs |
+| 7 | Cliquer ✎, changer le nom | L'onglet est renommé |
+| 8 | Cliquer × | Le dashboard disparaît, retour automatique sur "Vue d'ensemble" si c'était l'onglet actif |
+| 9 | Recharger la page (F5) | Les dashboards créés sont toujours là (persistés en base, pas juste en mémoire) |
+| 10 | Se connecter avec un autre compte staff (si possible) | Les dashboards du 1er compte ne sont pas visibles (personnels, RLS `owner_id`) |
+
+### S34-16 — export PDF du dashboard
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/dashboard`, cliquer "Exporter en PDF" | La boîte de dialogue d'impression du navigateur s'ouvre |
+| 2 | Regarder l'aperçu d'impression | Ni la sidebar ni le bandeau de bascule des dashboards ne sont visibles — seul le contenu (KPI + blocs) apparaît |
+| 3 | Choisir "Enregistrer en PDF" dans la boîte de dialogue | Un PDF est généré avec le contenu du dashboard actif (Vue d'ensemble ou un dashboard nommé) |
 
 ## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 

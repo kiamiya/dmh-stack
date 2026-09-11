@@ -133,7 +133,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
+    <aside className="flex w-56 shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground print:hidden">
       <div className="flex items-baseline gap-2 border-b border-white/15 px-5 py-5">
         <span className="font-heading text-lg font-bold uppercase tracking-wide">DMH CRM</span>
       </div>

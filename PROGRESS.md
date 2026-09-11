@@ -122,6 +122,9 @@ Dernière mise à jour : 2026-09-04
 | S34-12 | Revue dev CRM (11/09) — lien cliquable réel entre une tâche et sa fiche contact/entreprise/opportunité | ✅ fait côté code — en attente de validation navigateur |
 | S34-13 | Revue dev CRM (11/09) — mode "dépiler les tâches une à une" (inspiration HubSpot) | ✅ fait côté code — en attente de validation navigateur |
 | S34-14 | Revue dev CRM (11/09) — widget "Charge de l'équipe" (mockup Claude Design) | ⬜ non fait — signalé "bonus, pas urgent" dans le découpage, reporté |
+| S34-15 | Revue dev CRM (11/09) — dashboards nommés personnels (créer/switcher/gérer, blocs fixes) | 🔄 fait côté code — **migration 038 écrite, non appliquée** (confirmation à demander), en attente de validation navigateur après application |
+| S34-16 | Revue dev CRM (11/09) — export PDF du dashboard | ✅ fait côté code (export navigateur via `window.print()`) — en attente de validation navigateur |
+| S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2111,3 +2114,63 @@ découpage ("bonus, pas urgent") — reporté, pas de date cible.
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (72 fichiers, 523 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts. Aucune migration.
+
+**Phase F — dashboards personnalisés.** Avant de coder, 3 décisions de
+cadrage posées à Loïc (le CR demande explicitement une version simplifiée,
+pas la richesse HubSpot) : (1) le jeu de blocs fixe réutilise le
+catalogue déjà codé dans `Dashboard.tsx` plutôt qu'un nouveau catalogue
+générique — confirmé ; (2) les dashboards nommés sont **personnels** par
+membre du staff (pas partagés équipe) — confirmé, malgré l'absence de
+toute autre notion de "vue privée" dans le CRM ; (3) tenter aussi l'item
+16 (export/partage) ce soir, pas seulement l'item 15 — confirmé.
+
+**S34-15 (dashboards nommés)** : nouvelle table `dashboards` (migration
+`038_dashboards.sql`, **non appliquée**) — `owner_id` (FK
+`staff_members`), `name`, `blocks text[]` (clés du catalogue), `position`.
+Pas de `client_id` : ce n'est pas une donnée scopée client, RLS
+"propriétaire uniquement" (`owner_id = auth.uid()` ou `service_role`),
+différent du triptyque habituel client_isolation/staff_full_access/
+client_user_access des autres tables. Nouveau type `Dashboard` dans
+`@dmh/types`. `lib/dashboardBlocks.ts` : catalogue pur des 14 blocs
+existants (clé/libellé/catégorie, une entrée par carte/graphique déjà
+codé — aucun nouveau composant graphique) + tests (clés uniques,
+libellés non vides). `services/dashboards.ts` (CRUD + `duplicateDashboard`,
+même principe copie superficielle que les vues/dossiers) + tests (stub
+client, même pattern que `listFolders.test.ts`). `hooks/useDashboards.ts`
+résout `owner_id` depuis la session courante (`supabase.auth.getSession()`,
+même pattern que `useInteractions.ts#addNote`), jamais fabriqué côté
+client. `pages/Dashboard.tsx` refactorée : un unique `renderBlock(key)`
+retourne le JSX de chaque bloc (source unique, consommée à la fois par
+l'onglet "Vue d'ensemble" existant — inchangé visuellement — et par les
+dashboards nommés, en grille selon l'ordre de `dashboard.blocks`).
+Bandeau de bascule (Vue d'ensemble / dashboards nommés / "+ Nouveau
+dashboard"), actions ⧉/✎/× au survol de chaque dashboard nommé (mêmes
+icônes que vues enregistrées/dossiers), nouveau
+`components/DashboardBlocksDialog.tsx` (case à cocher par bloc, groupé
+par catégorie) pour éditer la sélection d'un dashboard.
+
+**S34-16 (export PDF)** : pas de nouvelle dépendance (pas de
+`jspdf`/`html2canvas` — rendu de graphiques SVG/recharts via une capture
+canvas est fragile et le CR demande explicitement une version simplifiée).
+Bouton "Exporter en PDF" déclenche `window.print()` (impression navigateur
+→ enregistrer en PDF, natif). `print:hidden` ajouté sur `Sidebar.tsx`
+(`<aside>`) et `Header.tsx` (`<header>`), plus sur le bandeau de bascule
+dashboards et la liste d'onglets `Vue d'ensemble` — seul le contenu du
+dashboard actif s'imprime.
+
+**S34-16bis (partage par email récurrent) : pas fait — bloqué.** Vérifié
+qu'aucun fournisseur d'envoi transactionnel (Resend/SMTP/Postmark/etc.)
+n'existe dans la stack (`packages/config/src/integrations.ts` liste
+explicitement Pappers/Dropcontact/Smartlead/Lemlist, et exclut "Brevo
+SMTP" du mockup comme hors stack). Construire l'envoi programmé
+(`pg_cron` + Edge Function, même patron que la purge de corbeille
+migration 031) nécessiterait de choisir un fournisseur et d'ajouter sa
+clé API à `.env.local` — bloquant au sens de la règle 4 de `CLAUDE.md`,
+pas commencé sans cette clé. À trancher avec Loïc/William si le besoin
+est confirmé prioritaire.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (74 fichiers, 534 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts (`@dmh/types` et
+`@dmh/dashboard` inclus, le nouveau type `Dashboard` ne casse rien côté
+app cliente). Migration `038_dashboards.sql` écrite, **non appliquée** —
+confirmation à demander avant `supabase db push`.

@@ -1,14 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { openProspectLinkState } from "../lib/navigation";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
+import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { StatusBarList } from "../components/charts/StatusBarList";
 import { FunnelChart } from "../components/charts/FunnelChart";
 import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
 import { StackedWeeklyBarChart } from "../components/charts/StackedWeeklyBarChart";
+import { DashboardBlocksDialog } from "../components/DashboardBlocksDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency, getDealDisplayName } from "../lib/deals";
@@ -31,6 +33,7 @@ import { useMeetings } from "../hooks/useMeetings";
 import { useClients } from "../hooks/useClients";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useTasks } from "../hooks/useTasks";
+import { useDashboards } from "../hooks/useDashboards";
 import { computeConversionRate, computePipelineValueByStatus } from "../lib/opportunityStats";
 import { computeOverdueTasks, computeTaskCountsByStatus } from "../lib/taskStats";
 import { PageHeader } from "../components/ui/page-header";
@@ -45,6 +48,11 @@ export function DashboardPage() {
   const clients = useClients();
   const staff = useStaffMembers();
   const { tasks, loading: tasksLoading } = useTasks();
+  const { dashboards, create, update, remove, duplicate } = useDashboards();
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [blocksDialogOpen, setBlocksDialogOpen] = useState(false);
+  const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
   const now = useMemo(() => new Date(), []);
   const statusCounts = useMemo(() => computeStatusCounts(prospects), [prospects]);
@@ -109,6 +117,286 @@ export function DashboardPage() {
   const taskCounts = useMemo(() => computeTaskCountsByStatus(tasks), [tasks]);
   const overdueTasks = useMemo(() => computeOverdueTasks(tasks, now), [tasks, now]);
 
+  /** Un bloc par clé du catalogue (`lib/dashboardBlocks.ts`) — même JSX que "Vue d'ensemble" consomme aussi, source unique pour les dashboards nommés (S34-15). */
+  function renderBlock(key: string) {
+    switch (key) {
+      case "weekly_activity":
+        return (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Activité de la force de vente</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StackedWeeklyBarChart title="Activité de la force de vente" data={weeklyActivity} />
+            </CardContent>
+          </Card>
+        );
+      case "status_bar":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Prospects par statut</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatusBarList counts={statusCounts} />
+            </CardContent>
+          </Card>
+        );
+      case "funnel":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Funnel de conversion</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FunnelChart stages={funnel} />
+            </CardContent>
+          </Card>
+        );
+      case "to_enrich_count":
+        return (
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">En attente d'enrichissement</div>
+              <div className="text-2xl font-semibold text-foreground">{toEnrichCount}</div>
+            </CardContent>
+          </Card>
+        );
+      case "client_performance":
+        return (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Comptes clients suivis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Commercial</TableHead>
+                    <TableHead className="text-right">RDV</TableHead>
+                    <TableHead className="text-right">Pipe</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clientPerformance.map((row) => (
+                    <TableRow key={row.clientId}>
+                      <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
+                      <TableCell className="text-muted-foreground">{row.topStaffName ?? "—"}</TableCell>
+                      <TableCell className="text-right">{row.meetingsCount}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.pipelineValue)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {clientPerformance.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        Aucun client DMH enregistré.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        );
+      case "weekly_new_prospects":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Nouveaux prospects par semaine</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WeeklyAreaChart title="Nouveaux prospects par semaine" data={weeklyNewProspects} />
+            </CardContent>
+          </Card>
+        );
+      case "weekly_deals_won":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Deals gagnés par semaine</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WeeklyAreaChart title="Deals gagnés par semaine" data={weeklyDealsWon} />
+            </CardContent>
+          </Card>
+        );
+      case "top_scores":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Top prospects par score IA</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {topScores.length === 0 && <p className="text-sm text-muted-foreground">Aucun prospect scoré.</p>}
+              {topScores.map((p, i) => (
+                <div key={p.id} className="flex items-center gap-2 text-sm">
+                  <span className="w-4 text-muted-foreground">{i + 1}.</span>
+                  <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="flex-1 truncate text-foreground hover:underline">
+                    {p.companyName}
+                  </Link>
+                  <Badge variant={getScoreColor(p.score)}>{formatScore(p.score)}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      case "deals_list":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Deals ({wonDeals.length} gagnés, {lostDeals.length} perdus)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {deals.length === 0 && <p className="text-sm text-muted-foreground">Aucun deal déclaré.</p>}
+              {deals.map((d) => (
+                <div key={d.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                  <div className="min-w-0 flex-1 truncate text-foreground">{getDealDisplayName(d)}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
+                    <Badge variant={d.status === "won" ? "green" : d.status === "lost" ? "red" : "yellow"}>
+                      {d.status === "won" ? "Gagné" : d.status === "lost" ? "Perdu" : "En négociation"}
+                    </Badge>
+                    {d.status === "won" && (
+                      <span className="text-xs text-muted-foreground">
+                        {d.attributed_to_dmh ? `Commission ${formatCurrency(d.commission_amount)}` : "Non attribué"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      case "pipeline_value":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Pipeline des opportunités</span>
+                <Badge variant="blue">{conversionRate}% de conversion</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {pipelineValue.map((row) => (
+                <div key={row.status} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                  <span className="text-foreground">{row.label}</span>
+                  <span className="text-muted-foreground">
+                    {row.count} · {formatCurrency(row.totalValue)}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      case "task_counts":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Tâches par statut</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatusBarList counts={taskCounts} />
+            </CardContent>
+          </Card>
+        );
+      case "overdue_tasks":
+        return (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Tâches en retard ({overdueTasks.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {overdueTasks.length === 0 && (
+                <p className="text-sm text-muted-foreground">Aucune tâche en retard — bon rythme.</p>
+              )}
+              {overdueTasks.map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                  <span className="truncate text-foreground">{t.title}</span>
+                  <Badge variant="red">Échéance {t.due_date}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      case "activity_feed":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Fil d'activité récent</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
+              {activityDayGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                  </div>
+                  <div className="space-y-2">
+                    {group.events.map((e) => (
+                      <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                        <div className="flex items-center justify-between">
+                          <Link to={`/prospects/${e.prospectId}`} state={openProspectLinkState(location)} className="font-medium text-foreground hover:underline">
+                            {e.companyName}
+                          </Link>
+                          <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          {e.description}
+                          {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      case "stagnant_prospects":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Prospects stagnants ({stagnantProspects.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {stagnantProspects.length === 0 && (
+                <p className="text-sm text-muted-foreground">Aucun prospect stagnant — bon rythme.</p>
+              )}
+              {stagnantProspects.map((p) => (
+                <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                  <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="truncate text-foreground hover:underline">
+                    {p.companies?.name ?? "—"}
+                  </Link>
+                  <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  }
+
+  async function handleNewDashboard() {
+    const name = window.prompt("Nom du nouveau dashboard :");
+    if (!name?.trim()) return;
+    await create(name.trim());
+  }
+
+  async function handleRenameDashboard(id: string, currentName: string) {
+    const name = window.prompt("Nouveau nom :", currentName);
+    if (!name?.trim() || name.trim() === currentName) return;
+    await update(id, { name: name.trim() });
+  }
+
+  async function handleDeleteDashboard(id: string) {
+    if (!window.confirm("Supprimer ce dashboard ?")) return;
+    if (activeId === id) setActiveId(null);
+    await remove(id);
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 p-6">
@@ -123,7 +411,52 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <PageHeader kicker="Pilotage · vue d'ensemble" title="Dashboard" />
+      <PageHeader
+        kicker="Pilotage · vue d'ensemble"
+        title="Dashboard"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            Exporter en PDF
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-1.5 print:hidden">
+        <button
+          type="button"
+          onClick={() => setActiveId(null)}
+          className={`rounded-md border px-2.5 py-1 text-xs font-medium ${activeId === null ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+        >
+          Vue d'ensemble
+        </button>
+        {dashboards.map((d) => (
+          <div
+            key={d.id}
+            className={`group flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium ${activeId === d.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+          >
+            <button type="button" onClick={() => setActiveId(d.id)}>
+              {d.name}
+            </button>
+            <button type="button" title="Dupliquer" onClick={() => duplicate(d)} className="opacity-0 group-hover:opacity-100">
+              ⧉
+            </button>
+            <button type="button" title="Renommer" onClick={() => handleRenameDashboard(d.id, d.name)} className="opacity-0 group-hover:opacity-100">
+              ✎
+            </button>
+            <button type="button" title="Supprimer" onClick={() => handleDeleteDashboard(d.id)} className="opacity-0 group-hover:opacity-100">
+              ×
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={handleNewDashboard} className="rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground">
+          + Nouveau dashboard
+        </button>
+        {activeDashboard && (
+          <Button variant="outline" size="sm" onClick={() => setBlocksDialogOpen(true)}>
+            Gérer les blocs ({activeDashboard.blocks.length})
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
@@ -154,261 +487,76 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="evolution">Évolution</TabsTrigger>
-          <TabsTrigger value="scores-deals">Scores &amp; Deals</TabsTrigger>
-          <TabsTrigger value="opportunities-tasks">Opportunités &amp; Tâches</TabsTrigger>
-          <TabsTrigger value="activity">Activité</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {activeDashboard ? (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {activeDashboard.blocks.length === 0 && (
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Activité de la force de vente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StackedWeeklyBarChart title="Activité de la force de vente" data={weeklyActivity} />
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                Aucun bloc sélectionné — clique "Gérer les blocs" pour en ajouter.
               </CardContent>
             </Card>
+          )}
+          {activeDashboard.blocks.map((key) => <div key={key}>{renderBlock(key)}</div>)}
+        </div>
+      ) : (
+        <Tabs defaultValue="overview">
+          <TabsList className="print:hidden">
+            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+            <TabsTrigger value="evolution">Évolution</TabsTrigger>
+            <TabsTrigger value="scores-deals">Scores &amp; Deals</TabsTrigger>
+            <TabsTrigger value="opportunities-tasks">Opportunités &amp; Tâches</TabsTrigger>
+            <TabsTrigger value="activity">Activité</TabsTrigger>
+          </TabsList>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Prospects par statut</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StatusBarList counts={statusCounts} />
-              </CardContent>
-            </Card>
+          <TabsContent value="overview">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {renderBlock("weekly_activity")}
+              {renderBlock("status_bar")}
+              {renderBlock("funnel")}
+              {renderBlock("to_enrich_count")}
+              {renderBlock("client_performance")}
+            </div>
+          </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Funnel de conversion</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FunnelChart stages={funnel} />
-              </CardContent>
-            </Card>
+          <TabsContent value="evolution">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {renderBlock("weekly_new_prospects")}
+              {renderBlock("weekly_deals_won")}
+            </div>
+          </TabsContent>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground">En attente d'enrichissement</div>
-                <div className="text-2xl font-semibold text-foreground">{toEnrichCount}</div>
-              </CardContent>
-            </Card>
+          <TabsContent value="scores-deals">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {renderBlock("top_scores")}
+              {renderBlock("deals_list")}
+            </div>
+          </TabsContent>
 
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Comptes clients suivis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Commercial</TableHead>
-                      <TableHead className="text-right">RDV</TableHead>
-                      <TableHead className="text-right">Pipe</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clientPerformance.map((row) => (
-                      <TableRow key={row.clientId}>
-                        <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
-                        <TableCell className="text-muted-foreground">{row.topStaffName ?? "—"}</TableCell>
-                        <TableCell className="text-right">{row.meetingsCount}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.pipelineValue)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {clientPerformance.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          Aucun client DMH enregistré.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+          <TabsContent value="opportunities-tasks">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {renderBlock("pipeline_value")}
+              {renderBlock("task_counts")}
+              {renderBlock("overdue_tasks")}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="evolution">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Nouveaux prospects par semaine</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <WeeklyAreaChart title="Nouveaux prospects par semaine" data={weeklyNewProspects} />
-              </CardContent>
-            </Card>
+          <TabsContent value="activity">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {renderBlock("activity_feed")}
+              {renderBlock("stagnant_prospects")}
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Deals gagnés par semaine</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <WeeklyAreaChart title="Deals gagnés par semaine" data={weeklyDealsWon} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="scores-deals">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Top prospects par score IA</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {topScores.length === 0 && <p className="text-sm text-muted-foreground">Aucun prospect scoré.</p>}
-                {topScores.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-2 text-sm">
-                    <span className="w-4 text-muted-foreground">{i + 1}.</span>
-                    <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="flex-1 truncate text-foreground hover:underline">
-                      {p.companyName}
-                    </Link>
-                    <Badge variant={getScoreColor(p.score)}>{formatScore(p.score)}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Deals ({wonDeals.length} gagnés, {lostDeals.length} perdus)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {deals.length === 0 && <p className="text-sm text-muted-foreground">Aucun deal déclaré.</p>}
-                {deals.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                    <div className="min-w-0 flex-1 truncate text-foreground">{getDealDisplayName(d)}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
-                      <Badge variant={d.status === "won" ? "green" : d.status === "lost" ? "red" : "yellow"}>
-                        {d.status === "won" ? "Gagné" : d.status === "lost" ? "Perdu" : "En négociation"}
-                      </Badge>
-                      {d.status === "won" && (
-                        <span className="text-xs text-muted-foreground">
-                          {d.attributed_to_dmh ? `Commission ${formatCurrency(d.commission_amount)}` : "Non attribué"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="opportunities-tasks">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Pipeline des opportunités</span>
-                  <Badge variant="blue">{conversionRate}% de conversion</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {pipelineValue.map((row) => (
-                  <div key={row.status} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                    <span className="text-foreground">{row.label}</span>
-                    <span className="text-muted-foreground">
-                      {row.count} · {formatCurrency(row.totalValue)}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tâches par statut</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StatusBarList counts={taskCounts} />
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Tâches en retard ({overdueTasks.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {overdueTasks.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucune tâche en retard — bon rythme.</p>
-                )}
-                {overdueTasks.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                    <span className="truncate text-foreground">{t.title}</span>
-                    <Badge variant="red">Échéance {t.due_date}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="activity">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fil d'activité récent</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {activityEvents.length === 0 && <p className="text-sm text-muted-foreground">Aucune activité.</p>}
-                {activityDayGroups.map((group) => (
-                  <div key={group.label}>
-                    <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {group.label}
-                    </div>
-                    <div className="space-y-2">
-                      {group.events.map((e) => (
-                        <div key={e.id} className="border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                          <div className="flex items-center justify-between">
-                            <Link to={`/prospects/${e.prospectId}`} state={openProspectLinkState(location)} className="font-medium text-foreground hover:underline">
-                              {e.companyName}
-                            </Link>
-                            <span className="text-xs text-muted-foreground">{formatRelativeTime(e.timestamp)}</span>
-                          </div>
-                          <div className="text-muted-foreground">
-                            {e.description}
-                            {e.authorName && <span className="text-xs"> — {e.authorName}</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Prospects stagnants ({stagnantProspects.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {stagnantProspects.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun prospect stagnant — bon rythme.</p>
-                )}
-                {stagnantProspects.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                    <Link to={`/prospects/${p.id}`} state={openProspectLinkState(location)} className="truncate text-foreground hover:underline">
-                      {p.companies?.name ?? "—"}
-                    </Link>
-                    <Badge variant="yellow">Aucune activité {formatRelativeTime(p.last_activity_at)}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+      {activeDashboard && (
+        <DashboardBlocksDialog
+          open={blocksDialogOpen}
+          onOpenChange={setBlocksDialogOpen}
+          blocks={activeDashboard.blocks}
+          onSave={(blocks) => update(activeDashboard.id, { blocks })}
+        />
+      )}
     </div>
   );
 }

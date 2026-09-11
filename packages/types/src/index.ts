@@ -415,3 +415,14 @@ export interface ListFolder {
   created_by: string | null;
   created_at: string;
 }
+
+/** Dashboard personnalisé personnel (S34-15, Revue dev CRM du 11/09) — un jeu de blocs fixe choisi parmi le catalogue de `Dashboard.tsx`, propre au membre du staff qui l'a créé (pas partagé équipe). */
+export interface Dashboard {
+  id: string;
+  owner_id: string;
+  name: string;
+  blocks: string[];
+  position: number;
+  created_at: string;
+  updated_at: string;
+}

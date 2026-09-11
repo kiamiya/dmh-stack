@@ -58,7 +58,7 @@ export function Header({ onSearchInput }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-border bg-card">
+    <header className="border-b border-border bg-card print:hidden">
       <div className="flex items-center gap-3 px-6 py-3">
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />
