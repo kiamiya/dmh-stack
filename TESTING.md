@@ -13,10 +13,9 @@
 
 **Nouveau (S34-12/13/15/16 ci-dessous)** : lien cliquable tâche → fiche
 liée, mode "dépiler les tâches une à une", dashboards nommés personnels,
-export PDF. **1 migration en attente de confirmation** avant de pouvoir
-tester S34-15 : `038_dashboards.sql` (table `dashboards`). Dis-moi si je
-peux lancer `supabase db push`. Les migrations `036`/`037` sont déjà
-appliquées et vérifiées en production (2026-09-11).
+export PDF. Migrations `036`/`037`/`038` toutes appliquées et vérifiées
+en production (2026-09-11) — plus aucune migration en attente pour ce
+lot.
 
 ### S34-1 — formulaire Contact (téléphone + réordonnancement)
 
@@ -115,7 +114,7 @@ réelle ci-dessous (consomme un vrai appel API, pas fait automatiquement).
 | 8 | Cliquer "Fermer" en cours de route, puis rouvrir "Dépiler" | La file recommence au début (pas de reprise à l'endroit quitté — comportement attendu, pas un bug) |
 | 9 | Avec 0 tâche non terminée | Le bouton "Dépiler (0)" est désactivé |
 
-### S34-15 — dashboards nommés personnels *(nécessite migration 038)*
+### S34-15 — dashboards nommés personnels
 
 | # | Test | Résultat attendu |
 |---|---|---|

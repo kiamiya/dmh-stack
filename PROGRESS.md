@@ -122,7 +122,7 @@ Dernière mise à jour : 2026-09-04
 | S34-12 | Revue dev CRM (11/09) — lien cliquable réel entre une tâche et sa fiche contact/entreprise/opportunité | ✅ fait côté code — en attente de validation navigateur |
 | S34-13 | Revue dev CRM (11/09) — mode "dépiler les tâches une à une" (inspiration HubSpot) | ✅ fait côté code — en attente de validation navigateur |
 | S34-14 | Revue dev CRM (11/09) — widget "Charge de l'équipe" (mockup Claude Design) | ⬜ non fait — signalé "bonus, pas urgent" dans le découpage, reporté |
-| S34-15 | Revue dev CRM (11/09) — dashboards nommés personnels (créer/switcher/gérer, blocs fixes) | 🔄 fait côté code — **migration 038 écrite, non appliquée** (confirmation à demander), en attente de validation navigateur après application |
+| S34-15 | Revue dev CRM (11/09) — dashboards nommés personnels (créer/switcher/gérer, blocs fixes) | ✅ fait — **migration 038 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S34-16 | Revue dev CRM (11/09) — export PDF du dashboard | ✅ fait côté code (export navigateur via `window.print()`) — en attente de validation navigateur |
 | S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
 
@@ -2172,5 +2172,6 @@ est confirmé prioritaire.
 Vérifié : `pnpm --filter crm typecheck`/`test` (74 fichiers, 534 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts (`@dmh/types` et
 `@dmh/dashboard` inclus, le nouveau type `Dashboard` ne casse rien côté
-app cliente). Migration `038_dashboards.sql` écrite, **non appliquée** —
-confirmation à demander avant `supabase db push`.
+app cliente). Migration `038_dashboards.sql` **appliquée et vérifiée en
+production le 2026-09-11** (confirmation explicite de Loïc, table
+`dashboards` confirmée via `supabase db query --linked`).
