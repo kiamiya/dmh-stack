@@ -39,3 +39,36 @@ export async function deleteFolder(client: SupabaseClient, id: string): Promise<
   const { error } = await client.from("list_folders").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+export interface ListFolderUpdate {
+  name?: string;
+  /** Déplacer un dossier : change son parent (`null` = racine). */
+  parentId?: string | null;
+}
+
+/** Renomme et/ou déplace un dossier (CR du 11/09/2026 — actions manquantes sur les dossiers de segments). */
+export async function updateFolder(client: SupabaseClient, id: string, patch: ListFolderUpdate): Promise<void> {
+  const { error } = await client
+    .from("list_folders")
+    .update({
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.parentId !== undefined && { parent_id: patch.parentId }),
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Duplique un dossier — copie superficielle (nom suffixé "(copie)", même
+ * parent), ne clone ni ses sous-dossiers ni les listes qu'il contient
+ * (même principe que dupliquer une vue enregistrée, S34-4 : la structure,
+ * pas le contenu).
+ */
+export async function duplicateFolder(client: SupabaseClient, folder: ListFolder): Promise<{ id: string }> {
+  return createFolder(client, {
+    clientId: folder.client_id,
+    name: `${folder.name} (copie)`,
+    parentId: folder.parent_id,
+    createdBy: folder.created_by,
+  });
+}

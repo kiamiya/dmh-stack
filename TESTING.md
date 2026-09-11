@@ -73,6 +73,23 @@ réelle ci-dessous (consomme un vrai appel API, pas fait automatiquement).
 | 3 | Ouvrir la fiche d'une entreprise sans prospect lié | Pas de bouton "Enrichir" (rien à rattacher côté pipeline) |
 | 4 | Ouvrir la fiche d'une entreprise avec un prospect déjà `won`/avancé, cliquer "Enrichir" | Les données se rafraîchissent, le statut du prospect ne change PAS (vérifier sur `/?view=kanban` ou la liste) |
 
+### S34-9 — actions manquantes sur les dossiers (renommer/dupliquer/déplacer)
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/lists`, choisir un client, survoler un dossier racine | 3 icônes : ⧉ (dupliquer), ✎ (renommer), × (supprimer) |
+| 2 | Cliquer ⧉ sur un dossier | Une copie "<nom> (copie)" apparaît au même niveau |
+| 3 | Cliquer ✎, changer le nom dans la boîte de dialogue navigateur | Le dossier est renommé |
+| 4 | Sur un sous-dossier, changer le menu déroulant "Déplacer vers" | Le sous-dossier change de parent (ou passe à la racine) |
+
+### S34-11 — analyse de chevauchement entre segments
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Cliquer "Analyser un chevauchement" dans l'en-tête de `/lists` | Un panneau s'ouvre avec un sélecteur de type + 2 listes |
+| 2 | Choisir 2 listes statiques du même type ayant des membres en commun, cliquer "Analyser" | Le nombre en commun + les pourcentages de A/B s'affichent |
+| 3 | Choisir une liste dynamique dans les sélecteurs | N'apparaît pas dans la liste déroulante (limité aux statiques, message explicite dans le panneau) |
+
 ## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 
 Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.

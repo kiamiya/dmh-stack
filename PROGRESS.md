@@ -116,6 +116,9 @@ Dernière mise à jour : 2026-09-04
 | S34-6 | Revue dev CRM (11/09) — sélecteur de client DMH global (Header) | ✅ fait côté code — Contacts/Entreprises/Opportunités branchés (Prospects non branché, voir note) — en attente de validation navigateur |
 | S34-7 | Revue dev CRM (11/09) — alerte de doublons (email contact / nom entreprise) à la création manuelle | ✅ fait côté code — en attente de validation navigateur |
 | S34-8 | Revue dev CRM (11/09) — bouton "Enrichir" à la demande (Contact/Entreprise) | ✅ fait — **Edge Functions `enrich-pappers`/`enrich-dropcontact` redéployées le 2026-09-11** (confirmation explicite de Loïc) — en attente de validation fonctionnelle réelle (clic bouton) |
+| S34-9 | Revue dev CRM (11/09) — dossiers de segments : renommer/dupliquer/déplacer | ✅ fait côté code — en attente de validation navigateur |
+| S34-10 | Revue dev CRM (11/09) — partage d'un dossier avec un compte client | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
+| S34-11 | Revue dev CRM (11/09) — analyse de chevauchement entre segments | ✅ fait côté code (limité aux listes statiques) — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2041,3 +2044,41 @@ elles-mêmes ne sont pas couvertes par des tests unitaires (glue Deno, même
 limite déjà documentée pour le reste du pipeline d'enrichissement) — la
 logique métier pure sous-jacente (`packages/pappers`, `packages/dropcontact`)
 n'a pas changé, ses tests restent valables tels quels.
+
+**S34-9 (actions manquantes sur les dossiers)** : `services/listFolders.ts`
+gagne `updateFolder` (renommer/déplacer, `parent_id` nullable) et
+`duplicateFolder` (copie superficielle suffixée "(copie)", même parent —
+ne clone ni sous-dossiers ni listes contenues, même principe que dupliquer
+une vue enregistrée S34-4) — les deux testés. `hooks/useListFolders.ts`
+expose `update`/`duplicate`. UI sur `Lists.tsx` : boutons ⧉/✎/× sur chaque
+dossier (racine et sous-dossier) ; renommer utilise `window.prompt`
+(cohérent avec `window.confirm` déjà utilisé dans ce fichier pour
+supprimer, pas de nouveau composant Dialog pour rester proportionné) ;
+déplacer un sous-dossier via un `<select>` inline (racine ou un autre
+dossier racine) — **limité aux sous-dossiers** : un dossier racine avec
+ses propres enfants n'est pas déplaçable, pour ne pas dépasser l'arbre à
+2 niveaux (migration 032).
+
+**S34-10 (partage de dossier avec un client) : pas fait.** Le mockup
+Claude Design le mentionne ("Un dossier peut être partagé avec un compte
+client"), mais ça suppose de savoir relier un dossier à un compte
+`client_users` d'un client FINAL distinct du client DMH propriétaire —
+exactement le sujet "clés secondaires" que Loïc doit clarifier avec
+William (Phase G du plan). Pas de RLS/UI construits sans cette base.
+
+**S34-11 (analyse de chevauchement)** : nouveau `lib/listOverlap.ts`
+(`computeListOverlap`, pure, + tests : chevauchement exact, doublons
+ignorés, listes disjointes, liste vide sans `NaN`, listes identiques à
+100%). UI sur `Lists.tsx` : bouton "Analyser un chevauchement" dans
+l'en-tête, panneau avec type d'objet + 2 sélecteurs de liste + résultat
+(nombre en commun, % de A/de B, exclusifs à chacune). **Limite assumée** :
+uniquement les listes **statiques** (membres déjà connus via la table de
+jointure, un aller-retour direct) — les listes **dynamiques**
+nécessiteraient de ré-évaluer leurs règles sur tout le jeu d'entités
+(logique déjà présente ailleurs mais pas branchée ici, pas de temps ce
+soir) ; message explicite dans le panneau plutôt qu'un choix silencieux.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (71 fichiers, 519 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts. Aucune migration
+nécessaire (réutilise `list_folders` et les tables `*_list_members`
+existantes).

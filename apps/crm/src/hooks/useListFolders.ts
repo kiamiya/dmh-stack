@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ListFolder } from "@dmh/types";
 import { supabase } from "../lib/supabase";
-import { createFolder, deleteFolder, listFolders } from "../services/listFolders";
-import type { ListFolderInsert } from "../services/listFolders";
+import { createFolder, deleteFolder, duplicateFolder, listFolders, updateFolder } from "../services/listFolders";
+import type { ListFolderInsert, ListFolderUpdate } from "../services/listFolders";
 
 /** Dossiers d'un client (S32-segments Lot C) — même forme que `useContactLists`. */
 export function useListFolders(clientId: string) {
@@ -36,5 +36,15 @@ export function useListFolders(clientId: string) {
     await load();
   }
 
-  return { folders, loading, create, remove, reload: load };
+  async function update(id: string, patch: ListFolderUpdate): Promise<void> {
+    await updateFolder(supabase, id, patch);
+    await load();
+  }
+
+  async function duplicate(folder: ListFolder): Promise<void> {
+    await duplicateFolder(supabase, folder);
+    await load();
+  }
+
+  return { folders, loading, create, remove, update, duplicate, reload: load };
 }

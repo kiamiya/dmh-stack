@@ -20,29 +20,40 @@ import { useSession } from "../lib/useSession";
 import { supabase } from "../lib/supabase";
 import {
   deleteList as deleteContactList,
+  listContactIdsInList,
   listDeletedContactLists,
   moveListToFolder as moveContactListToFolder,
   restoreContactList,
 } from "../services/contactLists";
 import {
   deleteList as deleteCompanyList,
+  listCompanyIdsInList,
   listDeletedCompanyLists,
   moveListToFolder as moveCompanyListToFolder,
   restoreCompanyList,
 } from "../services/companyLists";
 import {
   deleteList as deleteOpportunityList,
+  listDealIdsInList,
   listDeletedOpportunityLists,
   moveListToFolder as moveOpportunityListToFolder,
   restoreOpportunityList,
 } from "../services/dealLists";
-import type { CompanyList, ContactList, OpportunityList } from "@dmh/types";
+import type { CompanyList, ContactList, ListFolder, OpportunityList } from "@dmh/types";
 import { ImportListDialog } from "../components/ImportListDialog";
 import { toCsv } from "../lib/csv";
 import { useToast } from "../components/ui/toast";
 import type { ListEntityType } from "../lib/listsOverview";
 import { filterListRows } from "../lib/listsFilters";
 import { buildFolderTree, listsUnderFolder } from "../lib/folderTree";
+import { computeListOverlap } from "../lib/listOverlap";
+import type { ListOverlapResult } from "../lib/listOverlap";
+
+const MEMBER_IDS_BY_ENTITY: Record<ListEntityType, (id: string) => Promise<string[]>> = {
+  contact: (id) => listContactIdsInList(supabase, id),
+  company: (id) => listCompanyIdsInList(supabase, id),
+  opportunity: (id) => listDealIdsInList(supabase, id),
+};
 
 const ENTITY_LABELS: Record<ListEntityType, string> = {
   contact: "Contacts",
@@ -78,6 +89,38 @@ function downloadCsv(content: string, filename: string) {
 
 export function ListsPage() {
   const { rows, loading, reload } = useListsOverview();
+
+  // Analyse de chevauchement entre segments (CR du 11/09/2026) — limité aux
+  // listes STATIQUES pour l'instant : leurs membres sont déjà connus
+  // directement (table de jointure), contrairement aux dynamiques qui
+  // exigeraient de ré-évaluer leurs règles ici.
+  const [overlapOpen, setOverlapOpen] = useState(false);
+  const [overlapEntityType, setOverlapEntityType] = useState<ListEntityType>("contact");
+  const [overlapListAId, setOverlapListAId] = useState("");
+  const [overlapListBId, setOverlapListBId] = useState("");
+  const [overlapResult, setOverlapResult] = useState<ListOverlapResult | null>(null);
+  const [overlapError, setOverlapError] = useState<string | null>(null);
+  const [overlapLoading, setOverlapLoading] = useState(false);
+  const staticListsForOverlap = useMemo(
+    () => rows.filter((r) => r.entityType === overlapEntityType && r.mode === "static"),
+    [rows, overlapEntityType],
+  );
+
+  async function handleAnalyzeOverlap() {
+    if (!overlapListAId || !overlapListBId) return;
+    setOverlapLoading(true);
+    setOverlapError(null);
+    setOverlapResult(null);
+    try {
+      const fetchIds = MEMBER_IDS_BY_ENTITY[overlapEntityType];
+      const [idsA, idsB] = await Promise.all([fetchIds(overlapListAId), fetchIds(overlapListBId)]);
+      setOverlapResult(computeListOverlap(idsA, idsB));
+    } catch (err) {
+      setOverlapError((err as Error).message);
+    } finally {
+      setOverlapLoading(false);
+    }
+  }
   const clients = useClients();
   const { toast } = useToast();
   const staff = useStaffMembers();
@@ -94,7 +137,7 @@ export function ListsPage() {
   // client à la fois (décision de cadrage : dossiers rattachés à un client, pas
   // transversaux). L'arbre/le filtre par dossier ne s'affichent donc que quand
   // filterClientId est renseigné.
-  const { folders, loading: foldersLoading, create: createFolder, remove: removeFolder } = useListFolders(filterClientId);
+  const { folders, loading: foldersLoading, create: createFolder, remove: removeFolder, update: updateFolder, duplicate: duplicateFolder } = useListFolders(filterClientId);
   const folderTree = useMemo(() => buildFolderTree(folders), [folders]);
   const folderIds = useMemo(() => (filterFolderId ? listsUnderFolder(folders, filterFolderId) : undefined), [folders, filterFolderId]);
 
@@ -128,6 +171,37 @@ export function ListsPage() {
       if (filterFolderId === id) setFilterFolderId("");
       toast(`Dossier "${name}" supprimé.`, "success");
       await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  /** Actions manquantes sur les dossiers (CR du 11/09/2026) : renommer/dupliquer/déplacer. */
+  async function handleRenameFolder(id: string, currentName: string) {
+    const nextName = window.prompt("Renommer le dossier :", currentName);
+    if (!nextName || !nextName.trim() || nextName.trim() === currentName) return;
+    try {
+      await updateFolder(id, { name: nextName.trim() });
+      toast(`Dossier renommé "${nextName.trim()}".`, "success");
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  async function handleDuplicateFolder(folder: ListFolder) {
+    try {
+      await duplicateFolder(folder);
+      toast(`Dossier "${folder.name}" dupliqué.`, "success");
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  /** Déplacer : limité aux sous-dossiers (promouvoir à la racine ou changer de parent) — un dossier racine avec ses propres sous-dossiers n'est pas déplaçable, l'arbre reste à 2 niveaux (migration 032). */
+  async function handleMoveFolder(id: string, newParentId: string | null) {
+    try {
+      await updateFolder(id, { parentId: newParentId });
+      toast("Dossier déplacé.", "success");
     } catch (err) {
       toast(`Échec : ${(err as Error).message}`, "destructive");
     }
@@ -308,6 +382,9 @@ export function ListsPage() {
             <Button variant="outline" size="sm" onClick={handleToggleTrash}>
               Corbeille
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setOverlapOpen((v) => !v)}>
+              Analyser un chevauchement
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExport}>
               Exporter
             </Button>
@@ -326,6 +403,91 @@ export function ListsPage() {
         dynamiques. Les effectifs sont réels (comptage direct pour les statiques, évaluation des critères pour
         les dynamiques).
       </p>
+
+      {overlapOpen && (
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <span className="text-sm font-medium text-foreground">Analyse de chevauchement</span>
+            <p className="text-xs text-muted-foreground">
+              Compare les membres de 2 listes statiques (même type d'objet). Les listes dynamiques ne sont pas
+              encore prises en charge ici.
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Type</label>
+                <select
+                  value={overlapEntityType}
+                  onChange={(e) => {
+                    setOverlapEntityType(e.target.value as ListEntityType);
+                    setOverlapListAId("");
+                    setOverlapListBId("");
+                    setOverlapResult(null);
+                  }}
+                  className="rounded-md border border-border px-2 py-1.5 text-sm"
+                >
+                  {(Object.keys(ENTITY_LABELS) as ListEntityType[]).map((t) => (
+                    <option key={t} value={t}>
+                      {ENTITY_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Liste A</label>
+                <select
+                  value={overlapListAId}
+                  onChange={(e) => setOverlapListAId(e.target.value)}
+                  className="rounded-md border border-border px-2 py-1.5 text-sm"
+                >
+                  <option value="">Choisir…</option>
+                  {staticListsForOverlap.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.clientName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Liste B</label>
+                <select
+                  value={overlapListBId}
+                  onChange={(e) => setOverlapListBId(e.target.value)}
+                  className="rounded-md border border-border px-2 py-1.5 text-sm"
+                >
+                  <option value="">Choisir…</option>
+                  {staticListsForOverlap.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.clientName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                size="sm"
+                disabled={!overlapListAId || !overlapListBId || overlapLoading}
+                onClick={handleAnalyzeOverlap}
+              >
+                {overlapLoading ? "…" : "Analyser"}
+              </Button>
+            </div>
+            {overlapError && <p className="text-sm text-destructive">{overlapError}</p>}
+            {overlapResult && (
+              <div className="flex flex-wrap gap-4 border-t border-border pt-3 text-sm">
+                <span>
+                  <strong className="font-semibold text-foreground">{overlapResult.overlapCount}</strong> en commun
+                </span>
+                <span className="text-muted-foreground">
+                  {overlapResult.overlapPercentOfA}% de A ({overlapResult.totalA}) · {overlapResult.overlapPercentOfB}% de B (
+                  {overlapResult.totalB})
+                </span>
+                <span className="text-muted-foreground">
+                  {overlapResult.onlyInA} uniquement dans A · {overlapResult.onlyInB} uniquement dans B
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-start gap-4">
         {filterClientId && (
@@ -394,14 +556,31 @@ export function ListsPage() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleDuplicateFolder(node.folder)}
+                            title="Dupliquer"
+                            className="px-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            ⧉
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRenameFolder(node.folder.id, node.folder.name)}
+                            title="Renommer"
+                            className="px-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDeleteFolder(node.folder.id, node.folder.name)}
+                            title="Supprimer"
                             className="px-1 text-xs text-muted-foreground hover:text-destructive"
                           >
                             ×
                           </button>
                         </div>
                         {node.children.map((child) => (
-                          <div key={child.id} className="flex items-center pl-3">
+                          <div key={child.id} className="flex items-center gap-1 pl-3">
                             <button
                               type="button"
                               onClick={() => setFilterFolderId(child.id)}
@@ -409,9 +588,41 @@ export function ListsPage() {
                             >
                               {child.name}
                             </button>
+                            <select
+                              value={child.parent_id ?? ""}
+                              onChange={(e) => handleMoveFolder(child.id, e.target.value || null)}
+                              title="Déplacer vers"
+                              className="rounded border border-border bg-transparent text-[10px] text-muted-foreground"
+                            >
+                              <option value="">Racine</option>
+                              {folderTree
+                                .filter((n) => n.folder.id !== child.id)
+                                .map((n) => (
+                                  <option key={n.folder.id} value={n.folder.id}>
+                                    {n.folder.name}
+                                  </option>
+                                ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicateFolder(child)}
+                              title="Dupliquer"
+                              className="px-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              ⧉
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRenameFolder(child.id, child.name)}
+                              title="Renommer"
+                              className="px-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              ✎
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteFolder(child.id, child.name)}
+                              title="Supprimer"
                               className="px-1 text-xs text-muted-foreground hover:text-destructive"
                             >
                               ×

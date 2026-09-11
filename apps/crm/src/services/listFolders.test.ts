@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createFolder, deleteFolder, listAllListFolders, listFolders } from "./listFolders";
+import { createFolder, deleteFolder, duplicateFolder, listAllListFolders, listFolders, updateFolder } from "./listFolders";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -9,6 +9,7 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     order: () => query,
     eq: () => query,
     insert: () => query,
+    update: () => query,
     delete: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
@@ -91,5 +92,42 @@ describe("deleteFolder", () => {
   it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
     const client = makeStubClient({ data: null, error: null });
     await expect(deleteFolder(client, "folder-1")).resolves.toBeUndefined();
+  });
+});
+
+describe("updateFolder", () => {
+  it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(updateFolder(client, "folder-1", { name: "Nouveau nom" })).resolves.toBeUndefined();
+  });
+
+  it("permet de déplacer un dossier à la racine (parentId: null)", async () => {
+    const updateSpy = vi.fn(() => query);
+    const query = { eq: () => Promise.resolve({ data: null, error: null }), update: updateSpy };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    await updateFolder(client, "folder-1", { parentId: null });
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ parent_id: null }));
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "update refusé" } });
+    await expect(updateFolder(client, "folder-1", { name: "x" })).rejects.toThrow("update refusé");
+  });
+});
+
+describe("duplicateFolder", () => {
+  it("crée une copie suffixée avec le même client/parent", async () => {
+    const insertSpy = vi.fn(() => query);
+    const query = {
+      select: () => query,
+      insert: insertSpy,
+      single: () => Promise.resolve({ data: { id: "folder-99" }, error: null }),
+    };
+    const client = { from: () => query } as unknown as SupabaseClient;
+    const source = { id: "folder-1", client_id: "client-1", parent_id: "folder-0", name: "Prospection", created_by: "staff-1", created_at: "2026-08-01T00:00:00Z" };
+    await expect(duplicateFolder(client, source)).resolves.toEqual({ id: "folder-99" });
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ client_id: "client-1", name: "Prospection (copie)", parent_id: "folder-0", created_by: "staff-1" }),
+    );
   });
 });
