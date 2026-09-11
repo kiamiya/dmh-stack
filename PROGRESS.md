@@ -125,6 +125,7 @@ Dernière mise à jour : 2026-09-04
 | S34-15 | Revue dev CRM (11/09) — dashboards nommés personnels (créer/switcher/gérer, blocs fixes) | ✅ fait — **migration 038 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S34-16 | Revue dev CRM (11/09) — export PDF du dashboard | ✅ fait côté code (export navigateur via `window.print()`) — en attente de validation navigateur |
 | S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
+| S34-17 | Revue dev CRM (11/09) — dashboard dédié par client DMH (portail client) | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
