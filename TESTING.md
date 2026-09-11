@@ -11,10 +11,10 @@
 
 ## Statut : 🔄 lots S33 + S34 (revues dev CRM du 08/09 et du 11/09) — validation navigateur en attente
 
-**Nouveau (S34, ci-dessous les 3 premiers points traités)** : 2 migrations en
-attente de confirmation avant de pouvoir tester S34-2/S34-C0 —
-`036_deal_name.sql` (nom libre d'opportunité) et `037_company_parent.sql`
-(maison mère/filiale). Dis-moi si je peux lancer `supabase db push`.
+**Nouveau (S34-12/13 ci-dessous)** : lien cliquable tâche → fiche liée, et
+mode "dépiler les tâches une à une". Aucune migration nécessaire. Les
+migrations `036` (nom libre d'opportunité) et `037` (maison mère/filiale)
+sont déjà appliquées et vérifiées en production (2026-09-11).
 
 ### S34-1 — formulaire Contact (téléphone + réordonnancement)
 
@@ -89,6 +89,29 @@ réelle ci-dessous (consomme un vrai appel API, pas fait automatiquement).
 | 1 | Cliquer "Analyser un chevauchement" dans l'en-tête de `/lists` | Un panneau s'ouvre avec un sélecteur de type + 2 listes |
 | 2 | Choisir 2 listes statiques du même type ayant des membres en commun, cliquer "Analyser" | Le nombre en commun + les pourcentages de A/B s'affichent |
 | 3 | Choisir une liste dynamique dans les sélecteurs | N'apparaît pas dans la liste déroulante (limité aux statiques, message explicite dans le panneau) |
+
+### S34-12 — lien cliquable entre une tâche et sa fiche liée
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/tasks`, ouvrir une tâche liée à un contact | La colonne "Lié à" affiche le nom du contact en lien cliquable (souligné au survol) |
+| 2 | Cliquer ce lien | Navigue vers `/contacts/:id`, la fiche du bon contact s'affiche |
+| 3 | Répéter avec une tâche liée à une entreprise, puis à une opportunité | Même comportement, vers `/companies/:id` ou `/opportunities/:id` (nom de l'opportunité affiché via S34-2 si renseigné, sinon nom de l'entreprise) |
+| 4 | Ouvrir une tâche sans aucune fiche liée | La colonne affiche "—" (pas de lien) |
+
+### S34-13 — mode "dépiler les tâches une à une"
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/tasks`, regarder le bouton "Dépiler (N)" dans l'en-tête | N correspond au nombre de tâches non terminées |
+| 2 | Cliquer "Dépiler" | Une modale s'ouvre sur la première tâche (échéance la plus proche en premier), avec la progression "1 / N" |
+| 3 | Cliquer sur le nom de la fiche liée (si présente) | S'ouvre dans un **nouvel onglet**, la modale reste ouverte sur la même tâche dans l'onglet d'origine |
+| 4 | Cliquer "Terminer" | La tâche passe au statut "Terminée" (vérifiable après fermeture sur `/tasks`), la modale avance automatiquement à la tâche suivante |
+| 5 | Sur la tâche suivante, cliquer "Replanifier", choisir une date, valider | La tâche voit son échéance mise à jour, la modale avance à la tâche suivante |
+| 6 | Cliquer "Passer" sur une tâche | Avance à la suivante sans aucune modification de cette tâche |
+| 7 | Arriver au bout de la file | Message "File terminée — bravo !" |
+| 8 | Cliquer "Fermer" en cours de route, puis rouvrir "Dépiler" | La file recommence au début (pas de reprise à l'endroit quitté — comportement attendu, pas un bug) |
+| 9 | Avec 0 tâche non terminée | Le bouton "Dépiler (0)" est désactivé |
 
 ## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 

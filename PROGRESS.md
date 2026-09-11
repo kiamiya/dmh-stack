@@ -119,6 +119,9 @@ Dernière mise à jour : 2026-09-04
 | S34-9 | Revue dev CRM (11/09) — dossiers de segments : renommer/dupliquer/déplacer | ✅ fait côté code — en attente de validation navigateur |
 | S34-10 | Revue dev CRM (11/09) — partage d'un dossier avec un compte client | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
 | S34-11 | Revue dev CRM (11/09) — analyse de chevauchement entre segments | ✅ fait côté code (limité aux listes statiques) — en attente de validation navigateur |
+| S34-12 | Revue dev CRM (11/09) — lien cliquable réel entre une tâche et sa fiche contact/entreprise/opportunité | ✅ fait côté code — en attente de validation navigateur |
+| S34-13 | Revue dev CRM (11/09) — mode "dépiler les tâches une à une" (inspiration HubSpot) | ✅ fait côté code — en attente de validation navigateur |
+| S34-14 | Revue dev CRM (11/09) — widget "Charge de l'équipe" (mockup Claude Design) | ⬜ non fait — signalé "bonus, pas urgent" dans le découpage, reporté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2082,3 +2085,29 @@ Vérifié : `pnpm --filter crm typecheck`/`test` (71 fichiers, 519 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts. Aucune migration
 nécessaire (réutilise `list_folders` et les tables `*_list_members`
 existantes).
+
+**S34-12 (lien cliquable tâche → fiche liée)** : nouveau `lib/taskLinks.ts`
+(`taskRelatedLink`, pure, priorité contact > entreprise > opportunité,
+`null` si aucune fiche liée — réutilise `getDealDisplayName` pour le
+libellé opportunité) + tests des 4 cas. `pages/Tasks.tsx` : la colonne
+"Lié à" devient un vrai `<Link>` React Router au lieu d'un simple texte ;
+l'ancien helper local `relatedRecordLabel` est supprimé, remplacé par
+l'import partagé (déjà réutilisé aussi par `TaskFocusMode.tsx`, S34-13).
+
+**S34-13 (dépiler les tâches une à une)** : nouveau composant
+`components/TaskFocusMode.tsx` — modale avec file de tâches (pré-calculée
+par `Tasks.tsx` via `focusQueue` : tâches non `done`, triées par échéance
+croissante, celles sans échéance en dernier), progression "X / Y", et
+3 actions par tâche : **Terminer** (statut → `done`), **Replanifier**
+(révèle un champ date puis appelle `update`), **Passer** (avance sans
+mutation). Le lien vers la fiche liée (`taskRelatedLink`) s'ouvre dans un
+nouvel onglet pour ne pas interrompre la file en cours. Bouton "Dépiler
+(N)" ajouté dans l'en-tête de `Tasks.tsx`, désactivé si la file est vide.
+Pas de test unitaire dédié pour `TaskFocusMode.tsx` (composant React,
+convention du repo — seule la logique pure `lib/` est testée).
+
+**S34-14 (widget "Charge de l'équipe") : pas fait**, comme annoncé dans le
+découpage ("bonus, pas urgent") — reporté, pas de date cible.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (72 fichiers, 523 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts. Aucune migration.

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useTasks } from "../hooks/useTasks";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { Button } from "../components/ui/button";
@@ -7,19 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { AddTaskDialog } from "../components/AddTaskDialog";
 import { EditTaskDialog } from "../components/EditTaskDialog";
 import { TaskCalendarView } from "../components/TaskCalendarView";
+import { TaskFocusMode } from "../components/TaskFocusMode";
 import { PageHeader } from "../components/ui/page-header";
 import { ALL_TASK_STATUSES, getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
+import { taskRelatedLink } from "../lib/taskLinks";
 import type { TaskRow } from "../services/tasks";
 import type { TaskStatus } from "@dmh/types";
 import { useToast } from "../components/ui/toast";
-import { getDealDisplayName } from "../lib/deals";
-
-function relatedRecordLabel(task: TaskRow): string {
-  if (task.contacts) return `${task.contacts.first_name} ${task.contacts.last_name}`;
-  if (task.companies) return task.companies.name;
-  if (task.deals) return getDealDisplayName(task.deals);
-  return "—";
-}
 
 export function TasksPage() {
   const { tasks, loading, error, create, changeStatus, update } = useTasks();
@@ -28,6 +23,20 @@ export function TasksPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [focusOpen, setFocusOpen] = useState(false);
+
+  /** File "à dépiler" (CR du 11/09/2026) : tâches non terminées, échéance la plus proche d'abord (celles sans échéance en dernier). */
+  const focusQueue = useMemo(
+    () =>
+      tasks
+        .filter((t) => t.status !== "done")
+        .sort((a, b) => {
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return a.due_date.localeCompare(b.due_date);
+        }),
+    [tasks],
+  );
 
   async function handleStatusChange(id: string, status: TaskStatus) {
     try {
@@ -60,6 +69,9 @@ export function TasksPage() {
                 Calendrier
               </button>
             </div>
+            <Button variant="outline" size="sm" onClick={() => setFocusOpen(true)} disabled={focusQueue.length === 0}>
+              Dépiler ({focusQueue.length})
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
               + Tâche
             </Button>
@@ -95,7 +107,18 @@ export function TasksPage() {
                 </TableCell>
                 <TableCell>{t.due_date ? new Date(t.due_date).toLocaleDateString("fr-FR") : "—"}</TableCell>
                 <TableCell>{staff.find((s) => s.id === t.assigned_to)?.name ?? "—"}</TableCell>
-                <TableCell>{relatedRecordLabel(t)}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const link = taskRelatedLink(t);
+                    return link ? (
+                      <Link to={link.to} className="hover:underline">
+                        {link.label}
+                      </Link>
+                    ) : (
+                      "—"
+                    );
+                  })()}
+                </TableCell>
                 <TableCell>
                   <select
                     value={t.status}
@@ -130,6 +153,13 @@ export function TasksPage() {
         task={editingTask}
         onOpenChange={(open) => !open && setEditingTask(null)}
         onUpdated={update}
+      />
+      <TaskFocusMode
+        open={focusOpen}
+        onOpenChange={setFocusOpen}
+        tasks={focusQueue}
+        onComplete={(id) => changeStatus(id, "done")}
+        onReschedule={(id, dueDate) => update(id, { dueDate })}
       />
     </div>
   );
