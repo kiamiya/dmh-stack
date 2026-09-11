@@ -58,7 +58,7 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 7 | Créer une vue avec des chips actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionnent comme sur Prospects/Entreprises |
 | 8 | Regarder la colonne "Enrichis" d'une liste enrichie | Barre + % au lieu d'un texte brut |
 
-### S35-5 — Tâches : onglets système + filtres + colonnes *(nécessite migration 040)*
+### S35-5 — Tâches : onglets système + filtres + colonnes
 
 | # | Test | Résultat attendu |
 |---|---|---|

@@ -132,7 +132,7 @@ Dernière mise à jour : 2026-09-04
 | S35-2 | Entreprises : bandeau de vues + menu "..." (aligné avec Contacts), colonnes Source/Statut, libellés dynamiques | ✅ fait côté code — en attente de validation navigateur |
 | S35-3 | Dashboard : bascule en menu déroulant, "actualisé il y a X min" + rafraîchir, filtres Propriétaire/Plage de dates, menus Partager/Actions consolidés, bloc "File d'enrichissement" | ✅ fait côté code — en attente de validation navigateur |
 | S35-4 | Segments : bandeau de vues + menu "..." + filtres rapides (chips) + colonnes paramétrables | ✅ fait côté code — en attente de validation navigateur |
-| S35-5 | Tâches : onglets système (À faire/En retard/Aujourd'hui/Mes tâches/Terminées) + vues perso + menu "..." + filtres rapides + colonnes Type/Priorité/Origine + widgets "Charge de l'équipe"/"Génération automatique" | 🔄 fait côté code — **migration 040 écrite, non appliquée** — en attente de validation navigateur |
+| S35-5 | Tâches : onglets système (À faire/En retard/Aujourd'hui/Mes tâches/Terminées) + vues perso + menu "..." + filtres rapides + colonnes Type/Priorité/Origine + widgets "Charge de l'équipe"/"Génération automatique" | ✅ fait — **migration 040 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2481,4 +2481,6 @@ tâches actives + en retard, données réelles) et "Génération automatique"
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (78 fichiers, 566 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
-Migration `040` écrite, **non appliquée** — confirmation à demander.
+Migration `040` **appliquée et vérifiée en production le 2026-09-11**
+(confirmation explicite de Loïc, colonnes confirmées via `supabase db
+query --linked`).
