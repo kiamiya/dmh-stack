@@ -114,6 +114,8 @@ Dernière mise à jour : 2026-09-04
 | S34-3 | Revue dev CRM (11/09) — Opportunités en vue Kanban par défaut | ✅ fait — en attente de validation navigateur |
 | S34-4/5 | Revue dev CRM (11/09) — menu de vue (Enregistrer/Dupliquer/Renommer/Supprimer/Partager le lien) sur Prospects + filtres synchronisés dans l'URL | ✅ fait côté code (Prospects uniquement pour l'instant, pas encore Segments/Tâches) — en attente de validation navigateur |
 | S34-6 | Revue dev CRM (11/09) — sélecteur de client DMH global (Header) | ✅ fait côté code — Contacts/Entreprises/Opportunités branchés (Prospects non branché, voir note) — en attente de validation navigateur |
+| S34-7 | Revue dev CRM (11/09) — alerte de doublons (email contact / nom entreprise) à la création manuelle | ✅ fait côté code — en attente de validation navigateur |
+| S34-8 | Revue dev CRM (11/09) — bouton "Enrichir" à la demande (Contact/Entreprise) | ✅ fait côté code — **Edge Functions `enrich-pappers`/`enrich-dropcontact` modifiées, pas encore déployées** (`supabase functions deploy`, confirmation explicite requise, distinct des migrations DB) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1994,3 +1996,49 @@ Vérifié : `pnpm --filter crm typecheck`/`test` (504 tests) verts,
 `pnpm typecheck`/`pnpm test` racine verts. Pas de nouveau test unitaire
 (contexte React pur, même convention que `viewMode.tsx` qui n'en a pas
 non plus).
+
+**S34-7 (alerte de doublons)** : `services/contacts.ts#findContactByEmail`
+et `services/companies.ts#findCompanyByName` (+ tests) — recherche
+insensible à la casse au sein du **même client** uniquement. Alerte
+affichée sous le champ concerné dans `AddContactDialog.tsx`/
+`AddCompanyDialog.tsx` (lien vers la fiche existante), **avertit sans
+bloquer** la création (un email partagé — assistante, standard — reste
+légitime). **Limite assumée, documentée** : le CR demande aussi de
+proposer d'associer le doublon à un NOUVEAU client DMH plutôt que
+dupliquer — pas fait, ça dépend de l'architecture "clés secondaires"
+(clients DMH/finaux) pas encore tranchée avec William (Phase G du plan).
+
+**S34-8 (enrichissement à la demande)** : découverte importante en
+creusant ce sujet — `enrich-pappers`/`enrich-dropcontact` (Edge
+Functions) exigent un `prospect_id` **et** un statut précis
+(`to_enrich`/`enriched_pappers`), pensées uniquement pour le pipeline
+automatique. Modifiées pour accepter un flag `manual: true` (nouveau
+comportement, rétrocompatible) : dans ce mode, le garde-fou de statut est
+ignoré et `prospects.status` n'est **jamais** modifié (seules les
+données `companies`/`contacts` sont rafraîchies) — pour ne jamais faire
+régresser un prospect déjà avancé dans le pipeline (`won`, `qualified`...)
+juste parce qu'on rafraîchit ses données. Bouton "Enrichir" ajouté sur
+`ContactDetail.tsx` (Dropcontact) et `CompanyDetail.tsx` (Pappers),
+visible seulement si un prospect est lié (`useProspects()`, nouveau champ
+`ProspectListRow.company_id` ajouté au passage — absent jusqu'ici, la
+ligne prospect n'exposait que l'objet `companies` imbriqué sans son id).
+**Limite assumée pour Dropcontact (asynchrone)** : si un
+`dropcontact_request_id` traîne d'un essai précédent, le mode manuel
+consulte cette requête au lieu d'en soumettre une nouvelle — un vrai
+"forcer un nouvel essai" nécessiterait de le réinitialiser d'abord, pas
+fait.
+
+**⚠️ Déploiement requis, pas fait** : ces 2 Edge Functions modifiées sont
+commitées mais **pas déployées** sur le vrai Supabase
+(`supabase functions deploy enrich-pappers enrich-dropcontact`) — le
+bouton "Enrichir" ne fonctionnera pas tant que ce n'est pas fait. C'est
+une action sur un système distant (comme une migration), donc soumise à
+confirmation explicite au cas par cas (règle CLAUDE.md §5) — distincte du
+push git déjà fait automatiquement.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (70 fichiers, 510 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts. Les Edge Functions
+elles-mêmes ne sont pas couvertes par des tests unitaires (glue Deno, même
+limite déjà documentée pour le reste du pipeline d'enrichissement) — la
+logique métier pure sous-jacente (`packages/pappers`, `packages/dropcontact`)
+n'a pas changé, ses tests restent valables tels quels.

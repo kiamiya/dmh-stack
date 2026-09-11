@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
 import { listCompaniesForClient } from "../services/companies";
 import type { CompanyOption } from "../services/companies";
-import { createContact } from "../services/contacts";
+import { createContact, findContactByEmail } from "../services/contacts";
+import type { ContactDuplicateMatch } from "../services/contacts";
 import { createProspect } from "../services/prospects";
 import { validateContactForm } from "../lib/contactForm";
 import { useToast } from "./ui/toast";
@@ -41,6 +43,7 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [duplicate, setDuplicate] = useState<ContactDuplicateMatch | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +57,25 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
       .catch(() => setCompanies([]));
   }, [clientId]);
 
+  /** Alerte de doublons (CR du 11/09/2026) : avertit sans bloquer — un email légitimement partagé (assistante, standard) reste possible. */
+  useEffect(() => {
+    if (!clientId || !email.trim()) {
+      setDuplicate(null);
+      return;
+    }
+    let cancelled = false;
+    findContactByEmail(supabase, clientId, email)
+      .then((match) => {
+        if (!cancelled) setDuplicate(match);
+      })
+      .catch(() => {
+        if (!cancelled) setDuplicate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, email]);
+
   function reset() {
     setClientId("");
     setCompanies([]);
@@ -65,6 +87,7 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
     setPhone("");
     setLinkedinUrl("");
     setError(null);
+    setDuplicate(null);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -174,6 +197,15 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
+              {duplicate && (
+                <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
+                  Un contact avec cet email existe déjà pour ce client :{" "}
+                  <Link to={`/contacts/${duplicate.id}`} target="_blank" className="underline">
+                    {duplicate.first_name} {duplicate.last_name}
+                  </Link>
+                  . Vérifie avant de continuer, pour ne pas créer de doublon.
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm text-muted-foreground" htmlFor="contact-phone">

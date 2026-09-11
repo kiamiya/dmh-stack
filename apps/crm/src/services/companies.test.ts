@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createCompany, getCompany, listAllCompanies, listCompaniesForClient, listSubsidiaries, updateCompany } from "./companies";
+import { createCompany, findCompanyByName, getCompany, listAllCompanies, listCompaniesForClient, listSubsidiaries, updateCompany } from "./companies";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ces services — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -10,6 +10,8 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     eq: () => query,
     insert: () => query,
     update: () => query,
+    ilike: () => query,
+    limit: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
   };
@@ -70,6 +72,23 @@ describe("getCompany", () => {
   it("lève une erreur si Supabase en renvoie une", async () => {
     const client = makeStubClient({ data: null, error: { message: "introuvable" } });
     await expect(getCompany(client, "missing")).rejects.toThrow("introuvable");
+  });
+});
+
+describe("findCompanyByName", () => {
+  it("retourne l'entreprise trouvée", async () => {
+    const client = makeStubClient({ data: [{ id: "company-1", name: "ACME SAS" }], error: null });
+    await expect(findCompanyByName(client, "client-1", "acme sas")).resolves.toEqual({ id: "company-1", name: "ACME SAS" });
+  });
+
+  it("retourne null si aucune entreprise ne correspond", async () => {
+    const client = makeStubClient({ data: [], error: null });
+    await expect(findCompanyByName(client, "client-1", "Inconnue")).resolves.toBeNull();
+  });
+
+  it("retourne null sans requête si le nom est vide", async () => {
+    const client = makeStubClient({ data: null, error: { message: "ne devrait pas être appelé" } });
+    await expect(findCompanyByName(client, "client-1", "  ")).resolves.toBeNull();
   });
 });
 

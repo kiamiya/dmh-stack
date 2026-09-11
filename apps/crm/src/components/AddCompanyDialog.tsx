@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
-import { createCompany } from "../services/companies";
+import { createCompany, findCompanyByName } from "../services/companies";
+import type { CompanyDuplicateMatch } from "../services/companies";
 import { validateCompanyForm } from "../lib/companyForm";
 import { useToast } from "./ui/toast";
 
@@ -24,11 +26,31 @@ export function AddCompanyDialog({ open, onOpenChange, onCreated, lockedClientId
   const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [duplicate, setDuplicate] = useState<CompanyDuplicateMatch | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (lockedClientId) setClientId(lockedClientId);
   }, [lockedClientId, open]);
+
+  /** Alerte de doublons (CR du 11/09/2026) : avertit sans bloquer — des homonymes légitimes existent (filiales, enseignes). */
+  useEffect(() => {
+    if (!clientId || !name.trim()) {
+      setDuplicate(null);
+      return;
+    }
+    let cancelled = false;
+    findCompanyByName(supabase, clientId, name)
+      .then((match) => {
+        if (!cancelled) setDuplicate(match);
+      })
+      .catch(() => {
+        if (!cancelled) setDuplicate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, name]);
 
   function reset() {
     setClientId(lockedClientId ?? "");
@@ -36,6 +58,7 @@ export function AddCompanyDialog({ open, onOpenChange, onCreated, lockedClientId
     setCity("");
     setWebsite("");
     setError(null);
+    setDuplicate(null);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -110,6 +133,15 @@ export function AddCompanyDialog({ open, onOpenChange, onCreated, lockedClientId
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
+            {duplicate && (
+              <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
+                Une entreprise homonyme existe déjà pour ce client :{" "}
+                <Link to={`/companies/${duplicate.id}`} target="_blank" className="underline">
+                  {duplicate.name}
+                </Link>
+                . Vérifie avant de continuer, pour ne pas créer de doublon.
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="company-city">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createContact, getContact, listContactEmailsForClient, listContacts, updateContact } from "./contacts";
+import { createContact, findContactByEmail, getContact, listContactEmailsForClient, listContacts, updateContact } from "./contacts";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ce service — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -11,6 +11,8 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     eq: () => query,
     update: () => query,
     not: () => query,
+    ilike: () => query,
+    limit: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
   };
@@ -74,6 +76,27 @@ describe("getContact", () => {
   it("lève une erreur si Supabase en renvoie une", async () => {
     const client = makeStubClient({ data: null, error: { message: "introuvable" } });
     await expect(getContact(client, "missing")).rejects.toThrow("introuvable");
+  });
+});
+
+describe("findContactByEmail", () => {
+  it("retourne le contact trouvé", async () => {
+    const client = makeStubClient({ data: [{ id: "contact-1", first_name: "Alice", last_name: "Fictive" }], error: null });
+    await expect(findContactByEmail(client, "client-1", "alice@acme.test")).resolves.toEqual({
+      id: "contact-1",
+      first_name: "Alice",
+      last_name: "Fictive",
+    });
+  });
+
+  it("retourne null si aucun contact ne correspond", async () => {
+    const client = makeStubClient({ data: [], error: null });
+    await expect(findContactByEmail(client, "client-1", "inconnu@acme.test")).resolves.toBeNull();
+  });
+
+  it("retourne null sans requête si l'email est vide", async () => {
+    const client = makeStubClient({ data: null, error: { message: "ne devrait pas être appelé" } });
+    await expect(findContactByEmail(client, "client-1", "   ")).resolves.toBeNull();
   });
 });
 

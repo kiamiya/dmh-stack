@@ -52,6 +52,27 @@ attente de confirmation avant de pouvoir tester S34-2/S34-C0 —
 | 5 | Cliquer ✎, changer le nom, valider | L'onglet est renommé sans changer ses filtres |
 | 6 | Appliquer un filtre (ex. un statut), cliquer "Partager le lien de la vue", coller l'URL copiée dans un nouvel onglet | Les mêmes filtres sont actifs (l'URL contient `status=...` etc.) |
 
+### S34-7 — alerte de doublons (Contact/Entreprise)
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | "+ Nouveau" → Contact, choisir un client déjà utilisé par un contact existant, taper son email exact | Une alerte jaune apparaît sous le champ email, avec un lien vers la fiche existante |
+| 2 | "+ Nouveau" → Entreprise, choisir un client, taper le nom exact d'une entreprise déjà existante pour ce client (insensible à la casse) | Une alerte jaune apparaît sous le champ nom, avec un lien vers la fiche existante |
+| 3 | Continuer et valider malgré l'alerte | La création n'est PAS bloquée (avertissement seulement) |
+
+### S34-8 — bouton "Enrichir" à la demande *(nécessite le déploiement des Edge Functions modifiées)*
+
+**⚠️ Ne fonctionnera pas tant que `enrich-pappers`/`enrich-dropcontact` ne
+sont pas redéployées** (`supabase functions deploy`) — dis-moi si je peux
+le faire.
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir la fiche d'un contact qui a un prospect lié | Bouton "Enrichir" visible dans l'en-tête |
+| 2 | Cliquer "Enrichir" | Toast de succès ou "en cours" (Dropcontact est asynchrone), les champs se rafraîchissent |
+| 3 | Ouvrir la fiche d'une entreprise sans prospect lié | Pas de bouton "Enrichir" (rien à rattacher côté pipeline) |
+| 4 | Ouvrir la fiche d'une entreprise avec un prospect déjà `won`/avancé, cliquer "Enrichir" | Les données se rafraîchissent, le statut du prospect ne change PAS (vérifier sur `/?view=kanban` ou la liste) |
+
 ## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 
 Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.

@@ -35,9 +35,11 @@ Deno.serve(async (req) => {
   }
 
   let prospectId: string | undefined;
+  let manual = false;
   try {
     const body = await req.json();
     prospectId = body?.prospect_id;
+    manual = body?.manual === true;
   } catch {
     return jsonResponse({ error: "Corps JSON invalide" }, 400);
   }
@@ -68,7 +70,12 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (prospect.status !== "to_enrich") {
+  // Le déclenchement automatique (pipeline/automatisation) exige le statut
+  // 'to_enrich' — un appel manuel ("Enrichir" à la demande sur une fiche
+  // existante, CR du 11/09/2026) rafraîchit les données quel que soit le
+  // statut courant, sans jamais faire régresser le pipeline (voir plus bas :
+  // `prospects.status` n'est mis à jour qu'en dehors du mode manuel).
+  if (!manual && prospect.status !== "to_enrich") {
     return jsonResponse(
       { error: `Prospect ${prospectId} n'est pas en statut 'to_enrich' (actuel: ${prospect.status})` },
       409,
@@ -122,13 +129,15 @@ Deno.serve(async (req) => {
       throw new Error(`Échec mise à jour companies: ${updateCompanyError.message}`);
     }
 
-    const { error: updateProspectError } = await supabase
-      .from("prospects")
-      .update({ status: "enriched_pappers" })
-      .eq("id", prospect.id);
+    if (!manual) {
+      const { error: updateProspectError } = await supabase
+        .from("prospects")
+        .update({ status: "enriched_pappers" })
+        .eq("id", prospect.id);
 
-    if (updateProspectError) {
-      throw new Error(`Échec mise à jour prospects.status: ${updateProspectError.message}`);
+      if (updateProspectError) {
+        throw new Error(`Échec mise à jour prospects.status: ${updateProspectError.message}`);
+      }
     }
 
     return jsonResponse({ ok: true, prospect_id: prospect.id, company_id: company.id }, 200);

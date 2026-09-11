@@ -25,6 +25,37 @@ export async function listContacts(client: SupabaseClient): Promise<ContactListR
   return (data ?? []) as unknown as ContactListRow[];
 }
 
+export interface ContactDuplicateMatch {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+/**
+ * Cherche un contact déjà existant pour ce client avec le même email
+ * (insensible à la casse) — alerte de doublons à la création manuelle
+ * (CR du 11/09/2026). Se limite volontairement au même client : la
+ * question d'un contact déjà présent chez un AUTRE client DMH dépend de
+ * l'architecture "clés secondaires" (clients DMH/finaux), pas encore
+ * tranchée avec William — pas traité ici.
+ */
+export async function findContactByEmail(
+  client: SupabaseClient,
+  clientId: string,
+  email: string,
+): Promise<ContactDuplicateMatch | null> {
+  const trimmed = email.trim();
+  if (!trimmed) return null;
+  const { data, error } = await client
+    .from("contacts")
+    .select("id, first_name, last_name")
+    .eq("client_id", clientId)
+    .ilike("email", trimmed)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ContactDuplicateMatch[])[0] ?? null;
+}
+
 /** Emails déjà utilisés pour ce client (pas de doublon) — utilisé par l'import CSV pour dédupliquer avant création. */
 export async function listContactEmailsForClient(client: SupabaseClient, clientId: string): Promise<string[]> {
   const { data, error } = await client

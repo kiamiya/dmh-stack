@@ -38,7 +38,7 @@ const DATA_SOURCE_LABELS: Record<string, string> = {
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { contact, companies, loading, error, save, linkCompany, unlinkCompany } = useContactDetail(id!);
+  const { contact, companies, loading, error, save, linkCompany, unlinkCompany, reload } = useContactDetail(id!);
   const { viewMode } = useViewMode();
   const masked = viewMode === "client_portal";
   const allCompanies = useCompanies();
@@ -52,6 +52,7 @@ export function ContactDetailPage() {
   const { lists, addContacts: addContactToList } = useContactLists(contact?.client_id ?? "");
   const [addToListId, setAddToListId] = useState("");
   const [addingToList, setAddingToList] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const { lists: companyLists, listMemberIds: listCompanyListMemberIds } = useCompanyLists(contact?.client_id ?? "");
   const [companyListMemberIds, setCompanyListMemberIds] = useState<string[]>([]);
   const [mergeTargetId, setMergeTargetId] = useState("");
@@ -142,6 +143,28 @@ export function ContactDetailPage() {
     }
   }
 
+  /** Enrichissement à la demande (CR du 11/09/2026) : rafraîchit la confiance email Dropcontact sans attendre le pipeline automatique — nécessite un prospect lié (voir enrich-dropcontact/index.ts, mode "manual"). */
+  async function handleEnrich() {
+    if (!linkedProspect) return;
+    setEnriching(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("enrich-dropcontact", {
+        body: { prospect_id: linkedProspect.id, manual: true },
+      });
+      if (invokeError) throw invokeError;
+      if (data?.status === "pending" || data?.status === "submitted") {
+        toast("Enrichissement en cours (Dropcontact) — réessaie dans quelques secondes.", "default");
+      } else {
+        toast("Contact enrichi (Dropcontact).", "success");
+        await reload();
+      }
+    } catch (err) {
+      toast(`Échec de l'enrichissement : ${(err as Error).message}`, "destructive");
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   async function handleMerge() {
     if (!mergeTargetId) return;
     setMerging(true);
@@ -166,11 +189,18 @@ export function ContactDetailPage() {
         kicker="Prospection · fiche contact"
         title={`${contact.first_name} ${contact.last_name}`}
         actions={
-          !masked && contact.phone ? (
-            <Button size="sm" blueprint onClick={() => (window.location.href = `tel:${contact.phone}`)}>
-              Appeler
-            </Button>
-          ) : undefined
+          <>
+            {!masked && contact.phone && (
+              <Button size="sm" blueprint onClick={() => (window.location.href = `tel:${contact.phone}`)}>
+                Appeler
+              </Button>
+            )}
+            {linkedProspect && (
+              <Button size="sm" variant="outline" onClick={handleEnrich} disabled={enriching} title="Rafraîchir la confiance email via Dropcontact">
+                {enriching ? "…" : "Enrichir"}
+              </Button>
+            )}
+          </>
         }
       />
 

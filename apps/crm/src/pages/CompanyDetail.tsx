@@ -4,12 +4,14 @@ import { useCompanyDetail } from "../hooks/useCompanyDetail";
 import { useCompanies } from "../hooks/useCompanies";
 import { useContacts } from "../hooks/useContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
+import { useProspects } from "../hooks/useProspects";
 import { useTasks } from "../hooks/useTasks";
 import { useContactLists } from "../hooks/useContactLists";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../components/ui/toast";
+import { supabase } from "../lib/supabase";
 import { CustomFieldsCard } from "../components/CustomFieldsCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { AssignedListCard } from "../components/AssignedListCard";
@@ -22,11 +24,13 @@ import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 
 export function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { company, contacts, subsidiaries, loading, error, save, linkContact, unlinkContact } = useCompanyDetail(id!);
+  const { company, contacts, subsidiaries, loading, error, save, linkContact, unlinkContact, reload } = useCompanyDetail(id!);
   const allContacts = useContacts();
   const { companies: allCompanies } = useCompanies();
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
+  const { prospects } = useProspects();
+  const linkedProspect = prospects.find((p) => p.company_id === company?.id);
   const { toast } = useToast();
   const { lists: contactLists, listMemberIds: listContactListMemberIds } = useContactLists(company?.client_id ?? "");
   const [contactListMemberIds, setContactListMemberIds] = useState<string[]>([]);
@@ -35,6 +39,7 @@ export function CompanyDetailPage() {
   const [city, setCity] = useState("");
   const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [linkContactId, setLinkContactId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
 
@@ -88,6 +93,24 @@ export function CompanyDetailPage() {
     }
   }
 
+  /** Enrichissement à la demande (CR du 11/09/2026) : rafraîchit les données Pappers sans attendre le pipeline automatique — nécessite un prospect lié (voir enrich-pappers/index.ts, mode "manual"). */
+  async function handleEnrich() {
+    if (!linkedProspect) return;
+    setEnriching(true);
+    try {
+      const { error: invokeError } = await supabase.functions.invoke("enrich-pappers", {
+        body: { prospect_id: linkedProspect.id, manual: true },
+      });
+      if (invokeError) throw invokeError;
+      toast("Entreprise enrichie (Pappers).", "success");
+      await reload();
+    } catch (err) {
+      toast(`Échec de l'enrichissement : ${(err as Error).message}`, "destructive");
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   const linkedContactIds = new Set(contacts.map((rel) => rel.contact_id));
   const linkableContacts = allContacts.contacts.filter((c) => !linkedContactIds.has(c.id));
   const relatedDeals = deals.filter((d) => d.company_id === company.id);
@@ -105,7 +128,16 @@ export function CompanyDetailPage() {
       <PageHeader
         kicker="Prospection · fiche entreprise"
         title={company.name}
-        actions={<Badge variant={getScoreColor(company.ai_score)}>{formatScore(company.ai_score)}</Badge>}
+        actions={
+          <>
+            {linkedProspect && (
+              <Button size="sm" variant="outline" onClick={handleEnrich} disabled={enriching} title="Rafraîchir les données via Pappers">
+                {enriching ? "…" : "Enrichir"}
+              </Button>
+            )}
+            <Badge variant={getScoreColor(company.ai_score)}>{formatScore(company.ai_score)}</Badge>
+          </>
+        }
       />
 
       <Card>

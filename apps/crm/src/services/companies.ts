@@ -102,6 +102,34 @@ export async function updateCompany(client: SupabaseClient, id: string, patch: C
   if (error) throw new Error(error.message);
 }
 
+export interface CompanyDuplicateMatch {
+  id: string;
+  name: string;
+}
+
+/**
+ * Cherche une entreprise déjà existante pour ce client avec le même nom
+ * (insensible à la casse) — alerte de doublons à la création manuelle
+ * (CR du 11/09/2026, "entreprises homonymes"). Même limite que
+ * `findContactByEmail` : uniquement au sein du même client.
+ */
+export async function findCompanyByName(
+  client: SupabaseClient,
+  clientId: string,
+  name: string,
+): Promise<CompanyDuplicateMatch | null> {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const { data, error } = await client
+    .from("companies")
+    .select("id, name")
+    .eq("client_id", clientId)
+    .ilike("name", trimmed)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as CompanyDuplicateMatch[])[0] ?? null;
+}
+
 export interface CompanyInsert {
   clientId: string;
   name: string;

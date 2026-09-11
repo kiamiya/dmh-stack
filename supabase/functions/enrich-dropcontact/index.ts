@@ -53,9 +53,11 @@ Deno.serve(async (req) => {
   }
 
   let prospectId: string | undefined;
+  let manual = false;
   try {
     const body = await req.json();
     prospectId = body?.prospect_id;
+    manual = body?.manual === true;
   } catch {
     return jsonResponse({ error: "Corps JSON invalide" }, 400);
   }
@@ -86,7 +88,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (prospect.status !== "enriched_pappers") {
+  // Voir enrich-pappers/index.ts pour le même principe : un appel manuel
+  // ("Enrichir" à la demande, CR du 11/09/2026) ignore ce garde-fou de
+  // pipeline et ne fait jamais régresser `prospects.status` (voir plus bas).
+  if (!manual && prospect.status !== "enriched_pappers") {
     return jsonResponse(
       {
         error: `Prospect ${prospectId} n'est pas en statut 'enriched_pappers' (actuel: ${prospect.status})`,
@@ -179,13 +184,15 @@ Deno.serve(async (req) => {
       throw new Error(`Échec mise à jour contacts: ${updateContactError.message}`);
     }
 
-    const { error: updateProspectError } = await supabase
-      .from("prospects")
-      .update({ status: "enriched_contact" })
-      .eq("id", prospect.id);
+    if (!manual) {
+      const { error: updateProspectError } = await supabase
+        .from("prospects")
+        .update({ status: "enriched_contact" })
+        .eq("id", prospect.id);
 
-    if (updateProspectError) {
-      throw new Error(`Échec mise à jour prospects.status: ${updateProspectError.message}`);
+      if (updateProspectError) {
+        throw new Error(`Échec mise à jour prospects.status: ${updateProspectError.message}`);
+      }
     }
 
     return jsonResponse(
