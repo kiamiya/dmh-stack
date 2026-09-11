@@ -115,7 +115,7 @@ Dernière mise à jour : 2026-09-04
 | S34-4/5 | Revue dev CRM (11/09) — menu de vue (Enregistrer/Dupliquer/Renommer/Supprimer/Partager le lien) sur Prospects + filtres synchronisés dans l'URL | ✅ fait côté code (Prospects uniquement pour l'instant, pas encore Segments/Tâches) — en attente de validation navigateur |
 | S34-6 | Revue dev CRM (11/09) — sélecteur de client DMH global (Header) | ✅ fait côté code — Contacts/Entreprises/Opportunités branchés (Prospects non branché, voir note) — en attente de validation navigateur |
 | S34-7 | Revue dev CRM (11/09) — alerte de doublons (email contact / nom entreprise) à la création manuelle | ✅ fait côté code — en attente de validation navigateur |
-| S34-8 | Revue dev CRM (11/09) — bouton "Enrichir" à la demande (Contact/Entreprise) | ✅ fait côté code — **Edge Functions `enrich-pappers`/`enrich-dropcontact` modifiées, pas encore déployées** (`supabase functions deploy`, confirmation explicite requise, distinct des migrations DB) |
+| S34-8 | Revue dev CRM (11/09) — bouton "Enrichir" à la demande (Contact/Entreprise) | ✅ fait — **Edge Functions `enrich-pappers`/`enrich-dropcontact` redéployées le 2026-09-11** (confirmation explicite de Loïc) — en attente de validation fonctionnelle réelle (clic bouton) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2028,13 +2028,12 @@ consulte cette requête au lieu d'en soumettre une nouvelle — un vrai
 "forcer un nouvel essai" nécessiterait de le réinitialiser d'abord, pas
 fait.
 
-**⚠️ Déploiement requis, pas fait** : ces 2 Edge Functions modifiées sont
-commitées mais **pas déployées** sur le vrai Supabase
-(`supabase functions deploy enrich-pappers enrich-dropcontact`) — le
-bouton "Enrichir" ne fonctionnera pas tant que ce n'est pas fait. C'est
-une action sur un système distant (comme une migration), donc soumise à
-confirmation explicite au cas par cas (règle CLAUDE.md §5) — distincte du
-push git déjà fait automatiquement.
+**Edge Functions redéployées** (2026-09-11, confirmation explicite de
+Loïc) — `supabase functions deploy enrich-pappers` puis
+`enrich-dropcontact`, les deux confirmées `"Deployed Functions."`. Pas de
+vérification fonctionnelle réelle faite ici (consommerait un vrai appel
+Pappers/Dropcontact sur une vraie fiche) — validation par Loïc en cliquant
+le bouton "Enrichir" en conditions réelles, voir `TESTING.md`.
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (70 fichiers, 510 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts. Les Edge Functions

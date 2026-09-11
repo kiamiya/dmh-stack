@@ -60,11 +60,11 @@ attente de confirmation avant de pouvoir tester S34-2/S34-C0 —
 | 2 | "+ Nouveau" → Entreprise, choisir un client, taper le nom exact d'une entreprise déjà existante pour ce client (insensible à la casse) | Une alerte jaune apparaît sous le champ nom, avec un lien vers la fiche existante |
 | 3 | Continuer et valider malgré l'alerte | La création n'est PAS bloquée (avertissement seulement) |
 
-### S34-8 — bouton "Enrichir" à la demande *(nécessite le déploiement des Edge Functions modifiées)*
+### S34-8 — bouton "Enrichir" à la demande
 
-**⚠️ Ne fonctionnera pas tant que `enrich-pappers`/`enrich-dropcontact` ne
-sont pas redéployées** (`supabase functions deploy`) — dis-moi si je peux
-le faire.
+`enrich-pappers`/`enrich-dropcontact` redéployées le 2026-09-11
+(confirmation explicite de Loïc) — reste la validation fonctionnelle
+réelle ci-dessous (consomme un vrai appel API, pas fait automatiquement).
 
 | # | Test | Résultat attendu |
 |---|---|---|
