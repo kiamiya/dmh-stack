@@ -72,7 +72,7 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 8 | Créer une vue avec des filtres actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionne comme sur Prospects/Segments ; ces actions n'apparaissent PAS sur un onglet système |
 | 9 | Regarder les 2 cartes sous les filtres | "Charge de l'équipe" (par commercial, actives + en retard) et "Génération automatique" (lien vers `/automations`) |
 
-### S35-6 — Pipeline : chrome commun Liste/Kanban + colonnes *(nécessite migration 041)*
+### S35-6 — Pipeline : chrome commun Liste/Kanban + colonnes
 
 | # | Test | Résultat attendu |
 |---|---|---|

@@ -133,7 +133,7 @@ Dernière mise à jour : 2026-09-04
 | S35-3 | Dashboard : bascule en menu déroulant, "actualisé il y a X min" + rafraîchir, filtres Propriétaire/Plage de dates, menus Partager/Actions consolidés, bloc "File d'enrichissement" | ✅ fait côté code — en attente de validation navigateur |
 | S35-4 | Segments : bandeau de vues + menu "..." + filtres rapides (chips) + colonnes paramétrables | ✅ fait côté code — en attente de validation navigateur |
 | S35-5 | Tâches : onglets système (À faire/En retard/Aujourd'hui/Mes tâches/Terminées) + vues perso + menu "..." + filtres rapides + colonnes Type/Priorité/Origine + widgets "Charge de l'équipe"/"Génération automatique" | ✅ fait — **migration 040 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
-| S35-6 | Pipeline : chrome commun Liste/Kanban (onglets système + filtres rapides + menu "..." partagés), colonnes Commercial/Pondéré, "Regrouper par" (client/commercial) | 🔄 fait côté code — **migration 041 écrite, non appliquée** — en attente de validation navigateur |
+| S35-6 | Pipeline : chrome commun Liste/Kanban (onglets système + filtres rapides + menu "..." partagés), colonnes Commercial/Pondéré, "Regrouper par" (client/commercial) | ✅ fait — **migration 041 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2510,4 +2510,6 @@ sens). `AddDealDialog.tsx` gagne un champ "Commercial" optionnel.
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (81 fichiers, 578 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
-Migration `041` écrite, **non appliquée** — confirmation à demander.
+Migration `041` **appliquée et vérifiée en production le 2026-09-11**
+(confirmation explicite de Loïc, colonne confirmée via `supabase db
+query --linked`).
