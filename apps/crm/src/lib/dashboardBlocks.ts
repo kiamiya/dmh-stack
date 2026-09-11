@@ -14,6 +14,7 @@ export const DASHBOARD_BLOCKS: DashboardBlockDef[] = [
   { key: "status_bar", label: "Prospects par statut", category: "Vue d'ensemble" },
   { key: "funnel", label: "Funnel de conversion", category: "Vue d'ensemble" },
   { key: "to_enrich_count", label: "En attente d'enrichissement", category: "Vue d'ensemble" },
+  { key: "enrichment_queue", label: "File d'enrichissement", category: "Vue d'ensemble" },
   { key: "client_performance", label: "Comptes clients suivis", category: "Vue d'ensemble" },
   { key: "weekly_new_prospects", label: "Nouveaux prospects par semaine", category: "Évolution" },
   { key: "weekly_deals_won", label: "Deals gagnés par semaine", category: "Évolution" },

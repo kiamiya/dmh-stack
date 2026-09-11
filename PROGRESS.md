@@ -130,6 +130,7 @@ Dernière mise à jour : 2026-09-04
 | S35-0 | Audit complet des 12 écrans Claude Design vs prod (demande de Loïc : "faire le tour de toutes les pages") | ✅ fait — 4 rapports d'écart détaillés, voir Journal ; priorisation discutée avec Loïc (Nature A mécanique d'abord, Nature B documentée/reportée) |
 | S35-1 | Composants partagés (`SavedViewTabs`, `QuickFilterChips`, `CompletenessBar`, `savedViews.ts` généralisé) — base de la Nature A | ✅ fait — `ProspectsList.tsx` migré dessus sans régression |
 | S35-2 | Entreprises : bandeau de vues + menu "..." (aligné avec Contacts), colonnes Source/Statut, libellés dynamiques | ✅ fait côté code — en attente de validation navigateur |
+| S35-3 | Dashboard : bascule en menu déroulant, "actualisé il y a X min" + rafraîchir, filtres Propriétaire/Plage de dates, menus Partager/Actions consolidés, bloc "File d'enrichissement" | ✅ fait côté code — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2387,3 +2388,36 @@ pour ces trois-là, chips omis plutôt que fabriqués.
 Vérifié : `pnpm --filter crm typecheck`/`test` (76 fichiers, 547 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
 Aucune migration pour S35-1/S35-2.
+
+**S35-3 (Dashboard)** : bascule remplacée par un menu déroulant (nom du
+dashboard actif + liste + "+ Créer un tableau de bord"), plus fidèle au
+mockup que la rangée de pastilles précédente — les dashboards restent
+personnels (décision déjà actée, pas de partage équipe). Nouveau
+`lib/dashboardFilters.ts` (`isWithinDateRange`/`matchesOwner`/
+`filterByOwnerAndDate`, purs + testés) : filtre Propriétaire + Plage de
+dates appliqué une seule fois, en amont, sur les tableaux bruts
+(`rawProspects`/`rawDeals`/`rawInteractions`/`rawMeetings`/`rawTasks`
+→ `prospects`/`deals`/`interactions`/`meetings`/`tasks` filtrés) — tous
+les blocs existants continuent de consommer ces noms de variables sans
+changer leur propre logique de calcul. **Limite assumée** : `deals` n'a
+pas encore de propriétaire (`assigned_to` arrive avec le chantier
+Pipeline, migration 041 pas encore écrite) donc seule la plage de dates
+s'y applique ; pas de "+ Filtres avancés" (secteur/étape pipe) — se
+câbleraient différemment par bloc, non proportionné ce soir, filtre
+simplifié à Propriétaire+dates seulement (documenté, pas un oubli).
+"Actualisé il y a X min" + bouton rafraîchir : nouveau `reload` ajouté
+à `useDeals`/`useAllInteractions`/`useStatusHistory` (suivaient le même
+pattern que `useMeetings`/`useTasks` mais sans `reload` exposé) pour que
+le rafraîchissement recharge vraiment tout. Menus "Partager" (Copier
+l'URL/Exporter en PDF — pas "Envoyer par email", toujours bloqué faute
+de fournisseur transactionnel, S34-16bis) et "Actions" (Plein écran via
+la Fullscreen API native/Cloner/Renommer/Supprimer) consolidés en
+dropdowns dans le `PageHeader`. Nouveau bloc catalogue
+"File d'enrichissement" (`lib/dashboardBlocks.ts`) : compte réel de
+prospects en attente à chaque étape (`to_enrich`→Pappers,
+`enriched_pappers`→Dropcontact) — pas de quota/usage fournisseur (non
+tracé en base, même limite déjà documentée sur `Integrations.tsx`).
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (77 fichiers, 554 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
+Aucune migration.

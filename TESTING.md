@@ -30,6 +30,21 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 6 | Regarder la colonne "Complétude" | Barre + % au lieu d'un texte brut |
 | 7 | Bouton d'import | Libellé "Importer des entreprises" (pas juste "Importer") |
 
+### S35-3 — Dashboard : menu déroulant, filtres, Partager/Actions, File d'enrichissement
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/dashboard`, regarder la ligne sous le titre | Bouton "Vue d'ensemble ▾" (ou le nom du dashboard actif) à la place de l'ancienne rangée de pastilles |
+| 2 | Cliquer dessus | Menu avec Vue d'ensemble + dashboards existants + "+ Créer un tableau de bord" |
+| 3 | Créer un dashboard, puis ouvrir "Actions" dans l'en-tête | Plein écran / Cloner / Renommer / Supprimer apparaissent (Cloner/Renommer/Supprimer seulement si un dashboard nommé est actif) |
+| 4 | Cliquer "Afficher en plein écran" | Le navigateur passe en plein écran (touche Échap pour sortir) |
+| 5 | Ouvrir "Partager" | "Copier l'URL" (toast de confirmation) et "Exporter en PDF" (comme avant) |
+| 6 | Choisir un membre du staff dans "Propriétaire" | Les KPI/graphiques se recalculent sur les prospects/tâches assignés à cette personne uniquement |
+| 7 | Renseigner "Depuis le"/"Jusqu'au" | Les données se filtrent sur cette période (deals sur date de signature, interactions/RDV sur leur date réelle) |
+| 8 | Cliquer "Réinitialiser" (visible seulement si un filtre est actif) | Retour à toutes les données |
+| 9 | Cliquer l'icône ↻ à côté de "actualisé il y a…" | Le texte "actualisé à l'instant" apparaît, les données se rechargent |
+| 10 | Sur un dashboard nommé, "Gérer les blocs", cocher "File d'enrichissement" | Nouvelle carte : compte réel de prospects en attente Pappers/Dropcontact + lien "Ouvrir le hub API" vers `/integrations` |
+
 ## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)

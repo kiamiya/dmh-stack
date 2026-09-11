@@ -37,22 +37,71 @@ import { useDashboards } from "../hooks/useDashboards";
 import { computeConversionRate, computePipelineValueByStatus } from "../lib/opportunityStats";
 import { computeOverdueTasks, computeTaskCountsByStatus } from "../lib/taskStats";
 import { PageHeader } from "../components/ui/page-header";
+import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
+import { useToast } from "../components/ui/toast";
+import { EMPTY_DASHBOARD_FILTERS, filterByOwnerAndDate } from "../lib/dashboardFilters";
+import type { DashboardFilters } from "../lib/dashboardFilters";
 
 export function DashboardPage() {
   const location = useLocation();
-  const { prospects, loading: prospectsLoading } = useProspects();
-  const { history, loading: historyLoading } = useStatusHistory();
-  const { deals, loading: dealsLoading } = useDeals();
-  const { interactions, loading: interactionsLoading } = useAllInteractions();
-  const { meetings, loading: meetingsLoading } = useMeetings();
+  const {
+    prospects: rawProspects,
+    loading: prospectsLoading,
+    reload: reloadProspects,
+  } = useProspects();
+  const { history, loading: historyLoading, reload: reloadHistory } = useStatusHistory();
+  const { deals: rawDeals, loading: dealsLoading, reload: reloadDeals } = useDeals();
+  const {
+    interactions: rawInteractions,
+    loading: interactionsLoading,
+    reload: reloadInteractions,
+  } = useAllInteractions();
+  const { meetings: rawMeetings, loading: meetingsLoading, reload: reloadMeetings } = useMeetings();
   const clients = useClients();
   const staff = useStaffMembers();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { tasks: rawTasks, loading: tasksLoading, reload: reloadTasks } = useTasks();
   const { dashboards, create, update, remove, duplicate } = useDashboards();
+  const { toast } = useToast();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [blocksDialogOpen, setBlocksDialogOpen] = useState(false);
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
+
+  const [filters, setFilters] = useState<DashboardFilters>(EMPTY_DASHBOARD_FILTERS);
+  const hasActiveFilters = filters.ownerId !== null || filters.dateFrom !== null || filters.dateTo !== null;
+
+  /** Filtre "rapide" du mockup (Propriétaire + Plage de dates), appliqué une fois ici — chaque bloc existant continue de consommer ces variables sans changer sa propre logique. `deals` n'a pas encore de propriétaire (pas de colonne `assigned_to`, prévue avec le chantier Pipeline) donc seule la plage de dates s'y applique ; `interactions`/`meetings` filtrent sur leur créateur/organisateur réel. */
+  const prospects = useMemo(
+    () => filterByOwnerAndDate(rawProspects, filters, (p) => p.assigned_to, (p) => p.created_at),
+    [rawProspects, filters],
+  );
+  const deals = useMemo(
+    () => filterByOwnerAndDate(rawDeals, filters, () => null, (d) => d.signed_at ?? d.created_at),
+    [rawDeals, filters],
+  );
+  const interactions = useMemo(
+    () => filterByOwnerAndDate(rawInteractions, filters, (i) => i.created_by, (i) => i.occurred_at),
+    [rawInteractions, filters],
+  );
+  const meetings = useMemo(
+    () => filterByOwnerAndDate(rawMeetings, filters, (m) => m.staff_id, (m) => m.starts_at),
+    [rawMeetings, filters],
+  );
+  const tasks = useMemo(
+    () => filterByOwnerAndDate(rawTasks, filters, (t) => t.assigned_to, () => null),
+    [rawTasks, filters],
+  );
+
+  const [refreshedAt, setRefreshedAt] = useState(() => new Date());
+  function handleRefresh() {
+    reloadProspects();
+    reloadHistory();
+    reloadDeals();
+    reloadInteractions();
+    reloadMeetings();
+    reloadTasks();
+    setRefreshedAt(new Date());
+  }
 
   const now = useMemo(() => new Date(), []);
   const statusCounts = useMemo(() => computeStatusCounts(prospects), [prospects]);
@@ -87,6 +136,14 @@ export function DashboardPage() {
     return combineWeeklyBreakdown(calls, emails, bookedMeetings);
   }, [interactions, meetings, now]);
   const toEnrichCount = useMemo(() => prospects.filter((p) => p.status === "to_enrich").length, [prospects]);
+  /** Compte réel par étape d'enrichissement (pas de quota/usage fournisseur — non tracé en base, cf. Integrations.tsx) — juste combien de prospects attendent chaque étape. */
+  const enrichmentQueue = useMemo(
+    () => ({
+      pappers: prospects.filter((p) => p.status === "to_enrich").length,
+      dropcontact: prospects.filter((p) => p.status === "enriched_pappers").length,
+    }),
+    [prospects],
+  );
   const clientPerformance = useMemo(
     () => computeClientPerformance(clients, deals, meetings, staff, prospects, interactions),
     [clients, deals, meetings, staff, prospects, interactions],
@@ -159,6 +216,27 @@ export function DashboardPage() {
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">En attente d'enrichissement</div>
               <div className="text-2xl font-semibold text-foreground">{toEnrichCount}</div>
+            </CardContent>
+          </Card>
+        );
+      case "enrichment_queue":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>File d'enrichissement</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-foreground">Pappers (SIREN, secteur, effectif…)</span>
+                <Badge variant="blue">{enrichmentQueue.pappers} en attente</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-foreground">Dropcontact (email, téléphone…)</span>
+                <Badge variant="blue">{enrichmentQueue.dropcontact} en attente</Badge>
+              </div>
+              <Link to="/integrations" className="text-xs text-accent hover:underline">
+                Ouvrir le hub API
+              </Link>
             </CardContent>
           </Card>
         );
@@ -397,6 +475,20 @@ export function DashboardPage() {
     await remove(id);
   }
 
+  async function handleCopyUrl() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Lien copié.", "success");
+    } catch {
+      toast("Impossible de copier le lien.", "destructive");
+    }
+  }
+
+  function handleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else document.documentElement.requestFullscreen?.();
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 p-6">
@@ -415,45 +507,98 @@ export function DashboardPage() {
         kicker="Pilotage · vue d'ensemble"
         title="Dashboard"
         actions={
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            Exporter en PDF
-          </Button>
+          <>
+            <DropdownMenu trigger={<Button variant="outline" size="sm">Partager ▾</Button>} align="end">
+              <DropdownMenuItem onClick={handleCopyUrl}>Copier l'URL</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.print()}>Exporter en PDF</DropdownMenuItem>
+            </DropdownMenu>
+            <DropdownMenu trigger={<Button variant="outline" size="sm">Actions ▾</Button>} align="end">
+              <DropdownMenuItem onClick={handleFullscreen}>Afficher en plein écran</DropdownMenuItem>
+              {activeDashboard && (
+                <>
+                  <DropdownMenuItem onClick={() => duplicate(activeDashboard)}>Cloner</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleRenameDashboard(activeDashboard.id, activeDashboard.name)}>Renommer</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDeleteDashboard(activeDashboard.id)} className="text-destructive">
+                    Supprimer
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenu>
+          </>
         }
       />
 
-      <div className="flex flex-wrap items-center gap-1.5 print:hidden">
-        <button
-          type="button"
-          onClick={() => setActiveId(null)}
-          className={`rounded-md border px-2.5 py-1 text-xs font-medium ${activeId === null ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <DropdownMenu
+          trigger={
+            <Button variant="outline" size="sm">
+              {activeDashboard?.name ?? "Vue d'ensemble"} ▾
+            </Button>
+          }
         >
-          Vue d'ensemble
-        </button>
-        {dashboards.map((d) => (
-          <div
-            key={d.id}
-            className={`group flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium ${activeId === d.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
-          >
-            <button type="button" onClick={() => setActiveId(d.id)}>
+          <DropdownMenuItem onClick={() => setActiveId(null)}>Vue d'ensemble</DropdownMenuItem>
+          {dashboards.map((d) => (
+            <DropdownMenuItem key={d.id} onClick={() => setActiveId(d.id)}>
               {d.name}
-            </button>
-            <button type="button" title="Dupliquer" onClick={() => duplicate(d)} className="opacity-0 group-hover:opacity-100">
-              ⧉
-            </button>
-            <button type="button" title="Renommer" onClick={() => handleRenameDashboard(d.id, d.name)} className="opacity-0 group-hover:opacity-100">
-              ✎
-            </button>
-            <button type="button" title="Supprimer" onClick={() => handleDeleteDashboard(d.id)} className="opacity-0 group-hover:opacity-100">
-              ×
-            </button>
-          </div>
-        ))}
-        <button type="button" onClick={handleNewDashboard} className="rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground">
-          + Nouveau dashboard
-        </button>
+            </DropdownMenuItem>
+          ))}
+          <div className="my-1 border-t border-border" />
+          <DropdownMenuItem onClick={handleNewDashboard}>+ Créer un tableau de bord</DropdownMenuItem>
+        </DropdownMenu>
         {activeDashboard && (
           <Button variant="outline" size="sm" onClick={() => setBlocksDialogOpen(true)}>
             Gérer les blocs ({activeDashboard.blocks.length})
+          </Button>
+        )}
+        <span className="text-xs text-muted-foreground">actualisé {formatRelativeTime(refreshedAt.toISOString())}</span>
+        <button
+          type="button"
+          title="Rafraîchir"
+          aria-label="Rafraîchir"
+          onClick={handleRefresh}
+          className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          ↻
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3 print:hidden">
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Propriétaire</label>
+          <select
+            value={filters.ownerId ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, ownerId: e.target.value || null }))}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          >
+            <option value="">Tous</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Depuis le</label>
+          <input
+            type="date"
+            value={filters.dateFrom ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value || null }))}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Jusqu'au</label>
+          <input
+            type="date"
+            value={filters.dateTo ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value || null }))}
+            className="rounded-md border border-border px-2 py-1 text-sm"
+          />
+        </div>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_DASHBOARD_FILTERS)}>
+            Réinitialiser
           </Button>
         )}
       </div>
@@ -514,6 +659,7 @@ export function DashboardPage() {
               {renderBlock("status_bar")}
               {renderBlock("funnel")}
               {renderBlock("to_enrich_count")}
+              {renderBlock("enrichment_queue")}
               {renderBlock("client_performance")}
             </div>
           </TabsContent>
