@@ -85,7 +85,7 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 7 | "Regrouper par" → "Commercial" (sans client sélectionné) | Table regroupée par commercial, "Non assigné" pour les opportunités sans commercial |
 | 8 | Choisir un client puis rouvrir "Regrouper par" | L'option "Compte client" a disparu (un seul client affiché, grouper par client n'a plus de sens) |
 
-### S35-7 — Fiche Contact : bloc "Champs enrichis" *(nécessite migration 042)*
+### S35-7 — Fiche Contact : bloc "Champs enrichis"
 
 | # | Test | Résultat attendu |
 |---|---|---|
