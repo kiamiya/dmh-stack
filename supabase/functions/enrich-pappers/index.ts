@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
         website: mapped.website,
         creation_date: mapped.creationDate,
         pappers_data: raw,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", company.id);
 

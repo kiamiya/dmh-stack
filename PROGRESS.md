@@ -126,6 +126,7 @@ Dernière mise à jour : 2026-09-04
 | S34-16 | Revue dev CRM (11/09) — export PDF du dashboard | ✅ fait côté code (export navigateur via `window.print()`) — en attente de validation navigateur |
 | S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
 | S34-17 | Revue dev CRM (11/09) — dashboard dédié par client DMH (portail client) | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
+| S34-18 | Correction — écran Prospects réaligné sur l'architecture réelle du mockup Claude Design (bascule Contacts/Entreprises, menu de vue consolidé, filtres rapides, fraîcheur réelle) | 🔄 fait côté code — **migration 039 écrite, non appliquée** — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2176,3 +2177,94 @@ verts, `pnpm typecheck`/`pnpm test` racine verts (`@dmh/types` et
 app cliente). Migration `038_dashboards.sql` **appliquée et vérifiée en
 production le 2026-09-11** (confirmation explicite de Loïc, table
 `dashboards` confirmée via `supabase db query --linked`).
+
+## 2026-09-11 (suite) — Correction : écran Prospects vs. architecture Claude Design
+
+**Constat de Loïc** : captures d'écran à l'appui, notre page Prospects ne
+correspondait pas à l'écran "Prospects" du mockup Claude Design — la
+session précédente avait extrait les fonctionnalités listées dans le CR
+texte (menu de vue, filtres, sélecteur client) sans revérifier la
+**structure réelle** de l'écran mockupé (`Relais CRM.dc.html`, bloc
+`sc-if value="{{ isContacts }}"`). Relecture complète du bloc a confirmé
+un écart structurel : un seul écran avec bascule Contacts/Entreprises
+(avec compteurs), des onglets de vues enregistrées avec compteurs, un
+unique menu "..." consolidé ("Paramétrer la vue"), des filtres rapides
+(chips) + "Filtre avancé" replié, et deux tableaux aux colonnes
+différentes (Contact avec Sources/Confiance/Fraîcheur, Entreprise avec
+Sources/Complétude) — contre 3 pages séparées, des icônes ⧉/✎/× éparses,
+un panneau de filtres toujours visible et une seule table fusionnée sans
+notion de Sources/Confiance/Fraîcheur chez nous.
+
+3 décisions de cadrage confirmées par Loïc avant de corriger : (1) "Vue
+globale" devient l'onglet "Contacts" (même grain, recolonné) plutôt qu'un
+3ème onglet séparé ; (2) une vraie fraîcheur d'enrichissement est ajoutée
+(nouvelle colonne `updated_at`), et "Confiance" réutilise les vrais % de
+complétude déjà calculés plutôt qu'un chiffre inventé (cohérent avec la
+règle du repo "jamais de faux chiffre", déjà appliquée dans
+`packages/config/src/integrations.ts`) ; (3) corriger aussi les dossiers
+de segments (`Lists.tsx`), même erreur de pattern reproduite là aussi.
+
+**Fraîcheur réelle** : migration `039_contact_company_freshness.sql`
+(**écrite, non appliquée**) ajoute `updated_at` sur `contacts`/
+`companies` (backfill depuis `created_at`, puis défaut `now()` pour les
+nouvelles lignes). `supabase/functions/enrich-pappers/index.ts` et
+`enrich-dropcontact/index.ts` bumpent désormais `updated_at` — **seuls**
+points d'écriture qui le font (vérifié : `services/*.ts#update*`, les
+formulaires d'édition manuelle, sont des chemins distincts, non touchés
+— sinon la "fraîcheur" ne voudrait plus rien dire). Nouveau
+`lib/dataFreshness.ts#formatFreshnessDays` (+ tests). Nouveau
+`lib/quickFilters.ts` : prédicats purs honnêtes pour les chips
+(`isEmailVerified`, `hasPhone`, `hasSiren`, `isCompleteAbove`,
+`isFreshUnderDays`) + tests.
+
+**Écran unifié** : `pages/ProspectsList.tsx` est désormais l'unique
+écran Prospects — bascule "Contacts N / Entreprises N" en haut (remplace
+la sous-navigation `ProspectSubNav`, supprimée). Routes `/contacts` et
+`/companies` deviennent des redirections vers `/?view=contacts` /
+`/?view=companies` (même pattern que `/pipeline` → `/?view=kanban`,
+S33-2) — `pages/Contacts.tsx`/`pages/Companies.tsx` ne sont plus des
+pages, juste des redirections (mêmes fichiers, contenu remplacé, liens
+existants non cassés). Le contenu réel de l'ancienne page Entreprises
+est porté dans le nouveau `components/prospects/EntreprisesPanel.tsx`
+(segments réels via `useCompanyLists`, import/export, bulk-ajout à une
+liste — tout préservé, juste déplacé). Le client DMH suit maintenant le
+sélecteur global du Header (`useSelectedClient`) au lieu d'un `<select>`
+local — corrige une incohérence documentée depuis S34-4/5.
+
+L'onglet "Contacts" reprend le grain de "Vue globale" (recolonné :
+Contact/Société/Coordonnées/Source/Confiance/Fraîcheur/Statut, colonnes
+Score IA/Client DMH/Dernière activité déplacées en optionnelles via
+"Modifier les colonnes" — rien supprimé, juste plus proche du mockup par
+défaut). **Découverte en cours de route** : `pages/Contacts.tsx` avait
+son propre système de segments réels (`useContactLists`, dynamique/
+statique) totalement séparé de "Vue globale" — porté dans le tiroir
+"+ Filtre avancé" (dropdown Segment + création inline), avec une action
+bulk "Ajouter à un segment" dans la barre de sélection multiple, pour ne
+rien perdre de cette fonctionnalité réelle lors de la fusion.
+
+**Menu de vue consolidé** : nouveau `components/ViewActionsMenu.tsx` (un
+bouton "..." + dropdown, réutilise `DropdownMenu`/`DropdownMenuItem`
+existants) remplace les icônes ⧉/✎/× dispersées — sur `ProspectsList.tsx`
+(agit sur la vue actuellement sélectionnée : Modifier les colonnes/
+Partager le lien/Cloner/Renommer/Supprimer) et sur `Lists.tsx` (dossiers
+racine et sous-dossiers : Dupliquer/Renommer/Supprimer — le `<select>`
+"Déplacer vers" des sous-dossiers reste séparé, ce n'est pas une action
+mais un contrôle de valeur).
+
+**Filtres rapides (chips) + Filtre avancé** : Statuts/Score min-max/
+Secteur (+ désormais Segment) passent derrière un bouton "+ Filtre
+avancé", replié par défaut, au lieu d'être toujours visibles. 3 chips
+réels par onglet (Email vérifié/Téléphone direct/Fraîcheur < 7j pour
+Contacts ; SIREN connu/Complétude ≥ 80%/Fraîcheur < 7j pour Entreprises),
+chacun avec un compteur réel, aucun chiffre inventé.
+
+**Limite assumée** : les onglets de vues enregistrées (avec compteurs)
+et le menu "..." consolidé ne couvrent que l'onglet Contacts — l'onglet
+Entreprises garde son filtre par segment simple (pas de vues nommées
+multiples), un choix de cadrage délibéré pour ne pas dupliquer
+`savedViews.ts` en une variante "entreprises" ce soir.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (76 fichiers, 546 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi
+(bundle de prod généré sans erreur). Migration `039` écrite, **non
+appliquée** — confirmation à demander avant `supabase db push`.

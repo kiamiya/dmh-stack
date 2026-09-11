@@ -48,6 +48,7 @@ import { filterListRows } from "../lib/listsFilters";
 import { buildFolderTree, listsUnderFolder } from "../lib/folderTree";
 import { computeListOverlap } from "../lib/listOverlap";
 import type { ListOverlapResult } from "../lib/listOverlap";
+import { ViewActionsMenu } from "../components/ViewActionsMenu";
 
 const MEMBER_IDS_BY_ENTITY: Record<ListEntityType, (id: string) => Promise<string[]>> = {
   contact: (id) => listContactIdsInList(supabase, id),
@@ -554,30 +555,14 @@ export function ListsPage() {
                           >
                             {node.folder.name}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDuplicateFolder(node.folder)}
-                            title="Dupliquer"
-                            className="px-1 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            ⧉
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRenameFolder(node.folder.id, node.folder.name)}
-                            title="Renommer"
-                            className="px-1 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteFolder(node.folder.id, node.folder.name)}
-                            title="Supprimer"
-                            className="px-1 text-xs text-muted-foreground hover:text-destructive"
-                          >
-                            ×
-                          </button>
+                          <ViewActionsMenu
+                            title={`Actions sur le dossier ${node.folder.name}`}
+                            actions={[
+                              { label: "Dupliquer", onClick: () => handleDuplicateFolder(node.folder) },
+                              { label: "Renommer", onClick: () => handleRenameFolder(node.folder.id, node.folder.name) },
+                              { label: "Supprimer", onClick: () => handleDeleteFolder(node.folder.id, node.folder.name), danger: true },
+                            ]}
+                          />
                         </div>
                         {node.children.map((child) => (
                           <div key={child.id} className="flex items-center gap-1 pl-3">
@@ -603,30 +588,14 @@ export function ListsPage() {
                                   </option>
                                 ))}
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => handleDuplicateFolder(child)}
-                              title="Dupliquer"
-                              className="px-1 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              ⧉
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRenameFolder(child.id, child.name)}
-                              title="Renommer"
-                              className="px-1 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              ✎
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteFolder(child.id, child.name)}
-                              title="Supprimer"
-                              className="px-1 text-xs text-muted-foreground hover:text-destructive"
-                            >
-                              ×
-                            </button>
+                            <ViewActionsMenu
+                              title={`Actions sur le dossier ${child.name}`}
+                              actions={[
+                                { label: "Dupliquer", onClick: () => handleDuplicateFolder(child) },
+                                { label: "Renommer", onClick: () => handleRenameFolder(child.id, child.name) },
+                                { label: "Supprimer", onClick: () => handleDeleteFolder(child.id, child.name), danger: true },
+                              ]}
+                            />
                           </div>
                         ))}
                       </div>

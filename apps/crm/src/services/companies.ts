@@ -25,13 +25,14 @@ export interface CompanyListRow {
   revenue: number | null;
   ai_score: number | null;
   client_id: string;
+  updated_at: string | null;
 }
 
 /** Toutes les entreprises, tous clients confondus — pour la vue `/companies` (réservée au staff via `staff_full_access`). */
 export async function listAllCompanies(client: SupabaseClient): Promise<CompanyListRow[]> {
   const { data, error } = await client
     .from("companies")
-    .select("id, name, siren, city, naf_label, employee_range, revenue, ai_score, client_id")
+    .select("id, name, siren, city, naf_label, employee_range, revenue, ai_score, client_id, updated_at")
     .order("name");
   if (error) throw new Error(error.message);
   return (data ?? []) as CompanyListRow[];

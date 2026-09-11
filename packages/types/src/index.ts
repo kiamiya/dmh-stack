@@ -41,6 +41,8 @@ export interface Company {
   ai_score: number | null;
   ai_score_reason: string | null;
   created_at: string;
+  /** Bumpé uniquement par un enrichissement réel (`enrich-pappers`), jamais par une édition manuelle — base de la "fraîcheur" affichée (S34, correction Claude Design). */
+  updated_at: string | null;
 }
 
 export type EmailConfidence = "valid" | "accept" | "risky" | "not_found";
@@ -63,6 +65,8 @@ export interface Contact {
   /** request_id Dropcontact en cours de traitement (API asynchrone), null une fois résolu. */
   dropcontact_request_id: string | null;
   created_at: string;
+  /** Bumpé uniquement par un enrichissement réel (`enrich-dropcontact`), jamais par une édition manuelle — base de la "fraîcheur" affichée (S34, correction Claude Design). */
+  updated_at: string | null;
 }
 
 export type ProspectStatus =

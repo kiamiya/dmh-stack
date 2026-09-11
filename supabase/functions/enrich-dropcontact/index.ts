@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
         email,
         email_confidence: confidence,
         dropcontact_request_id: null,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", contact.id);
 

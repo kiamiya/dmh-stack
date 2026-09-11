@@ -1,5 +1,6 @@
 import type { ProspectStatus } from "@dmh/types";
 import type { ProspectListRow } from "../services/prospects";
+import { hasPhone, isEmailVerified, isFreshUnderDays } from "./quickFilters";
 
 export interface ProspectFilters {
   search: string;
@@ -8,6 +9,10 @@ export interface ProspectFilters {
   scoreMax: number | null;
   nafLabel: string | null;
   clientId: string | null;
+  /** Filtres rapides (chips, correction Claude Design S34) — chacun sur une donnée réelle du contact. */
+  emailVerified: boolean;
+  hasPhone: boolean;
+  freshUnder7d: boolean;
 }
 
 export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
@@ -17,6 +22,9 @@ export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
   scoreMax: null,
   nafLabel: null,
   clientId: null,
+  emailVerified: false,
+  hasPhone: false,
+  freshUnder7d: false,
 };
 
 /**
@@ -34,6 +42,9 @@ export function filtersToSearchParams(filters: ProspectFilters): URLSearchParams
   if (filters.scoreMax !== null) params.set("scoreMax", String(filters.scoreMax));
   if (filters.nafLabel) params.set("naf", filters.nafLabel);
   if (filters.clientId) params.set("client", filters.clientId);
+  if (filters.emailVerified) params.set("emailVerified", "1");
+  if (filters.hasPhone) params.set("hasPhone", "1");
+  if (filters.freshUnder7d) params.set("freshUnder7d", "1");
   return params;
 }
 
@@ -48,6 +59,9 @@ export function searchParamsToFilters(params: URLSearchParams): ProspectFilters 
     scoreMax: scoreMaxRaw !== null && scoreMaxRaw !== "" ? Number(scoreMaxRaw) : null,
     nafLabel: params.get("naf"),
     clientId: params.get("client"),
+    emailVerified: params.get("emailVerified") === "1",
+    hasPhone: params.get("hasPhone") === "1",
+    freshUnder7d: params.get("freshUnder7d") === "1",
   };
 }
 
@@ -78,6 +92,10 @@ export function filterProspects(prospects: ProspectListRow[], filters: ProspectF
 
     if (filters.nafLabel && p.companies?.naf_label !== filters.nafLabel) return false;
     if (filters.clientId && p.client_id !== filters.clientId) return false;
+
+    if (filters.emailVerified && !isEmailVerified({ email_confidence: p.contacts?.email_confidence ?? null })) return false;
+    if (filters.hasPhone && !hasPhone({ phone: p.contacts?.phone ?? null })) return false;
+    if (filters.freshUnder7d && !isFreshUnderDays(7, p.contacts?.updated_at ?? null)) return false;
 
     return true;
   });

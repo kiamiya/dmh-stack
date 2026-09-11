@@ -9,13 +9,34 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 lots S33 + S34 (revues dev CRM du 08/09 et du 11/09) — validation navigateur en attente
+## Statut : 🔄 correction Prospects vs. Claude Design + lots S33/S34 — validation navigateur en attente
 
-**Nouveau (S34-12/13/15/16 ci-dessous)** : lien cliquable tâche → fiche
-liée, mode "dépiler les tâches une à une", dashboards nommés personnels,
-export PDF. Migrations `036`/`037`/`038` toutes appliquées et vérifiées
-en production (2026-09-11) — plus aucune migration en attente pour ce
-lot.
+**Nouveau et prioritaire (S34-18 ci-dessous)** : correction de l'écran
+Prospects suite au constat de Loïc (captures d'écran) que la structure
+ne correspondait pas au mockup Claude Design. **1 migration en attente
+de confirmation** : `039_contact_company_freshness.sql` (colonne
+`updated_at` sur `contacts`/`companies`, base de la "fraîcheur"). Dis-moi
+si je peux lancer `supabase db push`. Les sections S34-1 à S34-17
+ci-dessous restent valables mais **certaines UI ont changé de place**
+suite à cette correction (voir notes "⚠️ mis à jour" à chaque section
+concernée).
+
+### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur) *(nécessite migration 039 pour Confiance/Fraîcheur)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir `/` | En haut : bascule "Contacts N / Entreprises N" (compteurs réels), "Contacts" actif par défaut |
+| 2 | Cliquer "Entreprises" | La table Entreprises s'affiche (SIREN/Effectif/CA/Contacts/Complétude/Score IA), l'URL devient `?view=companies` |
+| 3 | Ouvrir `/contacts` ou `/companies` directement | Redirection automatique vers `/?view=contacts` ou `/?view=companies` (comme `/pipeline` déjà avant) |
+| 4 | Sur l'onglet Contacts, regarder la rangée sous la bascule | Onglets "Tous les contacts" + vues enregistrées, à droite : icône ↻ (synchroniser), bascule Liste/Kanban, bouton "..." |
+| 5 | Cliquer "...", puis "Modifier les colonnes" | Une modale liste les colonnes (Contact/Société/Coordonnées/Source/Confiance/Fraîcheur/Statut visibles par défaut ; Score IA/Client DMH/Dernière activité décochées par défaut, réactivables) |
+| 6 | Créer une vue (+ Nouvelle vue), puis cliquer "..." dessus | "Dupliquer la vue"/"Renommer la vue"/"Supprimer la vue" apparaissent en plus (absents sur "Tous les contacts") |
+| 7 | Cliquer les chips "Email vérifié"/"Téléphone direct"/"Fraîcheur < 7j" | Chaque chip filtre la liste, un compteur réel s'affiche à côté |
+| 8 | Cliquer "+ Filtre avancé" | Statuts/Score min-max/Secteur/Segment apparaissent (repliés par défaut) ; pas de champ "Client DMH" si un client est déjà choisi dans le Header |
+| 9 | Choisir un client dans le sélecteur du Header (en haut à droite) | La liste Contacts ET Entreprises se filtrent sur ce client (plus besoin de le rechoisir sur chaque onglet) |
+| 10 | Sur une fiche contact enrichie récemment (Dropcontact), regarder la colonne Fraîcheur | Affiche un nombre de jours réel (ex. "2j"), pas une valeur figée |
+| 11 | Dans "+ Filtre avancé", choisir un Segment existant (créé via `/contacts` avant la fusion) | Toujours utilisable, filtre la liste correctement |
+| 12 | Sélectionner plusieurs contacts, ouvrir "Ajouter à un segment" | Ajoute les contacts sélectionnés au segment statique choisi |
 
 ### S34-1 — formulaire Contact (téléphone + réordonnancement)
 

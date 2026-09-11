@@ -15,7 +15,17 @@ function row(id: string, companyName: string): ProspectListRow {
     last_activity_at: null,
     created_at: "2026-08-01T00:00:00Z",
     companies: { name: companyName, ai_score: 5, naf_label: null },
-    contacts: { first_name: "Jean", last_name: "Dupont", email: "jean@example.fr" },
+    contacts: {
+      first_name: "Jean",
+      last_name: "Dupont",
+      job_title: null,
+      email: "jean@example.fr",
+      phone: null,
+      linkedin_url: null,
+      data_source: null,
+      email_confidence: null,
+      updated_at: null,
+    },
     dmh_clients: { id: "client-1", name: "Cabinet A" },
   };
 }
@@ -77,7 +87,7 @@ describe("filterPaletteContacts", () => {
 });
 
 function companyRow(id: string, name: string, siren: string | null): CompanyListRow {
-  return { id, name, siren, city: null, naf_label: null, employee_range: null, revenue: null, ai_score: null, client_id: "client-1" };
+  return { id, name, siren, city: null, naf_label: null, employee_range: null, revenue: null, ai_score: null, client_id: "client-1", updated_at: null };
 }
 
 describe("filterPaletteCompanies", () => {

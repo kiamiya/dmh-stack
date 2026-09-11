@@ -11,12 +11,22 @@ export interface ProspectListRow {
   last_activity_at: string | null;
   created_at: string;
   companies: { name: string; ai_score: number | null; naf_label: string | null } | null;
-  contacts: { first_name: string; last_name: string; email: string | null } | null;
+  contacts: {
+    first_name: string;
+    last_name: string;
+    job_title: string | null;
+    email: string | null;
+    phone: string | null;
+    linkedin_url: string | null;
+    data_source: string | null;
+    email_confidence: string | null;
+    updated_at: string | null;
+  } | null;
   dmh_clients: { id: string; name: string } | null;
 }
 
 const PROSPECT_LIST_SELECT =
-  "id, status, client_id, assigned_to, contact_id, company_id, last_activity_at, created_at, companies(name, ai_score, naf_label), contacts(first_name, last_name, email), dmh_clients(id, name)";
+  "id, status, client_id, assigned_to, contact_id, company_id, last_activity_at, created_at, companies(name, ai_score, naf_label), contacts(first_name, last_name, job_title, email, phone, linkedin_url, data_source, email_confidence, updated_at), dmh_clients(id, name)";
 
 export async function listProspects(client: SupabaseClient): Promise<ProspectListRow[]> {
   const { data, error } = await client

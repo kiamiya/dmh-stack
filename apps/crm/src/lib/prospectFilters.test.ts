@@ -21,7 +21,17 @@ function row(overrides: Partial<ProspectListRow> = {}): ProspectListRow {
     last_activity_at: null,
     created_at: "2026-08-01T00:00:00Z",
     companies: { name: "Acme", ai_score: 5, naf_label: "Mécanique" },
-    contacts: { first_name: "Jean", last_name: "Dupont", email: "jean@acme.fr" },
+    contacts: {
+      first_name: "Jean",
+      last_name: "Dupont",
+      job_title: null,
+      email: "jean@acme.fr",
+      phone: null,
+      linkedin_url: null,
+      data_source: null,
+      email_confidence: null,
+      updated_at: null,
+    },
     dmh_clients: { id: "client-1", name: "Cabinet A" },
     ...overrides,
   };
@@ -39,7 +49,17 @@ describe("filterProspects", () => {
       row({
         id: "p2",
         companies: { name: "Autre Corp", ai_score: 5, naf_label: null },
-        contacts: { first_name: "Marie", last_name: "Curie", email: "marie@autre-corp.fr" },
+        contacts: {
+          first_name: "Marie",
+          last_name: "Curie",
+          job_title: null,
+          email: "marie@autre-corp.fr",
+          phone: null,
+          linkedin_url: null,
+          data_source: null,
+          email_confidence: null,
+          updated_at: null,
+        },
       }),
     ];
     const result = filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, search: "acme" });
@@ -48,7 +68,21 @@ describe("filterProspects", () => {
   });
 
   it("filtre par recherche sur l'email du contact", () => {
-    const rows = [row({ contacts: { first_name: "A", last_name: "B", email: "unique@example.com" } })];
+    const rows = [
+      row({
+        contacts: {
+          first_name: "A",
+          last_name: "B",
+          job_title: null,
+          email: "unique@example.com",
+          phone: null,
+          linkedin_url: null,
+          data_source: null,
+          email_confidence: null,
+          updated_at: null,
+        },
+      }),
+    ];
     expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, search: "unique@example" })).toHaveLength(1);
     expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, search: "introuvable" })).toHaveLength(0);
   });
@@ -139,6 +173,9 @@ describe("filtersToSearchParams / searchParamsToFilters", () => {
       scoreMax: 9,
       nafLabel: "Mécanique",
       clientId: "client-1",
+      emailVerified: true,
+      hasPhone: true,
+      freshUnder7d: true,
     };
     const params = filtersToSearchParams(filters);
     expect(searchParamsToFilters(params)).toEqual(filters);
@@ -146,5 +183,34 @@ describe("filtersToSearchParams / searchParamsToFilters", () => {
 
   it("searchParamsToFilters sur des paramètres vides retourne l'équivalent de EMPTY_PROSPECT_FILTERS", () => {
     expect(searchParamsToFilters(new URLSearchParams())).toEqual(EMPTY_PROSPECT_FILTERS);
+  });
+});
+
+describe("filterProspects — filtres rapides (chips)", () => {
+  it("filtre par email vérifié", () => {
+    const rows = [
+      row({ id: "p1", contacts: { first_name: "A", last_name: "B", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: "valid", updated_at: null } }),
+      row({ id: "p2", contacts: { first_name: "C", last_name: "D", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: "risky", updated_at: null } }),
+    ];
+    expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, emailVerified: true }).map((r) => r.id)).toEqual(["p1"]);
+  });
+
+  it("filtre par téléphone renseigné", () => {
+    const rows = [
+      row({ id: "p1", contacts: { first_name: "A", last_name: "B", job_title: null, email: null, phone: "0102030405", linkedin_url: null, data_source: null, email_confidence: null, updated_at: null } }),
+      row({ id: "p2", contacts: { first_name: "C", last_name: "D", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: null, updated_at: null } }),
+    ];
+    expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, hasPhone: true }).map((r) => r.id)).toEqual(["p1"]);
+  });
+
+  it("filtre par fraîcheur < 7 jours", () => {
+    const now = new Date();
+    const recent = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const old = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const rows = [
+      row({ id: "p1", contacts: { first_name: "A", last_name: "B", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: null, updated_at: recent } }),
+      row({ id: "p2", contacts: { first_name: "C", last_name: "D", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: null, updated_at: old } }),
+    ];
+    expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, freshUnder7d: true }).map((r) => r.id)).toEqual(["p1"]);
   });
 });
