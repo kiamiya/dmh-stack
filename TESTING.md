@@ -13,15 +13,11 @@
 
 **Nouveau et prioritaire (S34-18 ci-dessous)** : correction de l'écran
 Prospects suite au constat de Loïc (captures d'écran) que la structure
-ne correspondait pas au mockup Claude Design. **1 migration en attente
-de confirmation** : `039_contact_company_freshness.sql` (colonne
-`updated_at` sur `contacts`/`companies`, base de la "fraîcheur"). Dis-moi
-si je peux lancer `supabase db push`. Les sections S34-1 à S34-17
-ci-dessous restent valables mais **certaines UI ont changé de place**
-suite à cette correction (voir notes "⚠️ mis à jour" à chaque section
-concernée).
+ne correspondait pas au mockup Claude Design. Migration `039` appliquée
+et Edge Functions redéployées (2026-09-11) — plus aucune action distante
+en attente pour ce lot.
 
-### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur) *(nécessite migration 039 pour Confiance/Fraîcheur)*
+### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)
 
 | # | Test | Résultat attendu |
 |---|---|---|

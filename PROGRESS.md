@@ -126,7 +126,7 @@ Dernière mise à jour : 2026-09-04
 | S34-16 | Revue dev CRM (11/09) — export PDF du dashboard | ✅ fait côté code (export navigateur via `window.print()`) — en attente de validation navigateur |
 | S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
 | S34-17 | Revue dev CRM (11/09) — dashboard dédié par client DMH (portail client) | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
-| S34-18 | Correction — écran Prospects réaligné sur l'architecture réelle du mockup Claude Design (bascule Contacts/Entreprises, menu de vue consolidé, filtres rapides, fraîcheur réelle) | 🔄 fait côté code — **migration 039 écrite, non appliquée** — en attente de validation navigateur |
+| S34-18 | Correction — écran Prospects réaligné sur l'architecture réelle du mockup Claude Design (bascule Contacts/Entreprises, menu de vue consolidé, filtres rapides, fraîcheur réelle) | ✅ fait — **migration 039 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2266,5 +2266,8 @@ multiples), un choix de cadrage délibéré pour ne pas dupliquer
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (76 fichiers, 546 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi
-(bundle de prod généré sans erreur). Migration `039` écrite, **non
-appliquée** — confirmation à demander avant `supabase db push`.
+(bundle de prod généré sans erreur). Migration `039` **appliquée et
+vérifiée en production le 2026-09-11** (`updated_at` confirmée sur
+`contacts`/`companies` via `supabase db query --linked`), confirmation
+explicite de Loïc — `enrich-pappers` et `enrich-dropcontact` redéployés
+dans la foulée (mêmes confirmations).
