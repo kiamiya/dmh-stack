@@ -65,13 +65,17 @@ import { ImportEntitiesDialog } from "../components/ImportEntitiesDialog";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { KanbanBoardShell, KanbanColumn } from "../components/KanbanColumn";
-import { ViewActionsMenu } from "../components/ViewActionsMenu";
+import { CompletenessBar } from "../components/CompletenessBar";
+import { SavedViewTabs } from "../components/SavedViewTabs";
+import { QuickFilterChips } from "../components/QuickFilterChips";
 import { groupProspectsByStatus } from "../lib/kanban";
 import { EntreprisesPanel } from "../components/prospects/EntreprisesPanel";
 import type { ProspectListRow } from "../services/prospects";
 import type { ProspectStatus } from "@dmh/types";
 
 const columnHelper = createColumnHelper<ProspectListRow>();
+
+const SAVED_VIEWS_STORAGE_KEY = "dmh-crm-saved-views";
 
 const CONFIGURABLE_COLUMN_IDS = ["contact", "company", "coordinates", "source", "confidence", "freshness", "status", "score", "client", "lastActivity"];
 const DEFAULT_HIDDEN_COLUMN_IDS = ["score", "client", "lastActivity"];
@@ -105,17 +109,6 @@ function downloadCsv(content: string, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function CompletenessBar({ percent }: { percent: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="h-1 w-11 rounded bg-muted">
-        <div className="h-full rounded bg-accent" style={{ width: `${percent}%` }} />
-      </div>
-      <span className="text-xs tabular-nums text-muted-foreground">{percent}%</span>
-    </div>
-  );
 }
 
 /**
@@ -162,7 +155,7 @@ export function ProspectsListPage() {
     Object.fromEntries(DEFAULT_HIDDEN_COLUMN_IDS.map((id) => [id, false])),
   );
   const [columnOrder, setColumnOrder] = useState<string[]>(CONFIGURABLE_COLUMN_IDS);
-  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [savedViews, setSavedViews] = useState<SavedView<ProspectFilters>[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState("");
@@ -188,7 +181,7 @@ export function ProspectsListPage() {
       setColumnOrder(applyColumnOrder(CONFIGURABLE_COLUMN_IDS, saved.order));
       setColumnVisibility(Object.fromEntries(saved.hidden.map((id) => [id, false])));
     }
-    setSavedViews(loadSavedViews(localStorage));
+    setSavedViews(loadSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY));
   }, []);
 
   /** Le client DMH suit désormais le sélecteur global du Header (S34-6) — plus de `<select>` local redondant, alignement avec Contacts/Entreprises/Opportunités qui le font déjà. */
@@ -246,13 +239,13 @@ export function ProspectsListPage() {
     if (renamingViewId) {
       const next = renameSavedView(savedViews, renamingViewId, newViewName);
       setSavedViews(next);
-      saveSavedViews(localStorage, next);
+      saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
       toast(`Vue renommée "${newViewName.trim()}".`, "success");
     } else {
       const view = createSavedView(crypto.randomUUID(), newViewName, filters, new Date().toISOString());
       const next = [...savedViews, view];
       setSavedViews(next);
-      saveSavedViews(localStorage, next);
+      saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
       toast(`Vue "${view.name}" enregistrée.`, "success");
     }
     setSaveViewOpen(false);
@@ -263,13 +256,13 @@ export function ProspectsListPage() {
   function handleDeleteView(id: string) {
     const next = removeSavedView(savedViews, id);
     setSavedViews(next);
-    saveSavedViews(localStorage, next);
+    saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
   }
 
   function handleDuplicateView(id: string) {
     const next = duplicateSavedView(savedViews, id, crypto.randomUUID(), new Date().toISOString());
     setSavedViews(next);
-    saveSavedViews(localStorage, next);
+    saveSavedViews(localStorage, SAVED_VIEWS_STORAGE_KEY, next);
     toast("Vue dupliquée.", "success");
   }
 
@@ -609,63 +602,52 @@ export function ProspectsListPage() {
 
       {entityView === "contacts" && (
         <>
-          <div className="flex flex-wrap items-center gap-1 border-b border-border">
-            <button
-              type="button"
-              onClick={() => setFilters(EMPTY_PROSPECT_FILTERS)}
-              className={cn(
-                "border-b-2 px-3 py-1.5 text-sm font-medium",
-                activeViewId === null ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Tous les contacts <span className="ml-1 text-xs opacity-70">{filterProspects(byClientForCount, EMPTY_PROSPECT_FILTERS).length}</span>
-            </button>
-            {savedViews.map((savedView) => (
-              <button
-                key={savedView.id}
-                type="button"
-                onClick={() => setFilters(savedView.filters)}
-                className={cn(
-                  "max-w-[10rem] truncate border-b-2 px-3 py-1.5 text-sm font-medium",
-                  activeViewId === savedView.id ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {savedView.name}
-              </button>
-            ))}
-            <button type="button" onClick={openCreateViewDialog} className="px-3 py-1.5 text-sm text-accent hover:underline">
-              + Nouvelle vue
-            </button>
-
-            <div className="ml-auto flex items-center gap-1">
-              <button
-                type="button"
-                title="Synchroniser"
-                aria-label="Synchroniser"
-                onClick={() => reload()}
-                className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                ↻
-              </button>
-              <div className="flex rounded-md border border-border p-0.5">
+          <SavedViewTabs
+            tabs={[
+              { id: "__all__", label: "Tous les contacts", count: filterProspects(byClientForCount, EMPTY_PROSPECT_FILTERS).length },
+              ...savedViews.map((v) => ({ id: v.id, label: v.name })),
+            ]}
+            activeId={activeViewId ?? "__all__"}
+            onSelect={(id) => {
+              if (id === "__all__") {
+                setFilters(EMPTY_PROSPECT_FILTERS);
+                return;
+              }
+              const target = savedViews.find((v) => v.id === id);
+              if (target) setFilters(target.filters);
+            }}
+            onCreate={openCreateViewDialog}
+            menuActions={viewMenuActions}
+            extra={
+              <>
                 <button
                   type="button"
-                  onClick={() => setDisplayMode("list")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+                  title="Synchroniser"
+                  aria-label="Synchroniser"
+                  onClick={() => reload()}
+                  className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
-                  Liste
+                  ↻
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("kanban")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
-                >
-                  Kanban
-                </button>
-              </div>
-              <ViewActionsMenu title="Paramétrer la vue" actions={viewMenuActions} />
-            </div>
-          </div>
+                <div className="flex rounded-md border border-border p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("list")}
+                    className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+                  >
+                    Liste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("kanban")}
+                    className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+                  >
+                    Kanban
+                  </button>
+                </div>
+              </>
+            }
+          />
 
           <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
             <DialogHeader>
@@ -739,164 +721,140 @@ export function ProspectsListPage() {
             </DialogFooter>
           </Dialog>
 
-          <div className="rounded-md border border-border bg-secondary/40 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Filtres rapides</span>
-              <button
-                type="button"
-                onClick={() => setFilters((f) => ({ ...f, emailVerified: !f.emailVerified }))}
-                className={`rounded-full border px-2.5 py-1 text-xs ${filters.emailVerified ? "border-accent bg-accent/10 text-accent" : "border-border text-muted-foreground"}`}
-              >
-                Email vérifié <span className="opacity-60">{chipCounts.emailVerified}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilters((f) => ({ ...f, hasPhone: !f.hasPhone }))}
-                className={`rounded-full border px-2.5 py-1 text-xs ${filters.hasPhone ? "border-accent bg-accent/10 text-accent" : "border-border text-muted-foreground"}`}
-              >
-                Téléphone direct <span className="opacity-60">{chipCounts.hasPhone}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilters((f) => ({ ...f, freshUnder7d: !f.freshUnder7d }))}
-                className={`rounded-full border px-2.5 py-1 text-xs ${filters.freshUnder7d ? "border-accent bg-accent/10 text-accent" : "border-border text-muted-foreground"}`}
-              >
-                Fraîcheur &lt; 7j <span className="opacity-60">{chipCounts.freshUnder7d}</span>
-              </button>
-              <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="ml-1 text-xs text-accent hover:underline">
-                + Filtre avancé
-              </button>
-              <Button variant="ghost" size="sm" onClick={() => setFilters({ ...EMPTY_PROSPECT_FILTERS, clientId: filters.clientId })}>
-                Réinitialiser
-              </Button>
+          <QuickFilterChips
+            chips={[
+              { key: "emailVerified", label: "Email vérifié", count: chipCounts.emailVerified, active: filters.emailVerified },
+              { key: "hasPhone", label: "Téléphone direct", count: chipCounts.hasPhone, active: filters.hasPhone },
+              { key: "freshUnder7d", label: "Fraîcheur < 7j", count: chipCounts.freshUnder7d, active: filters.freshUnder7d },
+            ]}
+            onToggle={(key) => setFilters((f) => ({ ...f, [key]: !f[key as keyof ProspectFilters] }))}
+            showAdvanced={showAdvanced}
+            onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+            hasActiveFilters={JSON.stringify(filters) !== JSON.stringify({ ...EMPTY_PROSPECT_FILTERS, clientId: filters.clientId })}
+            onReset={() => setFilters({ ...EMPTY_PROSPECT_FILTERS, clientId: filters.clientId })}
+          >
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Recherche</label>
+              <input
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                placeholder="Entreprise, contact, email…"
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              />
             </div>
-
-            {showAdvanced && (
-              <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3">
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Recherche</label>
-                  <input
-                    value={filters.search}
-                    onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                    placeholder="Entreprise, contact, email…"
-                    className="rounded-md border border-border px-2 py-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Statuts</label>
-                  <DropdownMenu
-                    trigger={
-                      <Button variant="outline" size="sm" className="h-8">
-                        {filters.statuses.length === 0
-                          ? "Tous les statuts"
-                          : `${filters.statuses.length} statut${filters.statuses.length > 1 ? "s" : ""}`}
-                      </Button>
-                    }
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Statuts</label>
+              <DropdownMenu
+                trigger={
+                  <Button variant="outline" size="sm" className="h-8">
+                    {filters.statuses.length === 0
+                      ? "Tous les statuts"
+                      : `${filters.statuses.length} statut${filters.statuses.length > 1 ? "s" : ""}`}
+                  </Button>
+                }
+              >
+                {ALL_PROSPECT_STATUSES.map((status) => (
+                  <label
+                    key={status}
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-foreground hover:bg-secondary"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {ALL_PROSPECT_STATUSES.map((status) => (
-                      <label
-                        key={status}
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-foreground hover:bg-secondary"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.statuses.includes(status)}
-                          onChange={(e) =>
-                            setFilters((f) => ({
-                              ...f,
-                              statuses: e.target.checked
-                                ? [...f.statuses, status]
-                                : f.statuses.filter((s) => s !== status),
-                            }))
-                          }
-                        />
-                        {getStatusLabel(status)}
-                      </label>
-                    ))}
-                  </DropdownMenu>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Score min</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={filters.scoreMin ?? ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, scoreMin: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-16 rounded-md border border-border px-2 py-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Score max</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={filters.scoreMax ?? ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, scoreMax: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-16 rounded-md border border-border px-2 py-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Secteur</label>
+                    <input
+                      type="checkbox"
+                      checked={filters.statuses.includes(status)}
+                      onChange={(e) =>
+                        setFilters((f) => ({
+                          ...f,
+                          statuses: e.target.checked
+                            ? [...f.statuses, status]
+                            : f.statuses.filter((s) => s !== status),
+                        }))
+                      }
+                    />
+                    {getStatusLabel(status)}
+                  </label>
+                ))}
+              </DropdownMenu>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Score min</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={filters.scoreMin ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, scoreMin: e.target.value ? Number(e.target.value) : null }))}
+                className="w-16 rounded-md border border-border px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Score max</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={filters.scoreMax ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, scoreMax: e.target.value ? Number(e.target.value) : null }))}
+                className="w-16 rounded-md border border-border px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Secteur</label>
+              <select
+                value={filters.nafLabel ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, nafLabel: e.target.value || null }))}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous</option>
+                {nafOptions.map((naf) => (
+                  <option key={naf} value={naf}>
+                    {naf}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!clientId && (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
+                <select
+                  value={filters.clientId ?? ""}
+                  onChange={(e) => setFilters((f) => ({ ...f, clientId: e.target.value || null }))}
+                  className="rounded-md border border-border px-2 py-1 text-sm"
+                >
+                  <option value="">Tous</option>
+                  {clientOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {clientId ? (
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Segment</label>
+                <div className="flex gap-2">
                   <select
-                    value={filters.nafLabel ?? ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, nafLabel: e.target.value || null }))}
+                    value={segmentId}
+                    onChange={(e) => setSegmentId(e.target.value)}
                     className="rounded-md border border-border px-2 py-1 text-sm"
                   >
-                    <option value="">Tous</option>
-                    {nafOptions.map((naf) => (
-                      <option key={naf} value={naf}>
-                        {naf}
+                    <option value="">Tous les contacts</option>
+                    {contactLists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} {l.rules ? "(dynamique)" : ""}
                       </option>
                     ))}
                   </select>
+                  <Button variant="outline" size="sm" onClick={() => setNewSegmentOpen((v) => !v)}>
+                    + Nouveau segment
+                  </Button>
                 </div>
-                {!clientId && (
-                  <div>
-                    <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
-                    <select
-                      value={filters.clientId ?? ""}
-                      onChange={(e) => setFilters((f) => ({ ...f, clientId: e.target.value || null }))}
-                      className="rounded-md border border-border px-2 py-1 text-sm"
-                    >
-                      <option value="">Tous</option>
-                      {clientOptions.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {clientId ? (
-                  <div>
-                    <label className="mb-1 block text-xs text-muted-foreground">Segment</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={segmentId}
-                        onChange={(e) => setSegmentId(e.target.value)}
-                        className="rounded-md border border-border px-2 py-1 text-sm"
-                      >
-                        <option value="">Tous les contacts</option>
-                        {contactLists.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name} {l.rules ? "(dynamique)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <Button variant="outline" size="sm" onClick={() => setNewSegmentOpen((v) => !v)}>
-                        + Nouveau segment
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Choisis un client DMH (en haut) pour filtrer par segment.</p>
-                )}
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Choisis un client DMH (en haut) pour filtrer par segment.</p>
             )}
-          </div>
+          </QuickFilterChips>
 
           {newSegmentOpen && clientId && (
             <form onSubmit={handleCreateSegment} className="space-y-3 rounded-md border border-border p-3">

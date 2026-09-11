@@ -127,6 +127,10 @@ Dernière mise à jour : 2026-09-04
 | S34-16bis | Revue dev CRM (11/09) — partage par email récurrent du dashboard (`pg_cron`) | ❌ non fait — bloqué : aucun fournisseur d'envoi transactionnel (Resend/SMTP/etc.) dans la stack ni clé API dans `.env.local`, cf. règle 4 de `CLAUDE.md` |
 | S34-17 | Revue dev CRM (11/09) — dashboard dédié par client DMH (portail client) | ❌ non fait — dépend de l'architecture clients DMH/finaux (Phase G, bloquée sur William) |
 | S34-18 | Correction — écran Prospects réaligné sur l'architecture réelle du mockup Claude Design (bascule Contacts/Entreprises, menu de vue consolidé, filtres rapides, fraîcheur réelle) | ✅ fait — **migration 039 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
+| S35-0 | Audit complet des 12 écrans Claude Design vs prod (demande de Loïc : "faire le tour de toutes les pages") | ✅ fait — 4 rapports d'écart détaillés, voir Journal ; priorisation discutée avec Loïc (Nature A mécanique d'abord, Nature B documentée/reportée) |
+| S35-1 | Composants partagés (`SavedViewTabs`, `QuickFilterChips`, `CompletenessBar`, `savedViews.ts` généralisé) — base de la Nature A | ✅ fait — `ProspectsList.tsx` migré dessus sans régression |
+| S35-2 | Entreprises : bandeau de vues + menu "..." (aligné avec Contacts), colonnes Source/Statut, libellés dynamiques | ✅ fait côté code — en attente de validation navigateur |
+| S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2271,3 +2275,115 @@ vérifiée en production le 2026-09-11** (`updated_at` confirmée sur
 `contacts`/`companies` via `supabase db query --linked`), confirmation
 explicite de Loïc — `enrich-pappers` et `enrich-dropcontact` redéployés
 dans la foulée (mêmes confirmations).
+
+## 2026-09-11 (suite) — Audit des 12 écrans Claude Design + Nature A/B
+
+Loïc a demandé de faire le tour de **toutes** les pages du mockup Claude
+Design ("Relais CRM", Delphine — utilisatrice finale) et de vérifier la
+conformité exacte de la prod. 4 agents d'audit ont lu les 12 écrans
+(`Relais CRM.dc.html` : Dashboard, Contacts, Tâches, Segments, Fiche
+contact, Pipeline, Campagne Email, Automatisation, Intégrations,
+Mapping, Reporting, Paramètres) et comparé chacun à sa page React.
+
+**Deux natures d'écart** : Nature A (mécanique — le pattern "onglets de
+vues + menu '...' consolidé + filtres rapides + colonnes paramétrables",
+construit une seule fois pour Prospects/Contacts, pas répliqué ailleurs)
+et Nature B (vraies fonctionnalités neuves touchant le modèle de
+données/les rôles/des sujets non tranchés).
+
+4 questions posées à Loïc, réponses actées :
+1. Nature A d'abord ce soir/cette session ; Nature B fait l'objet d'un
+   plan séparé à cadrer plus tard.
+2. **Campagne Email** (éditeur WYSIWYG glisser-déposer, audience/envoi
+   programmable) : à vérifier avec Delphine/William avant de s'engager
+   — notre pipeline réel envoie via Lemlist (brief §1.2.1), pas construit.
+3. **Paramètres** (équipe/rôles/sièges, réglages portail client,
+   registre de conformité RGPD — écran **entièrement absent** de la
+   prod aujourd'hui) : reporté à une phase ultérieure du brief.
+4. **Fiche Contact — provenance par champ** (Source/Confiance/Âge PAR
+   CHAMP + résolution de conflit multi-fournisseurs) : confirmé comme
+   un vrai besoin à construire, malgré l'absence de cas de conflit réel
+   aujourd'hui (un seul fournisseur actif par domaine : Pappers pour le
+   légal, Dropcontact pour les coordonnées).
+
+**Nature B — explicitement documentée, pas construite** :
+- **Campagne Email** : le mockup montre un vrai éditeur de séquence
+  (glisser-déposer de blocs, aperçu WYSIWYG, panneaux audience/envoi,
+  "Aperçu mobile"/"Test A/B"). `Campaigns.tsx` est aujourd'hui un
+  tableau de bord passif de stats LinkedIn (leads/connectés/réponses),
+  pas un éditeur — écart de nature, pas d'habillage. Pas construit,
+  à vérifier avec Delphine/William.
+- **Automatisation** : le mockup montre un canvas visuel (nœuds
+  connectés, branches Oui/Non graphiques), une cascade multi-
+  fournisseurs avec fallback ("on s'arrête au premier qui renvoie une
+  donnée valide"), et un panneau "Garde-fous" (plafond quotidien de
+  crédits, délai anti-ré-enrichissement, seuil de confiance minimal,
+  journal RGPD). `Automations.tsx` est un formulaire linéaire (pas un
+  canvas), le moteur ne supporte qu'un seul fournisseur par action
+  (migration 030) et ne peut structurellement pas brancher sur le
+  résultat d'un enrichissement dans la même règle (asynchrone,
+  documenté dès la migration 030). Pas construit — chantier à part
+  entière.
+- **Mapping** : le mockup montre un écran de **configuration** (table
+  Champ CRM ↔ cascade de fournisseurs éditable, coût/appel, règles de
+  conflit, carte "Consommation estimée"). `EnrichmentMapping.tsx` est
+  une vue **lecture seule** d'un pipeline fixe à 2 étapes (déjà
+  documenté comme tel dans son propre code). Pas construit.
+- **Reporting** : le mockup montre une bibliothèque de rapports
+  multiples/paramétrables (onglets, filtres Propriétaire/Plage de
+  dates, cartes de rapports avec sparkline) + une carte "Diffusion
+  client" (portail/PDF/masquage des coordonnées). `Reporting.tsx` est
+  une page de stats fixes sans filtre. Recouvre une bonne partie de ce
+  qu'on vient de construire pour Dashboard (S34-15) — à cadrer
+  ensemble plutôt qu'en double emploi, pas construit maintenant.
+- **Paramètres** : écran absent de la prod. Aucune des 3 pages
+  "Réglages"/"Mon calendrier"/"Aide" ne couvre la gestion d'équipe
+  (rôles, sièges, invitations), les réglages de portail client
+  (visibilité activité, masquage coordonnées, export sur demande) ou
+  la conformité RGPD (journal d'audit, registre téléchargeable) que
+  montre le mockup — reporté à une phase ultérieure du brief.
+
+**Nature A — en cours ce soir** (composants partagés d'abord) :
+
+**S35-1 (composants partagés)** — 3 nouveaux composants réutilisables,
+extraits de `ProspectsList.tsx`/`EntreprisesPanel.tsx` (le pattern est
+maintenant utilisé 2 fois, sera utilisé sur Segments/Tâches/Pipeline
+ensuite — extraction justifiée, pas prématurée) :
+- `components/SavedViewTabs.tsx` : rangée d'onglets (système + vues
+  utilisateur) + menu "..." consolidé, piloté par props.
+- `components/QuickFilterChips.tsx` : chips à bascule + compteur +
+  tiroir "Filtre avancé" replié + "Réinitialiser".
+- `components/CompletenessBar.tsx` : barre + % (Confiance/Complétude).
+- `lib/savedViews.ts` : généralisé (`SavedView<F>` générique, clé de
+  stockage localStorage paramétrée) au lieu d'être figé sur
+  `ProspectFilters` — les fonctions pures existantes ne changent pas de
+  comportement, testées à nouveau (aller-retour sous 2 clés distinctes).
+`ProspectsList.tsx` migré sur ces 3 composants (aucun changement de
+comportement, dé-duplication uniquement — vérifié par les tests
+existants qui passent toujours).
+
+**S35-2 (Entreprises alignée sur Contacts)** — l'audit a confirmé que le
+mockup partage EXACTEMENT le même bandeau (onglets de vues + menu "...")
+entre Contacts et Entreprises, alors que seul Contacts l'avait reçu.
+`EntreprisesPanel.tsx` : ajout de `SavedViewTabs` (vues sauvegardées
+propres aux entreprises, clé localStorage `dmh-crm-saved-views-companies`,
+distincte de celle des contacts) + `ViewActionsMenu` (Partager le
+lien/Dupliquer/Renommer/Supprimer — pas de "Modifier les colonnes", ce
+tableau n'a pas encore de colonnes paramétrables). Colonnes ajoutées :
+**Source** (badge "Pappers" si `siren` renseigné — signal réel d'un
+enrichissement Pappers déjà passé, pas de champ `data_source` sur
+`companies` donc pas de badge multi-source fabriqué) et **Statut**
+(repris du prospect lié à l'entreprise quand il existe — une entreprise
+n'a pas de statut pipeline propre). "Complétude" passe en barre visuelle
+(`CompletenessBar`) au lieu d'un texte brut. Bouton "Importer" devient
+"Importer des entreprises" (libellé dynamique par entité, comme demandé).
+**Non fait** : chips "Effectif ≥ 100"/"≥ 2 décideurs"/"Loire (42)"
+suggérés par le mockup — `employee_range` est une chaîne à tranches
+(format Pappers, pas un nombre exploitable simplement), "≥ 2 décideurs"
+suppose une classification de rôle décisionnaire qu'on n'a pas, "Loire
+(42)" est une donnée de démo non généralisable — aucun chiffre inventé
+pour ces trois-là, chips omis plutôt que fabriqués.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (76 fichiers, 547 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
+Aucune migration pour S35-1/S35-2.

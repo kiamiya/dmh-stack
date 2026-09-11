@@ -9,13 +9,28 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 correction Prospects vs. Claude Design + lots S33/S34 — validation navigateur en attente
+## Statut : 🔄 audit des 12 écrans Claude Design (Nature A en cours) + lots précédents — validation navigateur en attente
 
-**Nouveau et prioritaire (S34-18 ci-dessous)** : correction de l'écran
-Prospects suite au constat de Loïc (captures d'écran) que la structure
-ne correspondait pas au mockup Claude Design. Migration `039` appliquée
-et Edge Functions redéployées (2026-09-11) — plus aucune action distante
-en attente pour ce lot.
+**Nouveau et prioritaire (S35-1/S35-2 ci-dessous)** : composants de vue
+partagés + alignement de l'onglet Entreprises sur Contacts. Aucune
+migration pour ce lot. Le reste de la Nature A (Dashboard/Segments/
+Tâches/Pipeline) suit dans les prochaines itérations — la Nature B
+(Campagne Email, Automatisation, Mapping, Reporting, Paramètres) est
+documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
+
+### S35-2 — Entreprises : bandeau de vues + colonnes Source/Statut
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/?view=companies`, regarder sous la bascule Contacts/Entreprises | Rangée "Toutes les entreprises N" + bouton "..." (menu) — même style que l'onglet Contacts |
+| 2 | Créer une vue (filtrer par un chip puis "+ Nouvelle vue") | La vue apparaît comme onglet, distincte des vues créées côté Contacts |
+| 3 | Cliquer "..." sur une vue créée | Partager le lien / Dupliquer / Renommer / Supprimer apparaissent (pas "Modifier les colonnes") |
+| 4 | Regarder la colonne "Source" d'une entreprise déjà enrichie (SIREN renseigné) | Affiche "Pappers" ; une entreprise sans SIREN affiche "—" |
+| 5 | Regarder la colonne "Statut" d'une entreprise ayant un prospect actif lié | Affiche le badge de statut du prospect (ex. "En séquence") ; une entreprise sans prospect lié affiche "—" |
+| 6 | Regarder la colonne "Complétude" | Barre + % au lieu d'un texte brut |
+| 7 | Bouton d'import | Libellé "Importer des entreprises" (pas juste "Importer") |
+
+## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)
 
