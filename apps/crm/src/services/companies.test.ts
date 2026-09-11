@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createCompany, getCompany, listAllCompanies, listCompaniesForClient, updateCompany } from "./companies";
+import { createCompany, getCompany, listAllCompanies, listCompaniesForClient, listSubsidiaries, updateCompany } from "./companies";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ces services — pas de réseau. */
 function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
@@ -70,6 +70,19 @@ describe("getCompany", () => {
   it("lève une erreur si Supabase en renvoie une", async () => {
     const client = makeStubClient({ data: null, error: { message: "introuvable" } });
     await expect(getCompany(client, "missing")).rejects.toThrow("introuvable");
+  });
+});
+
+describe("listSubsidiaries", () => {
+  it("retourne les filiales directes triées par nom", async () => {
+    const rows = [{ id: "company-2", name: "ACME Lyon" }];
+    const client = makeStubClient({ data: rows, error: null });
+    await expect(listSubsidiaries(client, "company-1")).resolves.toEqual(rows);
+  });
+
+  it("retourne un tableau vide si data est null", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(listSubsidiaries(client, "company-1")).resolves.toEqual([]);
   });
 });
 

@@ -8,6 +8,7 @@ import { useOpportunities } from "../hooks/useOpportunities";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { validateTaskForm } from "../lib/taskForm";
 import { ALL_TASK_STATUSES, getTaskStatusLabel } from "../lib/taskStatus";
+import { getDealDisplayName } from "../lib/deals";
 import { useToast } from "./ui/toast";
 import type { TaskRow, TaskUpdate } from "../services/tasks";
 import type { TaskStatus } from "@dmh/types";
@@ -209,7 +210,7 @@ export function EditTaskDialog({ task, onOpenChange, onUpdated }: EditTaskDialog
               <option value="">Aucune</option>
               {deals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.company_name}
+                  {getDealDisplayName(d)}
                 </option>
               ))}
             </select>

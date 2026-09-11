@@ -12,11 +12,12 @@ import { ALL_TASK_STATUSES, getTaskStatusColor, getTaskStatusLabel } from "../li
 import type { TaskRow } from "../services/tasks";
 import type { TaskStatus } from "@dmh/types";
 import { useToast } from "../components/ui/toast";
+import { getDealDisplayName } from "../lib/deals";
 
 function relatedRecordLabel(task: TaskRow): string {
   if (task.contacts) return `${task.contacts.first_name} ${task.contacts.last_name}`;
   if (task.companies) return task.companies.name;
-  if (task.deals) return task.deals.company_name;
+  if (task.deals) return getDealDisplayName(task.deals);
   return "—";
 }
 

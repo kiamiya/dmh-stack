@@ -19,7 +19,7 @@ import { OpportunityKanbanBoardShell, OpportunityKanbanColumn } from "../compone
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { PageHeader } from "../components/ui/page-header";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import {
   computeAverageCycleDays,
   computeDealAgeDays,
@@ -47,7 +47,7 @@ export function OpportunitiesPage() {
   const now = useMemo(() => new Date(), []);
   const kanbanSensors = useKanbanDndSensors();
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<"list" | "kanban">("list");
+  const [view, setView] = useState<"list" | "kanban">("kanban");
   const [kanbanClientId, setKanbanClientId] = useState("");
   const { stages, addStage } = usePipelineStages(kanbanClientId);
   const [newStageName, setNewStageName] = useState("");
@@ -132,7 +132,7 @@ export function OpportunitiesPage() {
         </TableCell>
         <TableCell className="font-medium text-foreground">
           <Link to={`/opportunities/${d.id}`} className="hover:underline">
-            {d.company_name}
+            {getDealDisplayName(d)}
           </Link>
         </TableCell>
         <TableCell>{d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : "—"}</TableCell>

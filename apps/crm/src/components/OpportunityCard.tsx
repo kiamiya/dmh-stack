@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { TriangleAlert } from "lucide-react";
 import { isStagnant } from "../lib/stagnation";
 import { formatRelativeTime } from "../lib/relativeTime";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import type { DealRow } from "../services/deals";
 
 export interface OpportunityCardProps {
@@ -24,7 +24,7 @@ export function OpportunityCard({ deal, dragHandleProps }: OpportunityCardProps)
         onClick={(e) => e.stopPropagation()}
         className="block truncate text-sm font-medium text-foreground hover:underline"
       >
-        {deal.company_name}
+        {getDealDisplayName(deal)}
       </Link>
       <div className="truncate text-xs text-muted-foreground">
         {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : "—"}

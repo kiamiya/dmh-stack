@@ -108,6 +108,9 @@ Dernière mise à jour : 2026-09-04
 | S33-8 | Revue dev CRM (08/09) — opportunité liée à plusieurs contacts (achat/juridique/comptable) | ✅ fait — **migration 034 appliquée et vérifiée en production le 2026-09-10** |
 | S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait (partiel, voir note) — **migration 035 appliquée et vérifiée en production le 2026-09-10** |
 | S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ✅ fait côté code (confirmé par Loïc malgré l'ambiguïté du CR) — aucune migration nécessaire, en attente de validation navigateur |
+| S34-1 | Revue dev CRM (11/09) — formulaire Contact : téléphone + réordonnancement des champs | ✅ fait côté code — en attente de validation navigateur |
+| S34-2 | Revue dev CRM (11/09) — formulaire Opportunité : nom libre + tâche de relance à la création | ✅ fait côté code — migration 036 (`deals.name`) écrite, **non appliquée** |
+| S34-C0 | Revue dev CRM (11/09) — relations hiérarchiques entreprises (maison mère/filiale, demande explicite de Loïc) | ✅ fait côté code — migration 037 (`companies.parent_company_id`) écrite, **non appliquée** |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -1858,3 +1861,75 @@ l'ordre (Nouveau/Qualifié/Proposition envoyée/Négociation/Gagné/Perdu),
 tables `deal_contacts` et `list_folders` existent, contrainte CHECK de
 `automation_conditions.operator` inclut bien `is_not_set`. Reste la
 validation fonctionnelle en navigateur réel (voir `TESTING.md`).
+
+### 2026-09-11 — Nouveau CR (revue dev CRM du 11/09), lot S34
+
+Nouveau CR (`D:\DL\Revue dev CRM DMH(3).docx`), prochaine réunion le
+15/09/2026 10h-12h. Directives explicites de Loïc pour ce lot :
+1. **Ne pas traiter la création de clients DMH** — directive de William,
+   malgré sa présence dans le CR comme action assignée à Loïc.
+2. Analyser les modifications de Delphine sur Claude Design (tableaux de
+   bord, segments, tâches) et les faire remonter en prod + workflows.
+3. Traiter le reste du CR, **y compris les relations hiérarchiques
+   entreprises** (maison mère/filiale) — initialement mis de côté par
+   erreur d'interprétation d'un refus de plan, corrigé après clarification
+   explicite de Loïc ("tu dois traiter la relation hiérarchiques
+   entreprise !").
+
+Recherche avant plan : 3 agents d'exploration (formulaires/doublons/
+enrichissement, vues/filtres/client global, tâches/dashboards) + re-fetch
+du fichier Claude Design "Relais CRM.dc.html" (projet "Application SaaS
+CRM Brevo", via `DesignSync`) — grossi de 118 Ko (07/09) à 242 Ko,
+sections Dashboard/Tâches/Segments lues en détail. Constat principal : un
+**menu de vue standardisé** (Enregistrer/Cloner/Renommer/Supprimer/
+Partager le lien) revient sur les 3 écrans que Delphine a travaillés,
+absent aujourd'hui de notre code — cadré comme Phase B du plan
+(`.claude/plans` de la session). Plusieurs points du CR (dépiler les
+tâches, sélecteur client DMH global, alerte de doublons, chevauchement de
+segments, agents IA de veille marché) ne sont **pas** dans le mockup —
+conception à faire à partir du texte du CR seul.
+
+**S34-1 (formulaire Contact)** — `AddContactDialog.tsx` : ajouté le champ
+téléphone (`contacts.phone` existait déjà en base, absent du formulaire de
+création) ; réordonné les champs — nom, prénom, poste, URL LinkedIn,
+email, téléphone, entreprise, client DMH en dernier (ordre demandé par le
+CR). **Limite assumée** : l'entreprise dépend du client DMH choisi
+(`listCompaniesForClient`) — comme le client est maintenant en dernier,
+l'utilisateur doit choisir le client avant que le champ Entreprise (plus
+haut dans le formulaire) ne se peuple ; friction UX mineure mais réelle,
+pas contournée pour respecter l'ordre exact demandé.
+
+**S34-2 (formulaire Opportunité)** — `AddDealDialog.tsx` : ajouté un champ
+"Nom de l'opportunité" (optionnel) et une case "Planifier une tâche de
+relance manuelle" (+ date d'échéance, appelle directement
+`services/tasks.ts#createTask` après la création du deal — pas de
+workflow automatique, conforme au CR "non automatisée"). Nouvelle colonne
+`deals.name` (migration `036_deal_name.sql`, nullable, **non appliquée**)
+— nécessaire car `deals.company_name` servait jusqu'ici à la fois de nom
+d'entreprise et de nom d'opportunité (deux opportunités sur la même
+entreprise étaient indiscernables). Nouvelle fonction pure
+`lib/deals.ts#getDealDisplayName` (+ tests) : nom libre si renseigné,
+sinon repli sur `company_name` (aucune rupture pour les deals existants,
+tous sans nom) — appliquée partout où le nom d'opportunité s'affichait
+(liste, fiche détail, carte Kanban, dashboard, sélecteurs dans
+AddTaskDialog/EditTaskDialog/AddCalendarEventDialog/
+EditCalendarEventDialog, listes liées sur Contact/CompanyDetail). `onCreated`
+de `AddDealDialog`/`useOpportunities().create` renvoient maintenant
+`{id}` (au lieu de `void`) pour pouvoir créer la tâche liée au deal créé.
+
+**S34-C0 (relations hiérarchiques entreprises)** — demande explicite de
+Loïc. Nouvelle colonne auto-référencée `companies.parent_company_id`
+(migration `037_company_parent.sql`, nullable, **non appliquée**), nouvelle
+fonction `services/companies.ts#listSubsidiaries` (+ test), `getCompany`
+étendu avec la relation `parent:companies!parent_company_id(id,name)`.
+Nouvelle carte "Groupe" sur `CompanyDetail.tsx` : maison mère (lier/changer/
+retirer via `SearchableSelect`, limité aux entreprises du même client,
+excluant l'entreprise elle-même et ses propres filiales pour éviter un
+cycle direct à 2 niveaux — **pas de détection de cycle plus profond**,
+limite assumée faute de temps) + liste des filiales directes (lecture
+seule, liens vers chaque fiche).
+
+Vérifié à chaque étape : `pnpm --filter crm typecheck`/`test` (497 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts (12 packages). Migrations
+036/037 écrites mais **non appliquées** — confirmation explicite à
+demander avant `supabase db push`, même processus que S33.

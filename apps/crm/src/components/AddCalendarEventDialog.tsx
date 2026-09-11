@@ -7,6 +7,7 @@ import { useContacts } from "../hooks/useContacts";
 import { useCompanies } from "../hooks/useCompanies";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from "../lib/datetimeLocal";
+import { getDealDisplayName } from "../lib/deals";
 import { useToast } from "./ui/toast";
 import type { NewCalendarEventInput } from "../hooks/useUpcomingCalendarEvents";
 import type { CalendarConnection } from "../services/calendarConnections";
@@ -241,7 +242,7 @@ export function AddCalendarEventDialog({ open, onOpenChange, connections, onCrea
               <option value="">Aucune</option>
               {filteredDeals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.company_name}
+                  {getDealDisplayName(d)}
                 </option>
               ))}
             </select>

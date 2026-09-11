@@ -20,9 +20,10 @@ export function useOpportunities() {
     load();
   }, [load]);
 
-  async function create(input: DealInsert): Promise<void> {
-    await createDeal(supabase, input);
+  async function create(input: DealInsert): Promise<{ id: string }> {
+    const deal = await createDeal(supabase, input);
     await load();
+    return deal;
   }
 
   async function changeStage(id: string, stageId: string): Promise<void> {

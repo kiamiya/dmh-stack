@@ -75,6 +75,7 @@ export function CreateEntityDialog({ open, onOpenChange, onContactCreated }: Cre
           const deal = await createDeal(supabase, input);
           closeAll();
           navigate(`/opportunities/${deal.id}`);
+          return deal;
         }}
       />
     </>

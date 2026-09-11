@@ -13,11 +13,11 @@ export interface TaskRow {
   deal_id: string | null;
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
-  deals: { company_name: string } | null;
+  deals: { company_name: string; name: string | null } | null;
 }
 
 const TASK_SELECT =
-  "id, title, description, due_date, status, assigned_to, contact_id, company_id, deal_id, contacts(first_name, last_name), companies(name), deals(company_name)";
+  "id, title, description, due_date, status, assigned_to, contact_id, company_id, deal_id, contacts(first_name, last_name), companies(name), deals(company_name, name)";
 
 export async function listTasks(client: SupabaseClient): Promise<TaskRow[]> {
   const { data, error } = await client

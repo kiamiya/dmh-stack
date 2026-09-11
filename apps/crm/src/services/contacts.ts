@@ -95,6 +95,7 @@ export interface ContactInsert {
   jobTitle: string | null;
   email: string | null;
   linkedinUrl: string | null;
+  phone?: string | null;
 }
 
 /**
@@ -115,6 +116,7 @@ export async function createContact(client: SupabaseClient, input: ContactInsert
       job_title: input.jobTitle,
       email: input.email,
       linkedin_url: input.linkedinUrl,
+      phone: input.phone ?? null,
       data_source: "manual",
     })
     .select("id")

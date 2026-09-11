@@ -12,6 +12,9 @@ import { validateDealForm } from "../lib/dealForm";
 import { useToast } from "./ui/toast";
 import { usePipelineStages } from "../hooks/usePipelineStages";
 import { SearchableSelect } from "./ui/searchable-select";
+import { useStaffMembers } from "../hooks/useStaffMembers";
+import { useSession } from "../lib/useSession";
+import { createTask } from "../services/tasks";
 
 export interface AddDealDialogProps {
   open: boolean;
@@ -19,18 +22,20 @@ export interface AddDealDialogProps {
   onCreated: (input: {
     clientId: string;
     companyName: string;
+    name?: string | null;
     dealValue: number;
     companyId?: string | null;
     contactId?: string | null;
     signedAt?: string | null;
     pipelineId?: string | null;
     stageId?: string | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string }>;
 }
 
 export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogProps) {
   const clients = useClients();
   const [clientId, setClientId] = useState("");
+  const [name, setName] = useState("");
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [companyId, setCompanyId] = useState("");
   const [contacts, setContacts] = useState<ContactRelationRow[]>([]);
@@ -38,10 +43,16 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
   const [dealValue, setDealValue] = useState("");
   const [signedAt, setSignedAt] = useState("");
   const [stageId, setStageId] = useState("");
+  const [scheduleFollowUp, setScheduleFollowUp] = useState(false);
+  const [followUpDueDate, setFollowUpDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const { pipeline, stages } = usePipelineStages(clientId);
+  const staff = useStaffMembers();
+  const { session } = useSession();
+  // `tasks.created_by` référence staff_members : un compte client (non-staff) casserait la contrainte FK si on y mettait son propre uid tel quel (même pattern que AddTaskDialog.tsx).
+  const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
 
   useEffect(() => {
     const firstOpenStage = stages.find((s) => !s.is_won && !s.is_lost) ?? stages[0];
@@ -72,6 +83,7 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
 
   function reset() {
     setClientId("");
+    setName("");
     setCompanies([]);
     setCompanyId("");
     setContacts([]);
@@ -79,6 +91,8 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
     setDealValue("");
     setSignedAt("");
     setStageId("");
+    setScheduleFollowUp(false);
+    setFollowUpDueDate("");
     setError(null);
   }
 
@@ -98,9 +112,10 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
     setSubmitting(true);
     setError(null);
     try {
-      await onCreated({
+      const deal = await onCreated({
         clientId,
         companyName,
+        name: name.trim() || null,
         dealValue: Number(dealValue),
         companyId: companyId || null,
         contactId: contactId || null,
@@ -108,7 +123,20 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
         pipelineId: pipeline?.id ?? null,
         stageId: stageId || null,
       });
-      toast(`Opportunité "${companyName}" créée.`, "success");
+
+      if (scheduleFollowUp && followUpDueDate) {
+        await createTask(supabase, {
+          clientId,
+          title: `Relance — ${name.trim() || companyName}`,
+          dueDate: followUpDueDate,
+          contactId: contactId || null,
+          companyId: companyId || null,
+          dealId: deal.id,
+          createdBy,
+        });
+      }
+
+      toast(`Opportunité "${name.trim() || companyName}" créée.`, "success");
       reset();
       onOpenChange(false);
     } catch (err) {
@@ -151,6 +179,18 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-name">
+              Nom de l'opportunité (optionnel)
+            </label>
+            <input
+              id="deal-name"
+              placeholder="ex. Renouvellement 2027, Upsell ligne 2…"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-company">
@@ -222,6 +262,30 @@ export function AddDealDialog({ open, onOpenChange, onCreated }: AddDealDialogPr
                 className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
             </div>
+          </div>
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={scheduleFollowUp}
+                onChange={(e) => setScheduleFollowUp(e.target.checked)}
+              />
+              Planifier une tâche de relance manuelle
+            </label>
+            {scheduleFollowUp && (
+              <div>
+                <label className="mb-1 block text-sm text-muted-foreground" htmlFor="deal-followup-date">
+                  Échéance de la relance
+                </label>
+                <input
+                  id="deal-followup-date"
+                  type="date"
+                  value={followUpDueDate}
+                  onChange={(e) => setFollowUpDueDate(e.target.value)}
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm"
+                />
+              </div>
+            )}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </DialogContent>

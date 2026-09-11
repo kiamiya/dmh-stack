@@ -15,7 +15,7 @@ import { SearchableSelect } from "../components/ui/searchable-select";
 import { AddContactDialog } from "../components/AddContactDialog";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/ui/page-header";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 
 export function OpportunityDetailPage() {
@@ -116,7 +116,7 @@ export function OpportunityDetailPage() {
       </Link>
       <PageHeader
         kicker="Prospection · fiche opportunité"
-        title={deal.company_name}
+        title={getDealDisplayName(deal)}
         actions={<Badge variant={getDealStatusColor(deal.status)}>{getDealStatusLabel(deal.status)}</Badge>}
       />
 

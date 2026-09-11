@@ -21,7 +21,7 @@ import { AssignedListCard } from "../components/AssignedListCard";
 import { SearchableSelect } from "../components/ui/searchable-select";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
@@ -322,7 +322,7 @@ export function ContactDetailPage() {
         <CardContent className="space-y-2">
           {relatedDeals.map((d) => (
             <div key={d.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-              <span>{d.company_name}</span>
+              <span>{getDealDisplayName(d)}</span>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
                 <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>

@@ -9,7 +9,39 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 lot S33 (revue dev CRM du 08/09) — validation navigateur en attente (migrations toutes appliquées)
+## Statut : 🔄 lots S33 + S34 (revues dev CRM du 08/09 et du 11/09) — validation navigateur en attente
+
+**Nouveau (S34, ci-dessous les 3 premiers points traités)** : 2 migrations en
+attente de confirmation avant de pouvoir tester S34-2/S34-C0 —
+`036_deal_name.sql` (nom libre d'opportunité) et `037_company_parent.sql`
+(maison mère/filiale). Dis-moi si je peux lancer `supabase db push`.
+
+### S34-1 — formulaire Contact (téléphone + réordonnancement)
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir "+ Nouveau" → Contact (ou "+ Contact" sur `/contacts`) | Champs dans l'ordre : Nom, Prénom, Poste, URL LinkedIn, Email, Téléphone, Entreprise, Client DMH |
+| 2 | Remplir un téléphone et valider | Le contact est créé avec ce téléphone (visible sur sa fiche) |
+| 3 | Essayer de choisir une entreprise avant d'avoir choisi le client DMH | Le champ Entreprise affiche "Choisir un client DMH d'abord" (désactivé) — confirme la friction UX assumée (client en dernier) |
+
+### S34-2 — formulaire Opportunité (nom libre + tâche de relance) *(nécessite migration 036)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir "+ Nouveau" → Opportunité, remplir un nom (ex. "Renouvellement 2027") | L'opportunité créée affiche ce nom (liste, Kanban, fiche détail) au lieu du nom de l'entreprise |
+| 2 | Créer une opportunité sans remplir le nom | Le nom de l'entreprise s'affiche comme avant (repli, aucune régression) |
+| 3 | Cocher "Planifier une tâche de relance manuelle", choisir une échéance, valider | Une tâche "Relance — <nom>" apparaît sur `/tasks` avec cette échéance, liée à l'opportunité |
+
+### S34-C0 — relations hiérarchiques entreprises *(nécessite migration 037)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir une fiche Entreprise, carte "Groupe" | "Maison mère : Aucune", "Filiales (0)" |
+| 2 | Choisir une autre entreprise du même client comme maison mère, cliquer "Lier" | La maison mère s'affiche avec un lien cliquable |
+| 3 | Ouvrir la fiche de la maison mère | La filiale apparaît dans sa liste "Filiales", lien cliquable |
+| 4 | Cliquer "Retirer" sur la maison mère depuis la fiche filiale | Repasse à "Aucune", la filiale disparaît de la liste de l'ex-maison mère |
+
+## Statut précédent : lot S33 (revue dev CRM du 08/09) — toujours en attente de validation navigateur (migrations appliquées)
 
 Réunion Delphine/Loïc du 08/09/2026, prochaine réunion le 11/09/2026 10h.
 Détail dans `PROGRESS.md`, section "2026-09-10 — Revue dev CRM DMH (08/09) :

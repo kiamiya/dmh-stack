@@ -40,6 +40,7 @@ const BASE_FIELDS: Record<CustomFieldEntityType, Array<{ value: string; label: s
     { value: "website", label: "Site web" },
   ],
   opportunity: [
+    { value: "name", label: "Nom de l'opportunité" },
     { value: "company_name", label: "Entreprise" },
     { value: "deal_value", label: "Montant" },
     { value: "status", label: "Statut" },

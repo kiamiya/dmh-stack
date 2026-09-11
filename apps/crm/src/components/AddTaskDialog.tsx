@@ -9,6 +9,7 @@ import { useOpportunities } from "../hooks/useOpportunities";
 import { useStaffMembers } from "../hooks/useStaffMembers";
 import { useSession } from "../lib/useSession";
 import { validateTaskForm } from "../lib/taskForm";
+import { getDealDisplayName } from "../lib/deals";
 import { useToast } from "./ui/toast";
 import type { TaskInsert } from "../services/tasks";
 
@@ -225,7 +226,7 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
               <option value="">Aucune</option>
               {deals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.company_name}
+                  {getDealDisplayName(d)}
                 </option>
               ))}
             </select>

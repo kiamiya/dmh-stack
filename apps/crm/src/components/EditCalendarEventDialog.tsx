@@ -9,6 +9,7 @@ import { useContacts } from "../hooks/useContacts";
 import { useCompanies } from "../hooks/useCompanies";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from "../lib/datetimeLocal";
+import { getDealDisplayName } from "../lib/deals";
 import { getMeetingLink, upsertMeetingLink } from "../services/meetings";
 import { useToast } from "./ui/toast";
 import type { CalendarEventUpdate, UpcomingCalendarEvent } from "../services/calendarEvents";
@@ -233,7 +234,7 @@ export function EditCalendarEventDialog({ event, onOpenChange, onUpdated }: Edit
                 <option value="">Aucune</option>
                 {filteredDeals.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.company_name}
+                    {getDealDisplayName(d)}
                   </option>
                 ))}
               </select>

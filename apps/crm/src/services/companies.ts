@@ -51,15 +51,33 @@ export interface CompanyDetailRow {
   ai_score: number | null;
   ai_score_reason: string | null;
   contact_list_id: string | null;
+  parent_company_id: string | null;
+  parent: { id: string; name: string } | null;
 }
 
 const COMPANY_DETAIL_SELECT =
-  "id, client_id, name, siren, legal_form, naf_label, employee_range, city, website, revenue, ai_score, ai_score_reason, contact_list_id";
+  "id, client_id, name, siren, legal_form, naf_label, employee_range, city, website, revenue, ai_score, ai_score_reason, contact_list_id, parent_company_id, parent:companies!parent_company_id(id, name)";
 
 export async function getCompany(client: SupabaseClient, id: string): Promise<CompanyDetailRow> {
   const { data, error } = await client.from("companies").select(COMPANY_DETAIL_SELECT).eq("id", id).single();
   if (error) throw new Error(error.message);
-  return data as CompanyDetailRow;
+  return data as unknown as CompanyDetailRow;
+}
+
+export interface SubsidiaryRow {
+  id: string;
+  name: string;
+}
+
+/** Filiales directes d'une entreprise (maison mère → filiales), pour l'afficher sur sa fiche. */
+export async function listSubsidiaries(client: SupabaseClient, companyId: string): Promise<SubsidiaryRow[]> {
+  const { data, error } = await client
+    .from("companies")
+    .select("id, name")
+    .eq("parent_company_id", companyId)
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SubsidiaryRow[];
 }
 
 export interface CompanyUpdate {
@@ -67,6 +85,7 @@ export interface CompanyUpdate {
   city?: string | null;
   website?: string | null;
   contactListId?: string | null;
+  parentCompanyId?: string | null;
 }
 
 export async function updateCompany(client: SupabaseClient, id: string, patch: CompanyUpdate): Promise<void> {
@@ -77,6 +96,7 @@ export async function updateCompany(client: SupabaseClient, id: string, patch: C
       ...(patch.city !== undefined && { city: patch.city }),
       ...(patch.website !== undefined && { website: patch.website }),
       ...(patch.contactListId !== undefined && { contact_list_id: patch.contactListId }),
+      ...(patch.parentCompanyId !== undefined && { parent_company_id: patch.parentCompanyId }),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

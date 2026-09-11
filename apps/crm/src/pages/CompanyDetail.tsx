@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCompanyDetail } from "../hooks/useCompanyDetail";
+import { useCompanies } from "../hooks/useCompanies";
 import { useContacts } from "../hooks/useContacts";
 import { useOpportunities } from "../hooks/useOpportunities";
 import { useTasks } from "../hooks/useTasks";
@@ -15,14 +16,15 @@ import { AssignedListCard } from "../components/AssignedListCard";
 import { SearchableSelect } from "../components/ui/searchable-select";
 import { PageHeader } from "../components/ui/page-header";
 import { formatScore, getScoreColor } from "../lib/score";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import { getDealStatusColor, getDealStatusLabel } from "../lib/dealStatus";
 import { getTaskStatusColor, getTaskStatusLabel } from "../lib/taskStatus";
 
 export function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { company, contacts, loading, error, save, linkContact, unlinkContact } = useCompanyDetail(id!);
+  const { company, contacts, subsidiaries, loading, error, save, linkContact, unlinkContact } = useCompanyDetail(id!);
   const allContacts = useContacts();
+  const { companies: allCompanies } = useCompanies();
   const { deals } = useOpportunities();
   const { tasks } = useTasks();
   const { toast } = useToast();
@@ -34,6 +36,7 @@ export function CompanyDetailPage() {
   const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);
   const [linkContactId, setLinkContactId] = useState("");
+  const [parentCompanyId, setParentCompanyId] = useState("");
 
   useEffect(() => {
     if (!company) return;
@@ -63,6 +66,16 @@ export function CompanyDetailPage() {
     }
   }
 
+  async function handleSetParent(nextParentId: string | null) {
+    try {
+      await save({ parentCompanyId: nextParentId });
+      setParentCompanyId("");
+      toast(nextParentId ? "Maison mère mise à jour." : "Maison mère retirée.", "success");
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -79,6 +92,10 @@ export function CompanyDetailPage() {
   const linkableContacts = allContacts.contacts.filter((c) => !linkedContactIds.has(c.id));
   const relatedDeals = deals.filter((d) => d.company_id === company.id);
   const relatedTasks = tasks.filter((t) => t.company_id === company.id);
+  const subsidiaryIds = new Set(subsidiaries.map((s) => s.id));
+  const linkableParentCompanies = allCompanies.filter(
+    (c) => c.client_id === company.client_id && c.id !== company.id && c.id !== company.parent_company_id && !subsidiaryIds.has(c.id),
+  );
 
   return (
     <div className="space-y-4 p-6">
@@ -134,6 +151,52 @@ export function CompanyDetailPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Groupe</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Maison mère</span>
+            {company.parent ? (
+              <div className="flex items-center gap-2">
+                <Link to={`/companies/${company.parent.id}`} className="font-medium text-foreground hover:underline">
+                  {company.parent.name}
+                </Link>
+                <Button variant="ghost" size="sm" onClick={() => handleSetParent(null)}>
+                  Retirer
+                </Button>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">Aucune</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <SearchableSelect
+              value={parentCompanyId}
+              onChange={setParentCompanyId}
+              placeholder="Choisir une maison mère…"
+              options={linkableParentCompanies.map((c) => ({ value: c.id, label: c.name }))}
+            />
+            <Button variant="outline" disabled={!parentCompanyId} onClick={() => handleSetParent(parentCompanyId)}>
+              {company.parent ? "Changer" : "Lier"}
+            </Button>
+          </div>
+
+          <div className="border-t border-border pt-3">
+            <span className="text-muted-foreground">Filiales ({subsidiaries.length})</span>
+            <div className="mt-2 space-y-1.5">
+              {subsidiaries.map((s) => (
+                <Link key={s.id} to={`/companies/${s.id}`} className="block font-medium text-foreground hover:underline">
+                  {s.name}
+                </Link>
+              ))}
+              {subsidiaries.length === 0 && <p className="text-muted-foreground">Aucune filiale.</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <CustomFieldsCard entityType="company" entityId={company.id} clientId={company.client_id} />
 
       <Card>
@@ -184,7 +247,7 @@ export function CompanyDetailPage() {
         <CardContent className="space-y-2">
           {relatedDeals.map((d) => (
             <div key={d.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-              <span>{d.company_name}</span>
+              <span>{getDealDisplayName(d)}</span>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
                 <Badge variant={getDealStatusColor(d.status)}>{getDealStatusLabel(d.status)}</Badge>

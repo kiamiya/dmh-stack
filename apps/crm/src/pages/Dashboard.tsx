@@ -11,7 +11,7 @@ import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
 import { StackedWeeklyBarChart } from "../components/charts/StackedWeeklyBarChart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatScore, getScoreColor } from "../lib/score";
-import { formatCurrency } from "../lib/deals";
+import { formatCurrency, getDealDisplayName } from "../lib/deals";
 import { formatRelativeTime } from "../lib/relativeTime";
 import { isStagnant } from "../lib/stagnation";
 import { groupActivityEventsByDay, mergeActivityEvents } from "../lib/activityFeed";
@@ -286,7 +286,7 @@ export function DashboardPage() {
                 {deals.length === 0 && <p className="text-sm text-muted-foreground">Aucun deal déclaré.</p>}
                 {deals.map((d) => (
                   <div key={d.id} className="flex items-center justify-between border-t border-border pt-2 text-sm first:border-0 first:pt-0">
-                    <div className="min-w-0 flex-1 truncate text-foreground">{d.company_name}</div>
+                    <div className="min-w-0 flex-1 truncate text-foreground">{getDealDisplayName(d)}</div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">{formatCurrency(d.deal_value)}</span>
                       <Badge variant={d.status === "won" ? "green" : d.status === "lost" ? "red" : "yellow"}>
