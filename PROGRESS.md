@@ -131,6 +131,7 @@ Dernière mise à jour : 2026-09-04
 | S35-1 | Composants partagés (`SavedViewTabs`, `QuickFilterChips`, `CompletenessBar`, `savedViews.ts` généralisé) — base de la Nature A | ✅ fait — `ProspectsList.tsx` migré dessus sans régression |
 | S35-2 | Entreprises : bandeau de vues + menu "..." (aligné avec Contacts), colonnes Source/Statut, libellés dynamiques | ✅ fait côté code — en attente de validation navigateur |
 | S35-3 | Dashboard : bascule en menu déroulant, "actualisé il y a X min" + rafraîchir, filtres Propriétaire/Plage de dates, menus Partager/Actions consolidés, bloc "File d'enrichissement" | ✅ fait côté code — en attente de validation navigateur |
+| S35-4 | Segments : bandeau de vues + menu "..." + filtres rapides (chips) + colonnes paramétrables | ✅ fait côté code — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2419,5 +2420,30 @@ prospects en attente à chaque étape (`to_enrich`→Pappers,
 tracé en base, même limite déjà documentée sur `Integrations.tsx`).
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (77 fichiers, 554 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
+Aucune migration.
+
+**S35-4 (Segments)** : même bandeau de vues + menu "..." qu'ailleurs
+(vues sauvegardées propres aux segments, clé localStorage
+`dmh-crm-saved-views-segments`). Découverte utile : `*_lists.updated_at`
+existe réellement en base depuis S31 et était déjà sélectionné
+(`LIST_SELECT`) mais jamais exposé dans `ListOverviewRow` — un
+commentaire du code disait même l'inverse ("pas de vraie date de
+dernière modification"), commentaire devenu faux et corrigé.
+`lib/listsOverview.ts` expose maintenant `updatedAt`/`createdBy`.
+Filtres rapides (chips, tous réels) : Listes dynamiques/Listes statiques
+(pilotent le `filterMode` existant, pas un doublon d'état), Les miennes
+(`createdBy` = utilisateur courant), Enrichies > 90%
+(`enrichmentRate`, déjà calculé), Non travaillée 14j (nouveau
+`isStaleOverDays` dans `lib/quickFilters.ts`, complément de
+`isFreshUnderDays`). Colonnes paramétrables (Mode/Client/Dossier/
+Membres/Enrichis/Créée le, checklist simple sans réordonnancement —
+pas de drag-and-drop ici, proportionné au besoin). "Enrichis" passe en
+`CompletenessBar`. Le filtre par dossier (arbre latéral, colonne
+"Client DMH" du panneau existant) reste séparé de ce bandeau — logique
+différente (sélection dans un arbre, pas une vue sauvegardable), pas de
+changement là.
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (77 fichiers, 556 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
 Aucune migration.

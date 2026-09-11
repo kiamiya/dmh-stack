@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasPhone, hasSiren, isCompleteAbove, isEmailVerified, isFreshUnderDays } from "./quickFilters";
+import { hasPhone, hasSiren, isCompleteAbove, isEmailVerified, isFreshUnderDays, isStaleOverDays } from "./quickFilters";
 
 describe("isEmailVerified", () => {
   it("vrai seulement si email_confidence === valid", () => {
@@ -41,5 +41,18 @@ describe("isFreshUnderDays", () => {
 
   it("faux si aucune date", () => {
     expect(isFreshUnderDays(7, null, now)).toBe(false);
+  });
+});
+
+describe("isStaleOverDays", () => {
+  const now = new Date("2026-09-11T12:00:00Z");
+
+  it("vrai si au moins N jours se sont écoulés", () => {
+    expect(isStaleOverDays(14, "2026-08-01T12:00:00Z", now)).toBe(true);
+    expect(isStaleOverDays(14, "2026-09-08T12:00:00Z", now)).toBe(false);
+  });
+
+  it("vrai si aucune date (jamais travaillée)", () => {
+    expect(isStaleOverDays(14, null, now)).toBe(true);
   });
 });

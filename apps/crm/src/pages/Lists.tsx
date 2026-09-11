@@ -1,12 +1,26 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/ui/page-header";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Skeleton } from "../components/ui/skeleton";
+import { SavedViewTabs } from "../components/SavedViewTabs";
+import { QuickFilterChips } from "../components/QuickFilterChips";
+import { CompletenessBar } from "../components/CompletenessBar";
+import { isCompleteAbove, isStaleOverDays } from "../lib/quickFilters";
+import {
+  createSavedView,
+  duplicateSavedView,
+  loadSavedViews,
+  removeSavedView,
+  renameSavedView,
+  saveSavedViews,
+} from "../lib/savedViews";
+import type { SavedView } from "../lib/savedViews";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { useListsOverview } from "../hooks/useListsOverview";
@@ -74,6 +88,27 @@ const DEFAULT_FIELD: Record<ListEntityType, string> = {
   opportunity: "status",
 };
 
+const SEGMENT_SAVED_VIEWS_KEY = "dmh-crm-saved-views-segments";
+
+interface SegmentFilters {
+  clientId: string;
+  entityType: ListEntityType | "";
+  mode: "static" | "dynamic" | "";
+  folderId: string;
+  onlyMine: boolean;
+  enrichedAbove90: boolean;
+  staleOver14d: boolean;
+}
+
+const SEGMENT_COLUMN_LABELS: Record<string, string> = {
+  mode: "Mode",
+  client: "Client",
+  folder: "Dossier",
+  members: "Membres",
+  enriched: "Enrichis",
+  createdAt: "Créée le",
+};
+
 function emptyGroups(entityType: ListEntityType): RuleGroupDraft[] {
   return [{ conditions: [{ field: DEFAULT_FIELD[entityType], operator: "eq", value: "" }] }];
 }
@@ -133,6 +168,84 @@ export function ListsPage() {
   const [filterEntityType, setFilterEntityType] = useState<ListEntityType | "">("");
   const [filterMode, setFilterMode] = useState<"static" | "dynamic" | "">("");
   const [filterFolderId, setFilterFolderId] = useState("");
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [enrichedAbove90, setEnrichedAbove90] = useState(false);
+  const [staleOver14d, setStaleOver14d] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
+
+  const [savedViews, setSavedViews] = useState<SavedView<SegmentFilters>[]>([]);
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
+  const [newViewName, setNewViewName] = useState("");
+
+  useEffect(() => {
+    setSavedViews(loadSavedViews(localStorage, SEGMENT_SAVED_VIEWS_KEY));
+  }, []);
+
+  const currentFilters: SegmentFilters = useMemo(
+    () => ({
+      clientId: filterClientId,
+      entityType: filterEntityType,
+      mode: filterMode,
+      folderId: filterFolderId,
+      onlyMine,
+      enrichedAbove90,
+      staleOver14d,
+    }),
+    [filterClientId, filterEntityType, filterMode, filterFolderId, onlyMine, enrichedAbove90, staleOver14d],
+  );
+
+  function applySegmentFilters(f: SegmentFilters) {
+    setFilterClientId(f.clientId);
+    setFilterEntityType(f.entityType);
+    setFilterMode(f.mode);
+    setFilterFolderId(f.folderId);
+    setOnlyMine(f.onlyMine);
+    setEnrichedAbove90(f.enrichedAbove90);
+    setStaleOver14d(f.staleOver14d);
+  }
+
+  const activeViewId = useMemo(() => {
+    const match = savedViews.find((v) => JSON.stringify(v.filters) === JSON.stringify(currentFilters));
+    return match?.id ?? null;
+  }, [savedViews, currentFilters]);
+  const activeSavedView = savedViews.find((v) => v.id === activeViewId) ?? null;
+
+  function openCreateSegmentView() {
+    setRenamingViewId(null);
+    setNewViewName("");
+    setSaveViewOpen(true);
+  }
+
+  function handleSubmitSegmentView() {
+    if (!newViewName.trim()) return;
+    if (renamingViewId) {
+      const next = renameSavedView(savedViews, renamingViewId, newViewName);
+      setSavedViews(next);
+      saveSavedViews(localStorage, SEGMENT_SAVED_VIEWS_KEY, next);
+      toast(`Vue renommée "${newViewName.trim()}".`, "success");
+    } else {
+      const view = createSavedView(crypto.randomUUID(), newViewName, currentFilters, new Date().toISOString());
+      const next = [...savedViews, view];
+      setSavedViews(next);
+      saveSavedViews(localStorage, SEGMENT_SAVED_VIEWS_KEY, next);
+      toast(`Vue "${view.name}" enregistrée.`, "success");
+    }
+    setSaveViewOpen(false);
+    setRenamingViewId(null);
+    setNewViewName("");
+  }
+
+  async function handleCopySegmentViewLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Lien copié.", "success");
+    } catch {
+      toast("Impossible de copier le lien.", "destructive");
+    }
+  }
 
   // Dossiers du client sélectionné dans le filtre — n'a de sens que pour un seul
   // client à la fois (décision de cadrage : dossiers rattachés à un client, pas
@@ -142,10 +255,30 @@ export function ListsPage() {
   const folderTree = useMemo(() => buildFolderTree(folders), [folders]);
   const folderIds = useMemo(() => (filterFolderId ? listsUnderFolder(folders, filterFolderId) : undefined), [folders, filterFolderId]);
 
-  const filteredRows = useMemo(
+  const baseFilteredRows = useMemo(
     () => filterListRows(rows, { clientId: filterClientId, entityType: filterEntityType, mode: filterMode, folderIds }),
     [rows, filterClientId, filterEntityType, filterMode, folderIds],
   );
+
+  const chipCounts = useMemo(
+    () => ({
+      dynamic: baseFilteredRows.filter((r) => r.mode === "dynamic").length,
+      static: baseFilteredRows.filter((r) => r.mode === "static").length,
+      mine: createdBy ? baseFilteredRows.filter((r) => r.createdBy === createdBy).length : 0,
+      enrichedAbove90: baseFilteredRows.filter((r) => r.enrichmentRate !== null && isCompleteAbove(90, r.enrichmentRate)).length,
+      staleOver14d: baseFilteredRows.filter((r) => isStaleOverDays(14, r.updatedAt)).length,
+    }),
+    [baseFilteredRows, createdBy],
+  );
+
+  /** Filtres rapides (chips, correction Claude Design) — appliqués après le filtre client/type/dossier/mode existant, pour ne pas changer `filterListRows` (déjà testée). */
+  const filteredRows = useMemo(() => {
+    let out = baseFilteredRows;
+    if (onlyMine && createdBy) out = out.filter((r) => r.createdBy === createdBy);
+    if (enrichedAbove90) out = out.filter((r) => r.enrichmentRate !== null && isCompleteAbove(90, r.enrichmentRate));
+    if (staleOver14d) out = out.filter((r) => isStaleOverDays(14, r.updatedAt));
+    return out;
+  }, [baseFilteredRows, onlyMine, enrichedAbove90, staleOver14d, createdBy]);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -609,7 +742,121 @@ export function ListsPage() {
         )}
 
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-secondary/40 p-3">
+          <SavedViewTabs
+            tabs={[
+              { id: "__all__", label: "Toutes les listes", count: rows.length },
+              ...savedViews.map((v) => ({ id: v.id, label: v.name })),
+            ]}
+            activeId={activeViewId ?? "__all__"}
+            onSelect={(id) => {
+              if (id === "__all__") {
+                applySegmentFilters({ clientId: "", entityType: "", mode: "", folderId: "", onlyMine: false, enrichedAbove90: false, staleOver14d: false });
+                return;
+              }
+              const target = savedViews.find((v) => v.id === id);
+              if (target) applySegmentFilters(target.filters);
+            }}
+            onCreate={openCreateSegmentView}
+            menuActions={[
+              { label: "Modifier les colonnes", onClick: () => setColumnsDialogOpen(true) },
+              { label: "Partager le lien de la vue", onClick: handleCopySegmentViewLink },
+              ...(activeSavedView
+                ? [
+                    {
+                      label: "Dupliquer la vue",
+                      onClick: () => {
+                        const next = duplicateSavedView(savedViews, activeSavedView.id, crypto.randomUUID(), new Date().toISOString());
+                        setSavedViews(next);
+                        saveSavedViews(localStorage, SEGMENT_SAVED_VIEWS_KEY, next);
+                        toast("Vue dupliquée.", "success");
+                      },
+                    },
+                    {
+                      label: "Renommer la vue",
+                      onClick: () => {
+                        setRenamingViewId(activeSavedView.id);
+                        setNewViewName(activeSavedView.name);
+                        setSaveViewOpen(true);
+                      },
+                    },
+                    {
+                      label: "Supprimer la vue",
+                      onClick: () => {
+                        const next = removeSavedView(savedViews, activeSavedView.id);
+                        setSavedViews(next);
+                        saveSavedViews(localStorage, SEGMENT_SAVED_VIEWS_KEY, next);
+                      },
+                      danger: true,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+
+          <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+            <DialogHeader>
+              <DialogTitle>{renamingViewId ? "Renommer la vue" : "Enregistrer la vue actuelle"}</DialogTitle>
+            </DialogHeader>
+            <DialogContent>
+              <input
+                autoFocus
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                placeholder="Nom de la vue…"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+            </DialogContent>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSaveViewOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSubmitSegmentView} disabled={!newViewName.trim()}>
+                {renamingViewId ? "Renommer" : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </Dialog>
+
+          <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+            <DialogHeader>
+              <DialogTitle>Modifier les colonnes</DialogTitle>
+            </DialogHeader>
+            <DialogContent className="space-y-1">
+              {Object.entries(SEGMENT_COLUMN_LABELS).map(([id, label]) => (
+                <label key={id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={columnVisibility[id] !== false}
+                    onChange={(e) => setColumnVisibility((v) => ({ ...v, [id]: e.target.checked }))}
+                  />
+                  <span className="text-foreground">{label}</span>
+                </label>
+              ))}
+            </DialogContent>
+            <DialogFooter>
+              <Button onClick={() => setColumnsDialogOpen(false)}>Fermer</Button>
+            </DialogFooter>
+          </Dialog>
+
+          <QuickFilterChips
+            chips={[
+              { key: "dynamic", label: "Listes dynamiques", count: chipCounts.dynamic, active: filterMode === "dynamic" },
+              { key: "static", label: "Listes statiques", count: chipCounts.static, active: filterMode === "static" },
+              { key: "mine", label: "Les miennes", count: chipCounts.mine, active: onlyMine },
+              { key: "enrichedAbove90", label: "Enrichies > 90%", count: chipCounts.enrichedAbove90, active: enrichedAbove90 },
+              { key: "staleOver14d", label: "Non travaillée 14j", count: chipCounts.staleOver14d, active: staleOver14d },
+            ]}
+            onToggle={(key) => {
+              if (key === "dynamic") setFilterMode((m) => (m === "dynamic" ? "" : "dynamic"));
+              else if (key === "static") setFilterMode((m) => (m === "static" ? "" : "static"));
+              else if (key === "mine") setOnlyMine((v) => !v);
+              else if (key === "enrichedAbove90") setEnrichedAbove90((v) => !v);
+              else if (key === "staleOver14d") setStaleOver14d((v) => !v);
+            }}
+            showAdvanced={showAdvanced}
+            onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+            hasActiveFilters={JSON.stringify(currentFilters) !== JSON.stringify({ clientId: "", entityType: "", mode: "", folderId: filterFolderId, onlyMine: false, enrichedAbove90: false, staleOver14d: false })}
+            onReset={() => applySegmentFilters({ clientId: "", entityType: "", mode: "", folderId: filterFolderId, onlyMine: false, enrichedAbove90: false, staleOver14d: false })}
+          >
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Client DMH</label>
               <select
@@ -643,19 +890,7 @@ export function ListsPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Mode</label>
-              <select
-                value={filterMode}
-                onChange={(e) => setFilterMode(e.target.value as "static" | "dynamic" | "")}
-                className="rounded-md border border-border px-2 py-1 text-sm"
-              >
-                <option value="">Tous</option>
-                <option value="static">Statique</option>
-                <option value="dynamic">Dynamique</option>
-              </select>
-            </div>
-          </div>
+          </QuickFilterChips>
 
       {trashOpen && (
         <Card>
@@ -780,12 +1015,12 @@ export function ListsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Dossier</TableHead>
-                  <TableHead className="text-right">Membres</TableHead>
-                  <TableHead className="text-right">Enrichis</TableHead>
-                  <TableHead>Créée le</TableHead>
+                  {columnVisibility.mode !== false && <TableHead>Mode</TableHead>}
+                  {columnVisibility.client !== false && <TableHead>Client</TableHead>}
+                  {columnVisibility.folder !== false && <TableHead>Dossier</TableHead>}
+                  {columnVisibility.members !== false && <TableHead className="text-right">Membres</TableHead>}
+                  {columnVisibility.enriched !== false && <TableHead>Enrichis</TableHead>}
+                  {columnVisibility.createdAt !== false && <TableHead>Créée le</TableHead>}
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -803,31 +1038,33 @@ export function ListsPage() {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell>{row.mode === "dynamic" ? "Dynamique" : "Statique"}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.clientName}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {filterClientId ? (
-                        <select
-                          value={row.folderId ?? ""}
-                          onChange={(e) => handleMoveToFolder(row.id, row.entityType, e.target.value)}
-                          className="rounded-md border border-border bg-transparent px-1.5 py-1 text-xs"
-                        >
-                          <option value="">—</option>
-                          {folders.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.parent_id ? `— ${f.name}` : f.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        (row.folderName ?? "—")
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {row.enrichmentRate != null ? `${row.enrichmentRate}%` : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{row.createdAt.slice(0, 10)}</TableCell>
+                    {columnVisibility.mode !== false && <TableCell>{row.mode === "dynamic" ? "Dynamique" : "Statique"}</TableCell>}
+                    {columnVisibility.client !== false && <TableCell className="text-muted-foreground">{row.clientName}</TableCell>}
+                    {columnVisibility.folder !== false && (
+                      <TableCell className="text-muted-foreground">
+                        {filterClientId ? (
+                          <select
+                            value={row.folderId ?? ""}
+                            onChange={(e) => handleMoveToFolder(row.id, row.entityType, e.target.value)}
+                            className="rounded-md border border-border bg-transparent px-1.5 py-1 text-xs"
+                          >
+                            <option value="">—</option>
+                            {folders.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.parent_id ? `— ${f.name}` : f.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          (row.folderName ?? "—")
+                        )}
+                      </TableCell>
+                    )}
+                    {columnVisibility.members !== false && <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>}
+                    {columnVisibility.enriched !== false && (
+                      <TableCell>{row.enrichmentRate != null ? <CompletenessBar percent={row.enrichmentRate} /> : <span className="text-muted-foreground">—</span>}</TableCell>
+                    )}
+                    {columnVisibility.createdAt !== false && <TableCell className="text-muted-foreground">{row.createdAt.slice(0, 10)}</TableCell>}
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Link

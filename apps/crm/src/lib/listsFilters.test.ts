@@ -14,6 +14,8 @@ function row(overrides: Partial<ListOverviewRow>): ListOverviewRow {
     criteriaCount: null,
     enrichmentRate: null,
     createdAt: "2026-01-01",
+    updatedAt: "2026-01-01",
+    createdBy: null,
     folderId: null,
     folderName: null,
     ...overrides,

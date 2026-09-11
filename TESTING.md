@@ -45,6 +45,19 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 9 | Cliquer l'icône ↻ à côté de "actualisé il y a…" | Le texte "actualisé à l'instant" apparaît, les données se rechargent |
 | 10 | Sur un dashboard nommé, "Gérer les blocs", cocher "File d'enrichissement" | Nouvelle carte : compte réel de prospects en attente Pappers/Dropcontact + lien "Ouvrir le hub API" vers `/integrations` |
 
+### S35-4 — Segments : bandeau de vues + filtres rapides + colonnes
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/lists`, regarder sous le titre | Rangée "Toutes les listes N" + bouton "..." |
+| 2 | Cliquer les chips "Listes dynamiques"/"Listes statiques" | Filtre la table ; les deux ne peuvent pas être actifs en même temps (cliquer l'un désactive l'autre) |
+| 3 | Cliquer "Les miennes" | Ne montre que les listes créées par le compte connecté |
+| 4 | Cliquer "Enrichies > 90%" | Ne montre que les listes Contacts/Entreprises avec un taux d'enrichissement ≥ 90% (les listes Opportunités disparaissent, elles n'ont pas ce taux) |
+| 5 | Cliquer "Non travaillée 14j" | Ne montre que les listes dont `updated_at` date de 14 jours ou plus |
+| 6 | Cliquer "..." → "Modifier les colonnes" | Modale avec 6 cases à cocher (Mode/Client/Dossier/Membres/Enrichis/Créée le) ; décocher "Client" masque la colonne |
+| 7 | Créer une vue avec des chips actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionnent comme sur Prospects/Entreprises |
+| 8 | Regarder la colonne "Enrichis" d'une liste enrichie | Barre + % au lieu d'un texte brut |
+
 ## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)

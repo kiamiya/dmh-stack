@@ -19,8 +19,10 @@ export interface ListOverviewRow {
   criteriaCount: number | null;
   /** % moyen de complétude des membres (Pappers pour les entreprises, cascade contact sinon) — null pour les listes d'opportunités, aucune notion d'enrichissement pertinente pour un deal. */
   enrichmentRate: number | null;
-  /** Date de création réelle (`created_at`) — pas de vraie date de "dernière modification" en base (`*_lists` n'a pas d'`updated_at`), donc jamais présentée comme telle. */
   createdAt: string;
+  /** Réelle (`*_lists.updated_at` existe depuis S31) — base du filtre rapide "Non travaillée depuis 14j" (correction Claude Design). */
+  updatedAt: string;
+  createdBy: string | null;
   /** Dossier réel (S32-segments Lot C) — null si la liste n'est classée dans aucun dossier. */
   folderId: string | null;
   folderName: string | null;
@@ -32,6 +34,8 @@ interface ListLike {
   name: string;
   rules: RuleGroup[] | null;
   created_at: string;
+  updated_at: string;
+  created_by: string | null;
   folder_id: string | null;
 }
 
@@ -87,6 +91,8 @@ function buildRows<E extends EntityLike>(
       criteriaCount: countCriteria(list.rules),
       enrichmentRate: completeness ? average(matched.map(completeness)) : null,
       createdAt: list.created_at,
+      updatedAt: list.updated_at,
+      createdBy: list.created_by,
       folderId: list.folder_id,
       folderName: list.folder_id ? (folders.find((f) => f.id === list.folder_id)?.name ?? null) : null,
     };

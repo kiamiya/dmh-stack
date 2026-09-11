@@ -22,3 +22,9 @@ export function isFreshUnderDays(maxDays: number, isoDate: string | null, now: D
   const days = daysSince(isoDate, now);
   return days !== null && days < maxDays;
 }
+
+/** Complément de `isFreshUnderDays` — "non travaillée depuis N jours" (Segments). Une date absente compte comme "jamais travaillée", donc vrai. */
+export function isStaleOverDays(minDays: number, isoDate: string | null, now: Date = new Date()): boolean {
+  const days = daysSince(isoDate, now);
+  return days === null || days >= minDays;
+}
