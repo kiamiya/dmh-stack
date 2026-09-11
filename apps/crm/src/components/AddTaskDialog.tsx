@@ -12,6 +12,20 @@ import { validateTaskForm } from "../lib/taskForm";
 import { getDealDisplayName } from "../lib/deals";
 import { useToast } from "./ui/toast";
 import type { TaskInsert } from "../services/tasks";
+import type { TaskPriority, TaskType } from "@dmh/types";
+
+const TASK_TYPE_OPTIONS: Array<{ value: TaskType; label: string }> = [
+  { value: "call", label: "Appel" },
+  { value: "email", label: "Email" },
+  { value: "meeting", label: "RDV" },
+  { value: "data", label: "Donnée" },
+];
+
+const TASK_PRIORITY_OPTIONS: Array<{ value: TaskPriority; label: string }> = [
+  { value: "low", label: "Basse" },
+  { value: "normal", label: "Normale" },
+  { value: "high", label: "Haute" },
+];
 
 export interface AddTaskDialogProps {
   open: boolean;
@@ -36,6 +50,8 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
   const [contactId, setContactId] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [dealId, setDealId] = useState("");
+  const [taskType, setTaskType] = useState<TaskType | "">("");
+  const [priority, setPriority] = useState<TaskPriority>("normal");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +64,8 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
     setContactId("");
     setCompanyId("");
     setDealId("");
+    setTaskType("");
+    setPriority("normal");
     setError(null);
   }
 
@@ -75,6 +93,8 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
         contactId: contactId || null,
         companyId: companyId || null,
         dealId: dealId || null,
+        taskType: taskType || null,
+        priority,
         // `tasks.created_by` référence staff_members : un compte client (non-staff,
         // autorisé par RLS `client_user_access` à créer une tâche) casserait la
         // contrainte FK si on y mettait son propre uid tel quel.
@@ -172,6 +192,43 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
                 {staff.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="task-type">
+                Type (optionnel)
+              </label>
+              <select
+                id="task-type"
+                value={taskType}
+                onChange={(e) => setTaskType(e.target.value as TaskType | "")}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <option value="">Non précisé</option>
+                {TASK_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="task-priority">
+                Priorité
+              </label>
+              <select
+                id="task-priority"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                {TASK_PRIORITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
               </select>

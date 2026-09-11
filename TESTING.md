@@ -58,6 +58,20 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 7 | Créer une vue avec des chips actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionnent comme sur Prospects/Entreprises |
 | 8 | Regarder la colonne "Enrichis" d'une liste enrichie | Barre + % au lieu d'un texte brut |
 
+### S35-5 — Tâches : onglets système + filtres + colonnes *(nécessite migration 040)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/tasks`, regarder sous le titre | Onglets "Toutes/À faire/En retard/Aujourd'hui/Mes tâches/Terminées" avec compteurs réels |
+| 2 | Créer une tâche avec échéance passée, non terminée | Apparaît dans l'onglet "En retard" |
+| 3 | Créer/éditer une tâche, choisir un Type et une Priorité | Les colonnes Type/Priorité de la table reflètent le choix |
+| 4 | Cliquer les chips "Appels"/"Emails" (les deux) | Montre les tâches de type Appel OU Email |
+| 5 | Cliquer "Priorité haute" | Ne montre que les tâches à priorité haute |
+| 6 | Créer une automatisation "Créer une tâche", la déclencher, regarder la colonne "Origine" de la tâche créée | Affiche "Automatisation" (pas "Manuel") |
+| 7 | Cliquer le chip "Générées automatiquement" | Ne montre que ces tâches |
+| 8 | Créer une vue avec des filtres actifs, "..." → Dupliquer/Renommer/Supprimer | Fonctionne comme sur Prospects/Segments ; ces actions n'apparaissent PAS sur un onglet système |
+| 9 | Regarder les 2 cartes sous les filtres | "Charge de l'équipe" (par commercial, actives + en retard) et "Génération automatique" (lien vers `/automations`) |
+
 ## Sections précédentes (toujours en attente de validation, non re-décrites)
 
 ### S34-18 — écran Prospects unifié (bascule Contacts/Entreprises, menu consolidé, filtres rapides, fraîcheur)

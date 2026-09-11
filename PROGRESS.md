@@ -132,6 +132,7 @@ Dernière mise à jour : 2026-09-04
 | S35-2 | Entreprises : bandeau de vues + menu "..." (aligné avec Contacts), colonnes Source/Statut, libellés dynamiques | ✅ fait côté code — en attente de validation navigateur |
 | S35-3 | Dashboard : bascule en menu déroulant, "actualisé il y a X min" + rafraîchir, filtres Propriétaire/Plage de dates, menus Partager/Actions consolidés, bloc "File d'enrichissement" | ✅ fait côté code — en attente de validation navigateur |
 | S35-4 | Segments : bandeau de vues + menu "..." + filtres rapides (chips) + colonnes paramétrables | ✅ fait côté code — en attente de validation navigateur |
+| S35-5 | Tâches : onglets système (À faire/En retard/Aujourd'hui/Mes tâches/Terminées) + vues perso + menu "..." + filtres rapides + colonnes Type/Priorité/Origine + widgets "Charge de l'équipe"/"Génération automatique" | 🔄 fait côté code — **migration 040 écrite, non appliquée** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2447,3 +2448,37 @@ changement là.
 Vérifié : `pnpm --filter crm typecheck`/`test` (77 fichiers, 556 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
 Aucune migration.
+
+**S35-5 (Tâches)** : migration `040_task_type_priority_origin.sql`
+(**écrite, non appliquée**) ajoute `tasks.task_type` (enum appel/email/
+rdv/donnée, **nullable** — pas de rétro-remplissage inventé sur les
+tâches déjà créées), `tasks.priority` (enum basse/normale/haute, défaut
+'normale'), `tasks.origin` (texte, défaut 'manual'). `run_automation_rules()`
+redéfinie (identique à la version de la migration 035, seul ajout :
+`origin = 'automation'` sur les tâches qu'elle crée) — jamais mis par un
+formulaire manuel. `AddTaskDialog`/`EditTaskDialog` gagnent les champs
+Type/Priorité (optionnels).
+
+Onglets système (calculés, pas des vues sauvegardées — À faire/En
+retard/Aujourd'hui/Mes tâches/Terminées, nouveau `lib/taskFilters.ts`
++ tests) mélangés avec des vues personnalisées créées par l'utilisateur
+(même `SavedViewTabs`/`ViewActionsMenu` qu'ailleurs, clé localStorage
+`dmh-crm-saved-views-tasks`) — Cloner/Renommer/Supprimer seulement sur
+une vue utilisateur, jamais sur un onglet système. Filtres rapides
+(chips) : Appels/Emails/RDV/Données (OU entre eux, sur `task_type`),
+Priorité haute, Générées automatiquement (sur `origin`) — pas de
+"+ Filtre avancé" supplémentaire, les onglets+chips couvrent déjà tous
+les critères réels disponibles. Colonnes Type/Priorité/Origine ajoutées
+au tableau. **Case à cocher de sélection multiple : pas ajoutée** — le
+mockup la montre mais ne définit aucune action de masse dessus, et on
+a déjà "Dépiler" comme mécanisme de traitement en lot des tâches ; une
+case sans action rattachée aurait été une coquille vide (contraire à
+"pas d'implémentation à moitié faite").
+
+Widgets annexes : "Charge de l'équipe" (par membre du staff, nombre de
+tâches actives + en retard, données réelles) et "Génération automatique"
+(texte + lien vers `/automations`).
+
+Vérifié : `pnpm --filter crm typecheck`/`test` (78 fichiers, 566 tests)
+verts, `pnpm typecheck`/`pnpm test` racine verts, `vite build` réussi.
+Migration `040` écrite, **non appliquée** — confirmation à demander.

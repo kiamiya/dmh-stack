@@ -11,7 +11,20 @@ import { ALL_TASK_STATUSES, getTaskStatusLabel } from "../lib/taskStatus";
 import { getDealDisplayName } from "../lib/deals";
 import { useToast } from "./ui/toast";
 import type { TaskRow, TaskUpdate } from "../services/tasks";
-import type { TaskStatus } from "@dmh/types";
+import type { TaskPriority, TaskStatus, TaskType } from "@dmh/types";
+
+const TASK_TYPE_OPTIONS: Array<{ value: TaskType; label: string }> = [
+  { value: "call", label: "Appel" },
+  { value: "email", label: "Email" },
+  { value: "meeting", label: "RDV" },
+  { value: "data", label: "Donnée" },
+];
+
+const TASK_PRIORITY_OPTIONS: Array<{ value: TaskPriority; label: string }> = [
+  { value: "low", label: "Basse" },
+  { value: "normal", label: "Normale" },
+  { value: "high", label: "Haute" },
+];
 
 export interface EditTaskDialogProps {
   task: TaskRow | null;
@@ -34,6 +47,8 @@ export function EditTaskDialog({ task, onOpenChange, onUpdated }: EditTaskDialog
   const [companyId, setCompanyId] = useState("");
   const [dealId, setDealId] = useState("");
   const [status, setStatus] = useState<TaskStatus>("to_do");
+  const [taskType, setTaskType] = useState<TaskType | "">("");
+  const [priority, setPriority] = useState<TaskPriority>("normal");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -47,6 +62,8 @@ export function EditTaskDialog({ task, onOpenChange, onUpdated }: EditTaskDialog
     setCompanyId(task.company_id ?? "");
     setDealId(task.deal_id ?? "");
     setStatus(task.status);
+    setTaskType(task.task_type ?? "");
+    setPriority(task.priority);
     setError(null);
   }, [task]);
 
@@ -71,6 +88,8 @@ export function EditTaskDialog({ task, onOpenChange, onUpdated }: EditTaskDialog
         companyId: companyId || null,
         dealId: dealId || null,
         status,
+        taskType: taskType || null,
+        priority,
       });
       toast(`Tâche "${title.trim()}" mise à jour.`, "success");
       onOpenChange(false);
@@ -160,6 +179,43 @@ export function EditTaskDialog({ task, onOpenChange, onUpdated }: EditTaskDialog
                 </option>
               ))}
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="edit-task-type">
+                Type (optionnel)
+              </label>
+              <select
+                id="edit-task-type"
+                value={taskType}
+                onChange={(e) => setTaskType(e.target.value as TaskType | "")}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <option value="">Non précisé</option>
+                {TASK_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="edit-task-priority">
+                Priorité
+              </label>
+              <select
+                id="edit-task-priority"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                {TASK_PRIORITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground" htmlFor="edit-task-contact">

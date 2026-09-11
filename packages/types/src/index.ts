@@ -194,6 +194,9 @@ export interface ContactCompany {
 }
 
 export type TaskStatus = "to_do" | "in_progress" | "done";
+/** Correction Claude Design (audit des 12 écrans) — migration 040, colonne nullable (pas de rétro-remplissage des tâches déjà créées). */
+export type TaskType = "call" | "email" | "meeting" | "data";
+export type TaskPriority = "low" | "normal" | "high";
 
 export interface Task {
   id: string;

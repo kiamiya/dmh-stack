@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TaskStatus } from "@dmh/types";
+import type { TaskPriority, TaskStatus, TaskType } from "@dmh/types";
 
 export interface TaskRow {
   id: string;
@@ -11,13 +11,16 @@ export interface TaskRow {
   contact_id: string | null;
   company_id: string | null;
   deal_id: string | null;
+  task_type: TaskType | null;
+  priority: TaskPriority;
+  origin: string;
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
   deals: { company_name: string; name: string | null } | null;
 }
 
 const TASK_SELECT =
-  "id, title, description, due_date, status, assigned_to, contact_id, company_id, deal_id, contacts(first_name, last_name), companies(name), deals(company_name, name)";
+  "id, title, description, due_date, status, assigned_to, contact_id, company_id, deal_id, task_type, priority, origin, contacts(first_name, last_name), companies(name), deals(company_name, name)";
 
 export async function listTasks(client: SupabaseClient): Promise<TaskRow[]> {
   const { data, error } = await client
@@ -38,6 +41,8 @@ export interface TaskInsert {
   companyId?: string | null;
   dealId?: string | null;
   createdBy?: string | null;
+  taskType?: TaskType | null;
+  priority?: TaskPriority;
 }
 
 export async function createTask(client: SupabaseClient, input: TaskInsert): Promise<{ id: string }> {
@@ -53,6 +58,8 @@ export async function createTask(client: SupabaseClient, input: TaskInsert): Pro
       company_id: input.companyId ?? null,
       deal_id: input.dealId ?? null,
       created_by: input.createdBy ?? null,
+      task_type: input.taskType ?? null,
+      priority: input.priority ?? "normal",
     })
     .select("id")
     .single();
@@ -74,6 +81,8 @@ export interface TaskUpdate {
   companyId?: string | null;
   dealId?: string | null;
   status?: TaskStatus;
+  taskType?: TaskType | null;
+  priority?: TaskPriority;
 }
 
 /** Met à jour uniquement les champs fournis dans `patch` (undefined = non touché, null = effacé). */
@@ -87,6 +96,8 @@ export async function updateTask(client: SupabaseClient, id: string, patch: Task
   if (patch.companyId !== undefined) update.company_id = patch.companyId;
   if (patch.dealId !== undefined) update.deal_id = patch.dealId;
   if (patch.status !== undefined) update.status = patch.status;
+  if (patch.taskType !== undefined) update.task_type = patch.taskType;
+  if (patch.priority !== undefined) update.priority = patch.priority;
 
   const { error } = await client.from("tasks").update(update).eq("id", id);
   if (error) throw new Error(error.message);
