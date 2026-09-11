@@ -109,8 +109,8 @@ Dernière mise à jour : 2026-09-04
 | S33-9 | Revue dev CRM (08/09) — opérateur "n'est pas renseigné" (inconnu) + comparaison de dates correcte pour avant/après | ✅ fait (partiel, voir note) — **migration 035 appliquée et vérifiée en production le 2026-09-10** |
 | S33-10 | Revue dev CRM (08/09) — logs/activités filtrables dans les vues | ✅ fait côté code (confirmé par Loïc malgré l'ambiguïté du CR) — aucune migration nécessaire, en attente de validation navigateur |
 | S34-1 | Revue dev CRM (11/09) — formulaire Contact : téléphone + réordonnancement des champs | ✅ fait côté code — en attente de validation navigateur |
-| S34-2 | Revue dev CRM (11/09) — formulaire Opportunité : nom libre + tâche de relance à la création | ✅ fait côté code — migration 036 (`deals.name`) écrite, **non appliquée** |
-| S34-C0 | Revue dev CRM (11/09) — relations hiérarchiques entreprises (maison mère/filiale, demande explicite de Loïc) | ✅ fait côté code — migration 037 (`companies.parent_company_id`) écrite, **non appliquée** |
+| S34-2 | Revue dev CRM (11/09) — formulaire Opportunité : nom libre + tâche de relance à la création | ✅ fait — **migration 036 appliquée et vérifiée en production le 2026-09-11** |
+| S34-C0 | Revue dev CRM (11/09) — relations hiérarchiques entreprises (maison mère/filiale, demande explicite de Loïc) | ✅ fait — **migration 037 appliquée et vérifiée en production le 2026-09-11** |
 | S34-3 | Revue dev CRM (11/09) — Opportunités en vue Kanban par défaut | ✅ fait — en attente de validation navigateur |
 | S34-4/5 | Revue dev CRM (11/09) — menu de vue (Enregistrer/Dupliquer/Renommer/Supprimer/Partager le lien) sur Prospects + filtres synchronisés dans l'URL | ✅ fait côté code (Prospects uniquement pour l'instant, pas encore Segments/Tâches) — en attente de validation navigateur |
 
@@ -1957,3 +1957,9 @@ l'instant. Point de reprise pour la prochaine session sur ce chantier.
 
 Vérifié : `pnpm --filter crm typecheck`/`test` (70 fichiers, 504 tests)
 verts, `pnpm typecheck`/`pnpm test` racine verts.
+
+**Migrations 036/037 appliquées en production** (2026-09-11, confirmation
+explicite de Loïc) — `supabase db push --linked` exécuté avec succès,
+vérifié en base (`information_schema.columns`) : `deals.name` et
+`companies.parent_company_id` existent bien. Plus aucune migration en
+attente à ce stade.
