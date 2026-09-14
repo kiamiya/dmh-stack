@@ -30,20 +30,27 @@ export function HelpPage() {
               <SubTitle>Pilotage</SubTitle>
               <p className="text-muted-foreground">
                 <strong className="text-foreground">Dashboard</strong> : vue d'ensemble (funnel de conversion, activité
-                de la force de vente, tâches en retard, performance par client) — tout calculé à partir des données
-                réelles, rien de simulé. <strong className="text-foreground">Reporting</strong> : mêmes indicateurs en
-                détail, pour une lecture plus fine.
+                de la force de vente, tâches en retard, performance par client), avec un filtre Propriétaire/Plage de
+                dates/Secteur/Étape pipeline et une tendance (7 derniers jours vs 7 précédents) sur les cartes
+                chiffrées — tout calculé à partir des données réelles, rien de simulé. Un dashboard "Vue d'ensemble"
+                par défaut, plus des <strong className="text-foreground">dashboards nommés personnels</strong> (nom,
+                description, couleur, blocs choisis un par un) créés depuis le sélecteur en haut de la page.{" "}
+                <strong className="text-foreground">Reporting</strong> : mêmes indicateurs en détail, pour une lecture
+                plus fine.
               </p>
             </div>
             <div>
               <SubTitle>Prospection</SubTitle>
               <p className="text-muted-foreground">
-                <strong className="text-foreground">Prospects</strong> (liste + vue Kanban <em>Pipeline</em>),{" "}
-                <strong className="text-foreground">Contacts</strong>,{" "}
-                <strong className="text-foreground">Entreprises</strong>,{" "}
-                <strong className="text-foreground">Opportunités</strong> (deals),{" "}
-                <strong className="text-foreground">Tâches</strong>,{" "}
-                <strong className="text-foreground">Segments</strong> (listes de contacts/entreprises/opportunités).
+                <strong className="text-foreground">Prospects</strong> (une seule page à l'adresse <code>/</code>,
+                avec une bascule interne <em>Contacts / Entreprises</em> et une vue Kanban <em>Pipeline</em> — pas des
+                entrées de menu séparées, <code>/contacts</code> et <code>/companies</code> restent des liens directs
+                qui redirigent vers cette même page),{" "}
+                <strong className="text-foreground">Opportunités</strong> (deals, vue Liste et Kanban partageant les
+                mêmes filtres/onglets), <strong className="text-foreground">Tâches</strong> (onglets système À
+                faire/En retard/Aujourd'hui/Mes tâches/Terminées + vues personnelles),{" "}
+                <strong className="text-foreground">Segments</strong> (listes de contacts/entreprises/opportunités,
+                classées en dossiers, avec sélection multiple pour les déplacer en masse).
               </p>
             </div>
             <div>
@@ -117,6 +124,12 @@ export function HelpPage() {
               suivants avancent soit manuellement (changement de statut dans le CRM), soit via les webhooks
               Smartlead/la synchro Lemlist quand un client répond ou ouvre un email/message LinkedIn.
             </p>
+            <p>
+              Sur la fiche d'un contact enrichi, la carte <strong className="text-foreground">"Champs enrichis"</strong>{" "}
+              indique, champ par champ, la source (Pappers/Dropcontact), la confiance et l'âge de la donnée — avec un
+              bandeau "Arbitrer" si deux fournisseurs ont un jour écrit des valeurs différentes pour le même champ
+              (rare aujourd'hui, un seul fournisseur actif par type de donnée).
+            </p>
           </CardContent>
         </Card>
 
@@ -128,14 +141,17 @@ export function HelpPage() {
             <p>
               Une <strong className="text-foreground">opportunité</strong> (deal) se crée depuis{" "}
               <code>/opportunities</code> ("+ Opportunité") — montant, probabilité, étape de pipeline (les étapes sont
-              personnalisables par client dans la vue Kanban). Passer un deal à "Gagné" déclenche automatiquement le
+              personnalisables par client), commercial assigné. Passer un deal à "Gagné" déclenche automatiquement le
               calcul d'attribution commerciale (qui a fait avancer ce prospect, montant de commission) — un vrai
-              trigger PostgreSQL, pas une estimation.
+              trigger PostgreSQL, pas une estimation. Les vues Liste et Kanban partagent les mêmes onglets/filtres
+              rapides et un "Regrouper par" (étape, commercial, client) — colonne "Pondéré" (montant × probabilité)
+              en plus du montant brut.
             </p>
             <p>
               Les <strong className="text-foreground">tâches</strong> peuvent être liées à un contact, une entreprise
-              ou une opportunité, avec échéance et responsable. Le calendrier de tâches (<code>/tasks</code>) affiche
-              les échéances du jour en permanence dans l'en-tête.
+              ou une opportunité, avec échéance, priorité, type et responsable. Des onglets système (À faire/En
+              retard/Aujourd'hui/Mes tâches/Terminées) filtrent automatiquement, en plus des vues personnelles
+              enregistrées — colonnes affichées personnalisables via "Modifier les colonnes".
             </p>
           </CardContent>
         </Card>
@@ -161,6 +177,11 @@ export function HelpPage() {
             <p>
               Une liste supprimée passe dans la <strong className="text-foreground">Corbeille</strong> (bouton en
               haut de la page) et y reste 30 jours avant purge automatique — "Restaurer" l'y récupère à tout moment.
+            </p>
+            <p>
+              Une case à cocher sur chaque ligne (et une en tête de tableau pour tout sélectionner) permet de choisir
+              plusieurs listes à la fois et de les déplacer en une seule action vers un dossier commun — un seul
+              rechargement, pas un aller-retour par liste.
             </p>
           </CardContent>
         </Card>
@@ -319,12 +340,15 @@ export function HelpPage() {
         <Card blueprint>
           <CardContent className="space-y-2 p-4 text-sm text-muted-foreground">
             <p>
-              <strong className="text-foreground">Point important à connaître</strong> : en dehors d'une règle
-              d'automatisation configurée avec l'action "Enrichir", il n'existe pas aujourd'hui de bouton "Enrichir
-              maintenant" cliquable sur une fiche entreprise ou prospect existante. Le déclenchement de
+              <strong className="text-foreground">Point important à connaître</strong> : un bouton{" "}
+              <strong className="text-foreground">"Enrichir"</strong> existe sur la fiche Contact (rafraîchit la
+              confiance email via Dropcontact) et sur la fiche Entreprise (rafraîchit les données via Pappers) — mais
+              seulement si un prospect est lié, et seulement pour rafraîchir des données déjà enrichies une première
+              fois. Pour un tout nouveau prospect encore "À enrichir", le déclenchement initial de
               Pappers/Dropcontact/Claude se fait soit via l'import en masse (traité par un développeur), soit via une
-              règle d'automatisation sur les nouveaux prospects. Si un prospect reste bloqué "À enrichir", c'est la
-              raison la plus probable — pas un bug silencieux.
+              règle d'automatisation sur les nouveaux prospects (voir "Automatiser" plus haut). Si un prospect reste
+              bloqué "À enrichir" sans qu'aucune des deux ne soit en place, c'est la raison la plus probable — pas un
+              bug silencieux.
             </p>
           </CardContent>
         </Card>
