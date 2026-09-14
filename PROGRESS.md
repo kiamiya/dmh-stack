@@ -136,7 +136,7 @@ Dernière mise à jour : 2026-09-14
 | S35-6 | Pipeline : chrome commun Liste/Kanban (onglets système + filtres rapides + menu "..." partagés), colonnes Commercial/Pondéré, "Regrouper par" (client/commercial) | ✅ fait — **migration 041 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S35-7 | Fiche Contact : bloc "Champs enrichis" (Source/Confiance/Âge par champ + détection de conflit multi-fournisseur) | ✅ fait — **migration 042 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
-| S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 écrite, non appliquée** (en attente de confirmation) ; voir Journal pour les écarts explicitement laissés de côté |
+| S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 appliquée et vérifiée en production le 2026-09-14** — en attente de validation navigateur ; voir Journal pour les écarts explicitement laissés de côté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2625,9 +2625,9 @@ Corrections livrées (tests unitaires + typecheck verts, racine et
   - description + couleur par dashboard nommé, remplace les
     `window.prompt` de création/renommage par un vrai dialogue
     (`DashboardMetaDialog.tsx`) — **migration `043_dashboard_meta.sql`
-    écrite, colonnes `description`/`color` sur `dashboards`, PAS
-    appliquée** (en attente de confirmation explicite, règle 5 de
-    `CLAUDE.md`).
+    (colonnes `description`/`color` sur `dashboards`) appliquée et
+    vérifiée en production le 2026-09-14** (confirmation explicite de
+    Loïc, colonnes confirmées via `supabase db query --linked`).
 - **"Créer un tableau de bord"** (bouton du sélecteur de dashboard) :
   vérifié déjà présent (S34-15), pas un nouvel écart.
 
@@ -2640,6 +2640,8 @@ Corrections livrées (tests unitaires + typecheck verts, racine et
   une décision produit (quel champ, comment le peupler) avant d'être
   construit.
 
-Prochaine étape si Loïc confirme : appliquer la migration 043, puis
-validation navigateur réelle de l'ensemble S35-8 (comme pour S35-1 à
-S35-7, toujours "en attente de validation navigateur").
+Migration 043 **appliquée et vérifiée en production le 2026-09-14**
+(confirmation explicite de Loïc, colonnes confirmées via
+`supabase db query --linked`). Reste la validation navigateur réelle
+de l'ensemble S35-8 (comme pour S35-1 à S35-7, toujours "en attente de
+validation navigateur").

@@ -14,15 +14,13 @@
 **Nouveau et prioritaire (S35-8 ci-dessous)** : correctifs résiduels
 trouvés lors de la re-vérification des 7 écrans de la Nature A (chips
 Contacts/Entreprises, sélection multiple Segments, tendances/filtres
-avancés/dashboards nommés du Dashboard). **Migration `043` écrite, non
-appliquée** (colonnes `description`/`color` sur `dashboards`) — sans
-elle, la description/couleur d'un dashboard nommé ne sera pas
-persistée (l'écran fonctionne, la modale s'ouvre, mais l'enregistrement
-échouera tant que la migration n'est pas appliquée). La Nature B
-(Campagne Email, Automatisation, Mapping, Reporting, Paramètres) reste
-documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
+avancés/dashboards nommés du Dashboard). **Migration `043` (colonnes
+`description`/`color` sur `dashboards`) appliquée et vérifiée en
+production le 2026-09-14.** La Nature B (Campagne Email,
+Automatisation, Mapping, Reporting, Paramètres) reste documentée dans
+`PROGRESS.md` comme reportée, rien à tester dessus.
 
-### S35-8 — chips Contacts/Entreprises, sélection Segments, Dashboard (tendances/filtres/dashboards nommés) *(nécessite migration 043 pour la description/couleur)*
+### S35-8 — chips Contacts/Entreprises, sélection Segments, Dashboard (tendances/filtres/dashboards nommés)
 
 | # | Test | Résultat attendu |
 |---|---|---|
@@ -39,7 +37,7 @@ documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
 | 11 | Choisir "Gagné" dans Étape pipeline | Seuls les deals gagnés restent dans les blocs Deals/Pipeline |
 | 12 | Choisir un membre du staff dans "Propriétaire" | Les deals qui lui sont assignés (`assigned_to`) sont filtrés correctement (avant ce correctif, les deals ignoraient ce filtre) |
 | 13 | Cliquer "+ Créer un tableau de bord" | La modale "Créer un tableau de bord" s'ouvre (Nom/Description/Couleur), pas un `window.prompt` |
-| 14 | Remplir un nom + une description + choisir une couleur, "Enregistrer" | *(nécessite migration 043)* Le dashboard apparaît dans le menu avec un point de couleur devant son nom, la description s'affiche à côté du sélecteur quand il est actif |
+| 14 | Remplir un nom + une description + choisir une couleur, "Enregistrer" | Le dashboard apparaît dans le menu avec un point de couleur devant son nom, la description s'affiche à côté du sélecteur quand il est actif |
 | 15 | Sur un dashboard nommé actif, "Actions" → "Modifier" | Rouvre la même modale pré-remplie (nom/description/couleur actuels), modifiable |
 
 ### S35-2 — Entreprises : bandeau de vues + colonnes Source/Statut
