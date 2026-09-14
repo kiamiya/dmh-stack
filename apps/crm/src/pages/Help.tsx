@@ -94,10 +94,9 @@ export function HelpPage() {
               Un contact importé crée aussi un prospect "À enrichir", qui déclenche l'enrichissement automatique
               Pappers/Dropcontact <strong className="text-foreground">si une règle d'automatisation "Enrichir" est
               active</strong> pour ce client (même mécanisme qu'une création manuelle ou qu'un export Pharow, voir
-              "Automatiser" plus haut) — sans cette règle, le contact est bien créé mais reste "À enrichir" tant
-              qu'un membre de l'équipe ne clique pas sur le bouton "Enrichir" des fiches Entreprise puis Contact
-              (voir le callout en bas de page). Une entreprise importée seule (sans contact) ne crée pas de prospect
-              et ne déclenche donc rien automatiquement.
+              "Automatiser" plus haut) — sans cette règle, le contact est bien créé mais reste "À enrichir" (voir le
+              callout en bas de page pour rafraîchir manuellement). Une entreprise importée seule (sans contact) ne
+              crée pas de prospect et ne déclenche donc rien automatiquement.
             </p>
             <p>
               L'import de masse via un <strong className="text-foreground">export Pharow</strong> (traité par un
@@ -129,13 +128,18 @@ export function HelpPage() {
               <Badge variant="red">Perdu</Badge> / <Badge variant="red">Pas intéressé</Badge>).
             </p>
             <p>
-              La vue <strong className="text-foreground">Pipeline</strong> affiche ces statuts en colonnes Kanban —
-              glisser une carte vers une autre colonne change réellement le statut du prospect en base. Un clic simple
-              (sans glisser) ouvre la fiche détail.
+              La vue <strong className="text-foreground">Pipeline</strong> affiche en colonnes Kanban seulement les 8
+              premiers statuts (jusqu'à "RDV pris", plus "Pas intéressé") — décision du 08/09/2026 : "Qualifié",
+              "Proposition envoyée", "Gagné" et "Perdu" appartiennent au pipeline <strong className="text-foreground">
+              Opportunités</strong>, pas à celui-ci. Un prospect dans l'un de ces 4 statuts reste visible en vue Liste
+              (badge, filtres, export), juste plus dans ce Kanban. Glisser une carte vers une autre colonne change
+              réellement le statut du prospect en base ; un clic simple (sans glisser) ouvre la fiche détail.
             </p>
             <p>
-              Les 3 premiers statuts (jusqu'à "Enrichi (contact)") avancent automatiquement via le pipeline
-              d'enrichissement (voir la section Intégrations API ci-dessous) — pas une saisie manuelle. Les statuts
+              Les 3 premiers statuts (jusqu'à "Enrichi (contact)") peuvent avancer automatiquement, mais seulement{" "}
+              <strong className="text-foreground">si une règle d'automatisation "Enrichir" est configurée et active
+              pour le client concerné</strong> (voir "Automatiser" plus haut) — sans cela, rien ne les fait avancer
+              tout seul, il faut passer par le bouton "Enrichir" manuel (voir le callout en bas de page). Les statuts
               suivants avancent soit manuellement (changement de statut dans le CRM), soit via les webhooks
               Smartlead/la synchro Lemlist quand un client répond ou ouvre un email/message LinkedIn.
             </p>
@@ -307,15 +311,27 @@ export function HelpPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card blueprint>
           <CardHeader>
             <CardTitle>Claude (Anthropic) — messages et score IA</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Une fois un prospect enrichi, Claude génère un email de prospection, un message LinkedIn et une relance à
-            J+7 personnalisés (statut "Prêt"). En parallèle, Claude calcule aussi un score 1-10 avec justification
-            écrite, affiché en badge sur la fiche entreprise et dans les listes/Kanban — recalculé dès que Pappers a
-            enrichi l'entreprise, indépendamment du reste du pipeline.
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              Deux fonctions existent et fonctionnent (testées, déployées) : la génération d'un email de
+              prospection/message LinkedIn/relance à J+7 (fait passer un prospect au statut "Prêt"), et un score 1-10
+              avec justification écrite (badge affiché sur la fiche entreprise et dans les listes/Kanban dès qu'il
+              existe).
+            </p>
+            <p>
+              <strong className="text-foreground">Mais contrairement à Pappers/Dropcontact, rien ne les déclenche
+              aujourd'hui</strong> — ni automatiquement (elles ne font pas partie des actions disponibles dans les
+              règles d'automatisation, limitées à "créer une tâche" et "enrichir" Pappers/Dropcontact), ni depuis un
+              bouton du CRM (il n'existe pas de bouton "Générer les messages" ou "Recalculer le score" sur une fiche).
+              Elles ne s'exécutent que si un développeur les appelle directement (script/API) pour un prospect donné.
+              En pratique, un prospect enrichi (Pappers + Dropcontact) reste donc bloqué sans score ni message tant
+              que ça n'a pas été fait manuellement côté technique — ce n'est pas un bug, c'est un chaînon jamais
+              câblé depuis la Phase 1.
+            </p>
           </CardContent>
         </Card>
 
@@ -356,14 +372,17 @@ export function HelpPage() {
           <CardContent className="space-y-2 p-4 text-sm text-muted-foreground">
             <p>
               <strong className="text-foreground">Point important à connaître</strong> : un bouton{" "}
-              <strong className="text-foreground">"Enrichir"</strong> existe sur la fiche Contact (rafraîchit la
-              confiance email via Dropcontact) et sur la fiche Entreprise (rafraîchit les données via Pappers) — mais
-              seulement si un prospect est lié, et seulement pour rafraîchir des données déjà enrichies une première
-              fois. Pour un tout nouveau prospect encore "À enrichir", le déclenchement initial de
-              Pappers/Dropcontact/Claude se fait soit via l'import en masse (traité par un développeur), soit via une
-              règle d'automatisation sur les nouveaux prospects (voir "Automatiser" plus haut). Si un prospect reste
-              bloqué "À enrichir" sans qu'aucune des deux ne soit en place, c'est la raison la plus probable — pas un
-              bug silencieux.
+              <strong className="text-foreground">"Enrichir"</strong> existe sur la fiche Contact (relance
+              Dropcontact) et sur la fiche Entreprise (relance Pappers) — dès qu'un prospect est lié, quel que soit
+              son statut actuel (fonctionne aussi bien pour un tout premier enrichissement que pour rafraîchir une
+              donnée déjà enrichie). <strong className="text-foreground">Nuance importante</strong> : cliquer
+              "Enrichir" met bien à jour les données réelles (SIREN, effectif, email…), mais ne fait{" "}
+              <strong className="text-foreground">jamais avancer le statut du prospect</strong> affiché dans le
+              pipeline/Kanban — un prospect peut donc afficher "À enrichir" alors que son entreprise a déjà été
+              rafraîchie via ce bouton. Seul le pipeline automatique (règle d'automatisation "Enrichir" active pour
+              le client) fait avancer ce statut. Si un prospect reste bloqué "À enrichir" sans qu'aucune règle
+              d'automatisation ne soit configurée pour son client, c'est la raison la plus probable — pas un bug
+              silencieux.
             </p>
           </CardContent>
         </Card>

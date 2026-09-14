@@ -2645,3 +2645,62 @@ Migration 043 **appliquée et vérifiée en production le 2026-09-14**
 `supabase db query --linked`). Reste la validation navigateur réelle
 de l'ensemble S35-8 (comme pour S35-1 à S35-7, toujours "en attente de
 validation navigateur").
+
+## 2026-09-14 (suite) — Audit de la page Aide vs réalité du code
+
+Loïc a repéré une inexactitude dans la page Aide (import CSV
+Contacts/Entreprises présenté comme inexistant, alors que S33-4 l'a
+bien livré) et a demandé de refaire le tour complet de la page et de
+vérifier le reste. Corrigé ce point (import CSV bien réel, avec
+enrichissement conditionné à une règle d'automatisation active), puis
+audité chaque affirmation de `Help.tsx` contre le code réel et l'état
+de production (`supabase db query --linked`). Écarts trouvés et
+corrigés dans la page :
+
+- **Kanban Pipeline** : la page laissait entendre que les 12 statuts y
+  apparaissent ; en réalité seulement 8 (jusqu'à "RDV pris" + "Pas
+  intéressé", décision du 08/09/2026, `lib/kanban.ts`) — les 4 restants
+  (Qualifié/Proposition envoyée/Gagné/Perdu) appartiennent au pipeline
+  Opportunités. Corrigé.
+- **Bouton "Enrichir" manuel** : la page affirmait qu'il servait
+  seulement à "rafraîchir" une donnée déjà enrichie. En réalité
+  `enrich-pappers`/`enrich-dropcontact` en mode `manual` n'ont aucune
+  contrainte de statut (fonctionnent dès le tout premier enrichissement)
+  — mais, autre nuance qui elle manquait complètement : le mode manuel
+  **ne met jamais à jour `prospects.status`** (`if (!manual) { ... update
+  status ... }` dans les deux fonctions). Un prospect peut donc rester
+  affiché "À enrichir" alors que ses données ont déjà été rafraîchies
+  via ce bouton. Corrigé, avec la nuance explicite.
+- **Score IA et messages générés (Claude)** — écart le plus important
+  trouvé, pas seulement un problème de rédaction : la page présentait
+  `score-prospect`/`generate-messages` comme s'exécutant automatiquement
+  "une fois un prospect enrichi". Vérification exhaustive (recherche
+  dans `apps/crm/src`, `scripts/`, toutes les migrations ; table
+  `supabase_functions.hooks` absente du projet distant — donc aucun
+  Database Webhook dashboard non plus ; aucune règle d'automatisation en
+  production avec `action_type = 'trigger_enrichment'`) : **rien
+  n'invoque ces deux fonctions aujourd'hui**, ni automatiquement (les
+  automatisations n'acceptent que les providers `pappers`/`dropcontact`,
+  jamais `score`/`messages`), ni depuis un bouton du CRM (aucun n'existe
+  pour ça, contrairement à Pappers/Dropcontact). Confirmé par les
+  données réelles : sur 20 entreprises de test, 1 seule a un `ai_score`
+  (l'unique test end-to-end du 30/07) ; aucun prospect n'est aujourd'hui
+  dans un statut `ready`/`in_sequence`/etc. atteint par le pipeline
+  automatique (répartition réelle : `won` ×16, `to_enrich` ×3,
+  `qualified` ×1 — tous positionnés manuellement pour les besoins des
+  tests d'écran, pas via le pipeline). C'est le même écart déjà noté dès
+  juillet dans "Écarts assumés" ("Déclenchement automatique des Edge
+  Functions" — jamais câblé), simplement jamais refermé depuis, y
+  compris après l'arrivée du moteur d'automatisation (S12) qui n'a câblé
+  que Pappers/Dropcontact. Page corrigée pour le dire explicitement.
+  **Décision à prendre avec Loïc** : ajouter `score`/`messages` comme
+  providers possibles de l'action "Enrichir" des automatisations (le
+  chemin le plus proche de l'existant), ou un bouton manuel dédié sur la
+  fiche, ou laisser tel quel (documenté, pas fabriqué) — pas tranché,
+  pas implémenté sans confirmation.
+
+Tous les autres pans vérifiés (menu/sidebar, statuts prospects,
+webhook Smartlead ouvertures/clics/réponses, synchro Lemlist manuelle,
+champs personnalisés utilisables en segments/automatisations, OAuth
+calendrier, mapping Pappers/Dropcontact) correspondent bien au code —
+aucune autre correction nécessaire.
