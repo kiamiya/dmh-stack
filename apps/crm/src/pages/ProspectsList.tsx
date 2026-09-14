@@ -26,7 +26,7 @@ import { formatRelativeTime } from "../lib/relativeTime";
 import { formatFreshnessDays } from "../lib/dataFreshness";
 import { isStagnant } from "../lib/stagnation";
 import { computeContactCompleteness } from "../lib/contactCompleteness";
-import { hasPhone, isEmailVerified, isFreshUnderDays } from "../lib/quickFilters";
+import { hasPhone, isCompleteAbove, isEmailVerified, isFreshUnderDays } from "../lib/quickFilters";
 import { cn } from "../lib/cn";
 import {
   EMPTY_PROSPECT_FILTERS,
@@ -318,6 +318,9 @@ export function ProspectsListPage() {
       emailVerified: byClientForCount.filter((p) => isEmailVerified({ email_confidence: p.contacts?.email_confidence ?? null })).length,
       hasPhone: byClientForCount.filter((p) => hasPhone({ phone: p.contacts?.phone ?? null })).length,
       freshUnder7d: byClientForCount.filter((p) => isFreshUnderDays(7, p.contacts?.updated_at ?? null)).length,
+      confidenceAbove85: byClientForCount.filter((p) =>
+        isCompleteAbove(85, computeContactCompleteness(p.contacts ?? { job_title: null, email: null, linkedin_url: null })),
+      ).length,
     }),
     [byClientForCount],
   );
@@ -726,6 +729,7 @@ export function ProspectsListPage() {
               { key: "emailVerified", label: "Email vérifié", count: chipCounts.emailVerified, active: filters.emailVerified },
               { key: "hasPhone", label: "Téléphone direct", count: chipCounts.hasPhone, active: filters.hasPhone },
               { key: "freshUnder7d", label: "Fraîcheur < 7j", count: chipCounts.freshUnder7d, active: filters.freshUnder7d },
+              { key: "confidenceAbove85", label: "Confiance ≥ 85%", count: chipCounts.confidenceAbove85, active: filters.confidenceAbove85 },
             ]}
             onToggle={(key) => setFilters((f) => ({ ...f, [key]: !f[key as keyof ProspectFilters] }))}
             showAdvanced={showAdvanced}

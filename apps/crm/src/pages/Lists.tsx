@@ -172,6 +172,8 @@ export function ListsPage() {
   const [enrichedAbove90, setEnrichedAbove90] = useState(false);
   const [staleOver14d, setStaleOver14d] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedListIds, setSelectedListIds] = useState<Set<string>>(new Set());
+  const [bulkFolderId, setBulkFolderId] = useState("");
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
 
@@ -351,6 +353,34 @@ export function ListsPage() {
     try {
       await MOVE_TO_FOLDER_BY_ENTITY[entityType](id, folderId || null);
       await reload();
+    } catch (err) {
+      toast(`Échec : ${(err as Error).message}`, "destructive");
+    }
+  }
+
+  function toggleListSelected(id: string) {
+    setSelectedListIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllLists() {
+    setSelectedListIds((prev) => (prev.size === filteredRows.length ? new Set() : new Set(filteredRows.map((r) => r.id))));
+  }
+
+  /** Action de masse "Ajouter au dossier" (case à cocher du mockup) — un seul rechargement à la fin plutôt qu'un par ligne. */
+  async function handleBulkMoveToFolder() {
+    const rows = filteredRows.filter((r) => selectedListIds.has(r.id));
+    if (rows.length === 0) return;
+    try {
+      await Promise.all(rows.map((r) => MOVE_TO_FOLDER_BY_ENTITY[r.entityType](r.id, bulkFolderId || null)));
+      await reload();
+      toast(`${rows.length} liste(s) déplacée(s).`, "success");
+      setSelectedListIds(new Set());
+      setBulkFolderId("");
     } catch (err) {
       toast(`Échec : ${(err as Error).message}`, "destructive");
     }
@@ -1002,6 +1032,34 @@ export function ListsPage() {
         </form>
       )}
 
+      {selectedListIds.size > 0 && filterClientId && (
+        <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm">
+          <span className="text-foreground">{selectedListIds.size} liste(s) sélectionnée(s)</span>
+          <select
+            value={bulkFolderId}
+            onChange={(e) => setBulkFolderId(e.target.value)}
+            className="rounded-md border border-border bg-transparent px-1.5 py-1 text-xs"
+          >
+            <option value="">Sans dossier</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.parent_id ? `— ${f.name}` : f.name}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" onClick={handleBulkMoveToFolder}>
+            Ajouter au dossier
+          </Button>
+          <button
+            type="button"
+            onClick={() => setSelectedListIds(new Set())}
+            className="ml-auto text-xs text-muted-foreground hover:underline"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -1014,6 +1072,14 @@ export function ListsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <input
+                      type="checkbox"
+                      checked={filteredRows.length > 0 && selectedListIds.size === filteredRows.length}
+                      onChange={toggleSelectAllLists}
+                      aria-label="Tout sélectionner"
+                    />
+                  </TableHead>
                   <TableHead>Nom</TableHead>
                   {columnVisibility.mode !== false && <TableHead>Mode</TableHead>}
                   {columnVisibility.client !== false && <TableHead>Client</TableHead>}
@@ -1027,6 +1093,14 @@ export function ListsPage() {
               <TableBody>
                 {filteredRows.map((row) => (
                   <TableRow key={row.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedListIds.has(row.id)}
+                        onChange={() => toggleListSelected(row.id)}
+                        aria-label={`Sélectionner ${row.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium text-foreground">
                       {row.name}
                       <span className="mt-0.5 flex items-center gap-1.5">
@@ -1086,7 +1160,7 @@ export function ListsPage() {
                 ))}
                 {filteredRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground">
                       Aucune liste pour l'instant.
                     </TableCell>
                   </TableRow>

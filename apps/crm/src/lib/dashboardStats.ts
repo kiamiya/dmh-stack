@@ -153,3 +153,30 @@ export function combineWeeklyBreakdown(
     meetings: meetings[i]?.count ?? 0,
   }));
 }
+
+export interface TrendResult {
+  current: number;
+  previous: number;
+  diff: number;
+}
+
+/**
+ * Pure : compare une somme (ou un compte, `value` défaut 1) sur les
+ * `windowDays` derniers jours à la fenêtre équivalente précédente —
+ * sert de "tendance" pour les cartes KPI du Dashboard (mockup
+ * "Relais"). `diff` = current - previous, positif ou négatif.
+ */
+export function computeTrend(entries: Array<{ date: string; value?: number }>, now: Date, windowDays = 7): TrendResult {
+  const currentEnd = now.getTime();
+  const currentStart = currentEnd - windowDays * 24 * 60 * 60 * 1000;
+  const previousStart = currentStart - windowDays * 24 * 60 * 60 * 1000;
+  let current = 0;
+  let previous = 0;
+  for (const entry of entries) {
+    const t = new Date(entry.date).getTime();
+    const value = entry.value ?? 1;
+    if (t >= currentStart && t <= currentEnd) current += value;
+    else if (t >= previousStart && t < currentStart) previous += value;
+  }
+  return { current, previous, diff: current - previous };
+}

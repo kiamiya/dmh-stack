@@ -428,6 +428,8 @@ export interface Dashboard {
   id: string;
   owner_id: string;
   name: string;
+  description: string | null;
+  color: string | null;
   blocks: string[];
   position: number;
   created_at: string;

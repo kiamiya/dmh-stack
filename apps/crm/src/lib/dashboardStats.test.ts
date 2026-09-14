@@ -4,6 +4,7 @@ import {
   combineWeeklyBreakdown,
   computeFunnelFromHistory,
   computeStatusCounts,
+  computeTrend,
   computeWeeklyCounts,
   topProspectsByScore,
 } from "./dashboardStats";
@@ -111,5 +112,33 @@ describe("combineWeeklyBreakdown", () => {
     expect(result).toHaveLength(2);
     expect(result[1]).toEqual({ weekStart: "2026-08-24", calls: 1, emails: 2, meetings: 0 });
     expect(result[0]).toEqual({ weekStart: "2026-08-17", calls: 0, emails: 0, meetings: 0 });
+  });
+});
+
+describe("computeTrend", () => {
+  const NOW = new Date("2026-08-26T12:00:00Z");
+
+  it("compare la fenêtre courante (7j) à la précédente", () => {
+    const entries = [
+      { date: "2026-08-25T00:00:00Z" }, // fenêtre courante
+      { date: "2026-08-24T00:00:00Z" }, // fenêtre courante
+      { date: "2026-08-15T00:00:00Z" }, // fenêtre précédente
+    ];
+    const result = computeTrend(entries, NOW, 7);
+    expect(result).toEqual({ current: 2, previous: 1, diff: 1 });
+  });
+
+  it("ignore les entrées hors des deux fenêtres", () => {
+    const result = computeTrend([{ date: "2020-01-01T00:00:00Z" }], NOW, 7);
+    expect(result).toEqual({ current: 0, previous: 0, diff: 0 });
+  });
+
+  it("somme la valeur fournie plutôt que de compter (ex. commission)", () => {
+    const entries = [
+      { date: "2026-08-25T00:00:00Z", value: 1000 },
+      { date: "2026-08-15T00:00:00Z", value: 300 },
+    ];
+    const result = computeTrend(entries, NOW, 7);
+    expect(result).toEqual({ current: 1000, previous: 300, diff: 700 });
   });
 });

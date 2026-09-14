@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-04
+Dernière mise à jour : 2026-09-14
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -136,6 +136,7 @@ Dernière mise à jour : 2026-09-04
 | S35-6 | Pipeline : chrome commun Liste/Kanban (onglets système + filtres rapides + menu "..." partagés), colonnes Commercial/Pondéré, "Regrouper par" (client/commercial) | ✅ fait — **migration 041 appliquée et vérifiée en production le 2026-09-11** — en attente de validation navigateur |
 | S35-7 | Fiche Contact : bloc "Champs enrichis" (Source/Confiance/Âge par champ + détection de conflit multi-fournisseur) | ✅ fait — **migration 042 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
+| S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 écrite, non appliquée** (en attente de confirmation) ; voir Journal pour les écarts explicitement laissés de côté |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2568,3 +2569,77 @@ Toute la Nature A (mécanique, S35-1 à S35-7) est terminée. La Nature B
 (Campagne Email, Automatisation, Mapping, Reporting, Paramètres) reste
 explicitement documentée plus haut comme reportée/à cadrer avec Loïc,
 Delphine et William avant de commencer quoi que ce soit dessus.
+
+## 2026-09-14 — "corrige tout ce que tu peux" (S35-8)
+
+Suite au nouveau tour de vérification demandé par Loïc ("refais le tour
+du design sur claude design et fais moi la liste de ce qui ne
+correspond pas sur la prod"), 3 agents ont re-vérifié les 7 écrans
+corrigés (S35-1 à S35-7) : les correctifs tiennent, mais quelques
+écarts résiduels réels (pas re-découverts, du nouveau) sont ressortis.
+Loïc a ensuite demandé de "corriger tout ce que tu peux" — périmètre
+choisi (annoncé, pas juste supposé) : corriger ce qui est raisonnable
+sans revenir sur une décision d'architecture déjà actée ni fabriquer de
+donnée. Explicitement laissé de côté cette fois :
+- l'envoi transactionnel par email (déjà bloqué, S34-16bis, aucun
+  fournisseur configuré) ;
+- le bouton "Séquence" (mise en séquence Smartlead) sur la Fiche
+  Contact — nouvelle intégration, pas encore présent, à confirmer avec
+  Loïc avant de le construire ;
+- le bandeau d'arbitrage de conflit multi-fournisseur (déjà codé,
+  S35-7) — aucun vrai cas de conflit à tester contre aujourd'hui (un
+  seul fournisseur actif par domaine) ;
+- le partage d'un dossier avec un compte client et la vue "tous les
+  dossiers" groupée par client — les deux dépendent de la Phase G
+  (bloquée sur William, S34-10/S34-17) ou d'une architecture dossier
+  déjà scopée à un seul client (migration 032, décision actée).
+
+Corrections livrées (tests unitaires + typecheck verts, racine et
+`crm`, à chaque étape) :
+
+- **Contacts/Entreprises** (`lib/quickFilters.ts`, `lib/prospectFilters.ts`,
+  `EntreprisesPanel.tsx`, `ProspectsList.tsx`) : chips manquants signalés
+  par l'audit — "Confiance ≥ 85%" (contacts, via
+  `computeContactCompleteness` déjà réel), "Effectif ≥ 100" et "CA ≥
+  10M€" (entreprises). Nouvelle fonction pure
+  `extractMinEmployeeCount` : une tranche d'effectif Pappers ("Entre
+  2 000 et 4 999 salariés") n'a pas de valeur exacte, on en extrait
+  honnêtement la borne basse plutôt que d'inventer un chiffre.
+- **Tâches** (`Tasks.tsx`) : "Modifier les colonnes" (case à cocher par
+  colonne : Type/Échéance/Assigné à/Priorité/Lié à/Origine), signalé
+  manquant par l'audit alors que le pattern existe déjà ailleurs.
+- **Segments** (`Lists.tsx`) : sélection multiple (case à cocher par
+  ligne + tout sélectionner) + barre d'action de masse "Ajouter au
+  dossier" (un seul rechargement à la fin, pas un par ligne — plus
+  efficace que le sélecteur par ligne déjà existant).
+- **Dashboard** (`Dashboard.tsx`, `lib/dashboardStats.ts`,
+  `lib/dashboardFilters.ts`) :
+  - tendance 7 jours vs 7 jours précédents sous les cartes KPI "Total
+    prospects"/"Deals gagnés"/"Commission cumulée" (nouvelle fonction
+    pure `computeTrend`) ;
+  - "+ Filtres avancés" : Secteur (NAF, sur les prospects) et Étape
+    pipeline (statut de deal) — au passage, le filtre Propriétaire sur
+    les deals utilisait `() => null` (commentaire obsolète : la colonne
+    `deals.assigned_to` existe bien depuis la migration 041) — corrigé
+    pour utiliser la vraie donnée ;
+  - description + couleur par dashboard nommé, remplace les
+    `window.prompt` de création/renommage par un vrai dialogue
+    (`DashboardMetaDialog.tsx`) — **migration `043_dashboard_meta.sql`
+    écrite, colonnes `description`/`color` sur `dashboards`, PAS
+    appliquée** (en attente de confirmation explicite, règle 5 de
+    `CLAUDE.md`).
+- **"Créer un tableau de bord"** (bouton du sélecteur de dashboard) :
+  vérifié déjà présent (S34-15), pas un nouvel écart.
+
+Écart documenté, PAS corrigé (décision explicite, pas un oubli) :
+- **Dashboard — "Comptes clients suivis", colonne Secteur** : le
+  mockup l'affiche, mais `dmh_clients` (migration 001) n'a aucun champ
+  secteur/activité et rien ne le peuplerait automatiquement. Ajouter la
+  colonne sans donnée réelle reviendrait à fabriquer un chiffre/texte —
+  contraire au principe "jamais une donnée inventée" du repo. Nécessite
+  une décision produit (quel champ, comment le peupler) avant d'être
+  construit.
+
+Prochaine étape si Loïc confirme : appliquer la migration 043, puis
+validation navigateur réelle de l'ensemble S35-8 (comme pour S35-1 à
+S35-7, toujours "en attente de validation navigateur").

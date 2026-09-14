@@ -46,6 +46,15 @@ const ORIGIN_LABELS: Record<string, string> = {
 
 const SAVED_VIEWS_STORAGE_KEY = "dmh-crm-saved-views-tasks";
 
+const TASK_COLUMN_LABELS: Record<string, string> = {
+  type: "Type",
+  dueDate: "Échéance",
+  assignedTo: "Assigné à",
+  priority: "Priorité",
+  relatedTo: "Lié à",
+  origin: "Origine",
+};
+
 const SYSTEM_TABS: Array<{ id: string; label: string; preset: TaskPreset }> = [
   { id: "all", label: "Toutes", preset: "all" },
   { id: "todo", label: "À faire", preset: "todo" },
@@ -66,6 +75,8 @@ export function TasksPage() {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [focusOpen, setFocusOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
 
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
   const [savedViews, setSavedViews] = useState<SavedView<TaskFilters>[]>([]);
@@ -179,6 +190,7 @@ export function TasksPage() {
   }
 
   const viewMenuActions = [
+    { label: "Modifier les colonnes", onClick: () => setColumnsDialogOpen(true) },
     { label: "Partager le lien de la vue", onClick: handleCopyViewLink },
     ...(activeSavedView
       ? [
@@ -290,6 +302,27 @@ export function TasksPage() {
         </DialogFooter>
       </Dialog>
 
+      <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+        <DialogHeader>
+          <DialogTitle>Modifier les colonnes</DialogTitle>
+        </DialogHeader>
+        <DialogContent className="space-y-1">
+          {Object.entries(TASK_COLUMN_LABELS).map(([id, label]) => (
+            <label key={id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={columnVisibility[id] !== false}
+                onChange={(e) => setColumnVisibility((v) => ({ ...v, [id]: e.target.checked }))}
+              />
+              <span className="text-foreground">{label}</span>
+            </label>
+          ))}
+        </DialogContent>
+        <DialogFooter>
+          <Button onClick={() => setColumnsDialogOpen(false)}>Fermer</Button>
+        </DialogFooter>
+      </Dialog>
+
       <QuickFilterChips
         chips={[
           { key: "call", label: "Appels", count: chipCounts.call, active: filters.types.includes("call") },
@@ -357,12 +390,12 @@ export function TasksPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Titre</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Échéance</TableHead>
-              <TableHead>Assigné à</TableHead>
-              <TableHead>Priorité</TableHead>
-              <TableHead>Lié à</TableHead>
-              <TableHead>Origine</TableHead>
+              {columnVisibility.type !== false && <TableHead>Type</TableHead>}
+              {columnVisibility.dueDate !== false && <TableHead>Échéance</TableHead>}
+              {columnVisibility.assignedTo !== false && <TableHead>Assigné à</TableHead>}
+              {columnVisibility.priority !== false && <TableHead>Priorité</TableHead>}
+              {columnVisibility.relatedTo !== false && <TableHead>Lié à</TableHead>}
+              {columnVisibility.origin !== false && <TableHead>Origine</TableHead>}
               <TableHead>Statut</TableHead>
             </TableRow>
           </TableHeader>
@@ -374,25 +407,33 @@ export function TasksPage() {
                     {t.title}
                   </button>
                 </TableCell>
-                <TableCell>{t.task_type ? TASK_TYPE_LABELS[t.task_type] : "—"}</TableCell>
-                <TableCell>{t.due_date ? new Date(t.due_date).toLocaleDateString("fr-FR") : "—"}</TableCell>
-                <TableCell>{staff.find((s) => s.id === t.assigned_to)?.name ?? "—"}</TableCell>
-                <TableCell>
-                  {t.priority === "high" ? <Badge variant="red">Haute</Badge> : t.priority === "low" ? "Basse" : "Normale"}
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const link = taskRelatedLink(t);
-                    return link ? (
-                      <Link to={link.to} className="hover:underline">
-                        {link.label}
-                      </Link>
-                    ) : (
-                      "—"
-                    );
-                  })()}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{ORIGIN_LABELS[t.origin] ?? t.origin}</TableCell>
+                {columnVisibility.type !== false && <TableCell>{t.task_type ? TASK_TYPE_LABELS[t.task_type] : "—"}</TableCell>}
+                {columnVisibility.dueDate !== false && (
+                  <TableCell>{t.due_date ? new Date(t.due_date).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                )}
+                {columnVisibility.assignedTo !== false && <TableCell>{staff.find((s) => s.id === t.assigned_to)?.name ?? "—"}</TableCell>}
+                {columnVisibility.priority !== false && (
+                  <TableCell>
+                    {t.priority === "high" ? <Badge variant="red">Haute</Badge> : t.priority === "low" ? "Basse" : "Normale"}
+                  </TableCell>
+                )}
+                {columnVisibility.relatedTo !== false && (
+                  <TableCell>
+                    {(() => {
+                      const link = taskRelatedLink(t);
+                      return link ? (
+                        <Link to={link.to} className="hover:underline">
+                          {link.label}
+                        </Link>
+                      ) : (
+                        "—"
+                      );
+                    })()}
+                  </TableCell>
+                )}
+                {columnVisibility.origin !== false && (
+                  <TableCell className="text-muted-foreground">{ORIGIN_LABELS[t.origin] ?? t.origin}</TableCell>
+                )}
                 <TableCell>
                   <select
                     value={t.status}
@@ -413,7 +454,7 @@ export function TasksPage() {
             ))}
             {filteredTasks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={2 + Object.keys(TASK_COLUMN_LABELS).filter((id) => columnVisibility[id] !== false).length} className="text-center text-muted-foreground">
                   Aucune tâche.
                 </TableCell>
               </TableRow>

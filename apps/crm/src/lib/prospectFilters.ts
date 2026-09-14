@@ -1,6 +1,7 @@
 import type { ProspectStatus } from "@dmh/types";
 import type { ProspectListRow } from "../services/prospects";
-import { hasPhone, isEmailVerified, isFreshUnderDays } from "./quickFilters";
+import { hasPhone, isCompleteAbove, isEmailVerified, isFreshUnderDays } from "./quickFilters";
+import { computeContactCompleteness } from "./contactCompleteness";
 
 export interface ProspectFilters {
   search: string;
@@ -13,6 +14,7 @@ export interface ProspectFilters {
   emailVerified: boolean;
   hasPhone: boolean;
   freshUnder7d: boolean;
+  confidenceAbove85: boolean;
 }
 
 export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
@@ -25,6 +27,7 @@ export const EMPTY_PROSPECT_FILTERS: ProspectFilters = {
   emailVerified: false,
   hasPhone: false,
   freshUnder7d: false,
+  confidenceAbove85: false,
 };
 
 /**
@@ -45,6 +48,7 @@ export function filtersToSearchParams(filters: ProspectFilters): URLSearchParams
   if (filters.emailVerified) params.set("emailVerified", "1");
   if (filters.hasPhone) params.set("hasPhone", "1");
   if (filters.freshUnder7d) params.set("freshUnder7d", "1");
+  if (filters.confidenceAbove85) params.set("confidenceAbove85", "1");
   return params;
 }
 
@@ -62,6 +66,7 @@ export function searchParamsToFilters(params: URLSearchParams): ProspectFilters 
     emailVerified: params.get("emailVerified") === "1",
     hasPhone: params.get("hasPhone") === "1",
     freshUnder7d: params.get("freshUnder7d") === "1",
+    confidenceAbove85: params.get("confidenceAbove85") === "1",
   };
 }
 
@@ -96,6 +101,10 @@ export function filterProspects(prospects: ProspectListRow[], filters: ProspectF
     if (filters.emailVerified && !isEmailVerified({ email_confidence: p.contacts?.email_confidence ?? null })) return false;
     if (filters.hasPhone && !hasPhone({ phone: p.contacts?.phone ?? null })) return false;
     if (filters.freshUnder7d && !isFreshUnderDays(7, p.contacts?.updated_at ?? null)) return false;
+    if (filters.confidenceAbove85) {
+      const completeness = computeContactCompleteness(p.contacts ?? { job_title: null, email: null, linkedin_url: null });
+      if (!isCompleteAbove(85, completeness)) return false;
+    }
 
     return true;
   });

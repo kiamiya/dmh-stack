@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import type { Dashboard } from "@dmh/types";
 import { openProspectLinkState } from "../lib/navigation";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -11,6 +12,8 @@ import { FunnelChart } from "../components/charts/FunnelChart";
 import { WeeklyAreaChart } from "../components/charts/WeeklyAreaChart";
 import { StackedWeeklyBarChart } from "../components/charts/StackedWeeklyBarChart";
 import { DashboardBlocksDialog } from "../components/DashboardBlocksDialog";
+import { DashboardMetaDialog } from "../components/DashboardMetaDialog";
+import type { DashboardMetaValues } from "../components/DashboardMetaDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatScore, getScoreColor } from "../lib/score";
 import { formatCurrency, getDealDisplayName } from "../lib/deals";
@@ -21,6 +24,7 @@ import {
   combineWeeklyBreakdown,
   computeFunnelFromHistory,
   computeStatusCounts,
+  computeTrend,
   computeWeeklyCounts,
   topProspectsByScore,
 } from "../lib/dashboardStats";
@@ -39,8 +43,9 @@ import { computeOverdueTasks, computeTaskCountsByStatus } from "../lib/taskStats
 import { PageHeader } from "../components/ui/page-header";
 import { DropdownMenu, DropdownMenuItem } from "../components/ui/dropdown-menu";
 import { useToast } from "../components/ui/toast";
-import { EMPTY_DASHBOARD_FILTERS, filterByOwnerAndDate } from "../lib/dashboardFilters";
+import { EMPTY_DASHBOARD_FILTERS, filterByOwnerAndDate, matchesDealStatus } from "../lib/dashboardFilters";
 import type { DashboardFilters } from "../lib/dashboardFilters";
+import { extractDistinctNafLabels } from "../lib/prospectFilters";
 
 export function DashboardPage() {
   const location = useLocation();
@@ -65,18 +70,30 @@ export function DashboardPage() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [blocksDialogOpen, setBlocksDialogOpen] = useState(false);
+  const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const [metaDialogTarget, setMetaDialogTarget] = useState<Dashboard | null>(null);
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
   const [filters, setFilters] = useState<DashboardFilters>(EMPTY_DASHBOARD_FILTERS);
-  const hasActiveFilters = filters.ownerId !== null || filters.dateFrom !== null || filters.dateTo !== null;
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const hasActiveFilters =
+    filters.ownerId !== null ||
+    filters.dateFrom !== null ||
+    filters.dateTo !== null ||
+    filters.sector !== null ||
+    filters.dealStatus !== null;
+  const sectorOptions = useMemo(() => extractDistinctNafLabels(rawProspects), [rawProspects]);
 
-  /** Filtre "rapide" du mockup (Propriétaire + Plage de dates), appliqué une fois ici — chaque bloc existant continue de consommer ces variables sans changer sa propre logique. `deals` n'a pas encore de propriétaire (pas de colonne `assigned_to`, prévue avec le chantier Pipeline) donc seule la plage de dates s'y applique ; `interactions`/`meetings` filtrent sur leur créateur/organisateur réel. */
+  /** Filtre "rapide" du mockup (Propriétaire + Plage de dates + Secteur/Étape), appliqué une fois ici — chaque bloc existant continue de consommer ces variables sans changer sa propre logique. `interactions`/`meetings` filtrent sur leur créateur/organisateur réel ; ils n'ont pas de secteur propre donc ce critère ne s'y applique pas. */
   const prospects = useMemo(
-    () => filterByOwnerAndDate(rawProspects, filters, (p) => p.assigned_to, (p) => p.created_at),
+    () => filterByOwnerAndDate(rawProspects, filters, (p) => p.assigned_to, (p) => p.created_at, (p) => p.companies?.naf_label ?? null),
     [rawProspects, filters],
   );
   const deals = useMemo(
-    () => filterByOwnerAndDate(rawDeals, filters, () => null, (d) => d.signed_at ?? d.created_at),
+    () =>
+      filterByOwnerAndDate(rawDeals, filters, (d) => d.assigned_to, (d) => d.signed_at ?? d.created_at).filter((d) =>
+        matchesDealStatus(d.status, filters),
+      ),
     [rawDeals, filters],
   );
   const interactions = useMemo(
@@ -168,6 +185,21 @@ export function DashboardPage() {
   const wonDeals = deals.filter((d) => d.status === "won");
   const lostDeals = deals.filter((d) => d.status === "lost");
   const totalCommission = wonDeals.reduce((sum, d) => sum + (d.commission_amount ?? 0), 0);
+
+  /** Tendance (7 derniers jours vs 7 précédents) affichée sous chaque carte KPI. */
+  const prospectsTrend = useMemo(() => computeTrend(prospects.map((p) => ({ date: p.created_at })), now), [prospects, now]);
+  const dealsWonTrend = useMemo(
+    () => computeTrend(wonDeals.filter((d) => d.signed_at).map((d) => ({ date: d.signed_at! })), now),
+    [wonDeals, now],
+  );
+  const commissionTrend = useMemo(
+    () =>
+      computeTrend(
+        wonDeals.filter((d) => d.signed_at).map((d) => ({ date: d.signed_at!, value: d.commission_amount ?? 0 })),
+        now,
+      ),
+    [wonDeals, now],
+  );
 
   const pipelineValue = useMemo(() => computePipelineValueByStatus(deals), [deals]);
   const conversionRate = useMemo(() => computeConversionRate(deals), [deals]);
@@ -457,16 +489,22 @@ export function DashboardPage() {
     }
   }
 
-  async function handleNewDashboard() {
-    const name = window.prompt("Nom du nouveau dashboard :");
-    if (!name?.trim()) return;
-    await create(name.trim());
+  function openNewDashboardDialog() {
+    setMetaDialogTarget(null);
+    setMetaDialogOpen(true);
   }
 
-  async function handleRenameDashboard(id: string, currentName: string) {
-    const name = window.prompt("Nouveau nom :", currentName);
-    if (!name?.trim() || name.trim() === currentName) return;
-    await update(id, { name: name.trim() });
+  function openEditDashboardDialog(dashboard: Dashboard) {
+    setMetaDialogTarget(dashboard);
+    setMetaDialogOpen(true);
+  }
+
+  async function handleSaveDashboardMeta(values: DashboardMetaValues) {
+    if (metaDialogTarget) {
+      await update(metaDialogTarget.id, values);
+    } else {
+      await create(values.name, { description: values.description, color: values.color });
+    }
   }
 
   async function handleDeleteDashboard(id: string) {
@@ -487,6 +525,16 @@ export function DashboardPage() {
   function handleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen?.();
     else document.documentElement.requestFullscreen?.();
+  }
+
+  function renderTrendBadge(diff: number, formatValue: (n: number) => string = (n) => String(n)) {
+    if (diff === 0) return <span className="text-xs text-muted-foreground">= vs 7j précédents</span>;
+    const positive = diff > 0;
+    return (
+      <span className={`text-xs ${positive ? "text-green-600" : "text-destructive"}`}>
+        {positive ? "↑" : "↓"} {formatValue(Math.abs(diff))} vs 7j précédents
+      </span>
+    );
   }
 
   if (loading) {
@@ -517,7 +565,7 @@ export function DashboardPage() {
               {activeDashboard && (
                 <>
                   <DropdownMenuItem onClick={() => duplicate(activeDashboard)}>Cloner</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleRenameDashboard(activeDashboard.id, activeDashboard.name)}>Renommer</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEditDashboardDialog(activeDashboard)}>Modifier</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDeleteDashboard(activeDashboard.id)} className="text-destructive">
                     Supprimer
                   </DropdownMenuItem>
@@ -532,6 +580,9 @@ export function DashboardPage() {
         <DropdownMenu
           trigger={
             <Button variant="outline" size="sm">
+              {activeDashboard?.color && (
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: activeDashboard.color }} />
+              )}
               {activeDashboard?.name ?? "Vue d'ensemble"} ▾
             </Button>
           }
@@ -539,16 +590,20 @@ export function DashboardPage() {
           <DropdownMenuItem onClick={() => setActiveId(null)}>Vue d'ensemble</DropdownMenuItem>
           {dashboards.map((d) => (
             <DropdownMenuItem key={d.id} onClick={() => setActiveId(d.id)}>
+              {d.color && <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />}
               {d.name}
             </DropdownMenuItem>
           ))}
           <div className="my-1 border-t border-border" />
-          <DropdownMenuItem onClick={handleNewDashboard}>+ Créer un tableau de bord</DropdownMenuItem>
+          <DropdownMenuItem onClick={openNewDashboardDialog}>+ Créer un tableau de bord</DropdownMenuItem>
         </DropdownMenu>
         {activeDashboard && (
           <Button variant="outline" size="sm" onClick={() => setBlocksDialogOpen(true)}>
             Gérer les blocs ({activeDashboard.blocks.length})
           </Button>
+        )}
+        {activeDashboard?.description && (
+          <span className="text-xs text-muted-foreground">{activeDashboard.description}</span>
         )}
         <span className="text-xs text-muted-foreground">actualisé {formatRelativeTime(refreshedAt.toISOString())}</span>
         <button
@@ -596,6 +651,41 @@ export function DashboardPage() {
             className="rounded-md border border-border px-2 py-1 text-sm"
           />
         </div>
+        <Button variant="ghost" size="sm" onClick={() => setShowAdvancedFilters((v) => !v)}>
+          {showAdvancedFilters ? "− Filtres avancés" : "+ Filtres avancés"}
+        </Button>
+        {showAdvancedFilters && (
+          <>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Secteur</label>
+              <select
+                value={filters.sector ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, sector: e.target.value || null }))}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Tous</option>
+                {sectorOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Étape pipeline</label>
+              <select
+                value={filters.dealStatus ?? ""}
+                onChange={(e) => setFilters((f) => ({ ...f, dealStatus: e.target.value || null }))}
+                className="rounded-md border border-border px-2 py-1 text-sm"
+              >
+                <option value="">Toutes</option>
+                <option value="negotiation">En négociation</option>
+                <option value="won">Gagné</option>
+                <option value="lost">Perdu</option>
+              </select>
+            </div>
+          </>
+        )}
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_DASHBOARD_FILTERS)}>
             Réinitialiser
@@ -608,6 +698,7 @@ export function DashboardPage() {
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Total prospects</div>
             <div className="text-2xl font-semibold text-foreground">{prospects.length}</div>
+            {renderTrendBadge(prospectsTrend.diff)}
           </CardContent>
         </Card>
         <Card>
@@ -622,12 +713,14 @@ export function DashboardPage() {
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Deals gagnés</div>
             <div className="text-2xl font-semibold text-foreground">{wonDeals.length}</div>
+            {renderTrendBadge(dealsWonTrend.diff)}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Commission cumulée</div>
             <div className="text-2xl font-semibold text-foreground">{formatCurrency(totalCommission)}</div>
+            {renderTrendBadge(commissionTrend.diff, (n) => formatCurrency(n))}
           </CardContent>
         </Card>
       </div>
@@ -703,6 +796,13 @@ export function DashboardPage() {
           onSave={(blocks) => update(activeDashboard.id, { blocks })}
         />
       )}
+
+      <DashboardMetaDialog
+        open={metaDialogOpen}
+        onOpenChange={setMetaDialogOpen}
+        initial={metaDialogTarget ? { name: metaDialogTarget.name, description: metaDialogTarget.description, color: metaDialogTarget.color } : null}
+        onSave={handleSaveDashboardMeta}
+      />
     </div>
   );
 }

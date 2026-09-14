@@ -43,6 +43,14 @@ describe("createDashboard", () => {
     const client = makeStubClient({ data: row, error: null });
     await expect(createDashboard(client, { ownerId: "u1", name: "Nouveau" })).resolves.toEqual(row);
   });
+
+  it("accepte description et couleur", async () => {
+    const row = { id: "d1", owner_id: "u1", name: "Nouveau", description: "Vue équipe", color: "#22c55e" };
+    const client = makeStubClient({ data: row, error: null });
+    await expect(
+      createDashboard(client, { ownerId: "u1", name: "Nouveau", description: "Vue équipe", color: "#22c55e" }),
+    ).resolves.toEqual(row);
+  });
 });
 
 describe("updateDashboard", () => {
@@ -65,6 +73,8 @@ describe("duplicateDashboard", () => {
       id: "d1",
       owner_id: "u1",
       name: "Suivi commercial",
+      description: "Vue hebdo pour le comité",
+      color: "#3b82f6",
       blocks: ["funnel", "status_bar"],
       position: 2,
       created_at: "2026-01-01",

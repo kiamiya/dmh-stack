@@ -27,11 +27,17 @@ export function useDashboards() {
     load();
   }, [load]);
 
-  async function create(name: string): Promise<void> {
+  async function create(name: string, extra?: { description?: string | null; color?: string | null }): Promise<void> {
     const { data } = await supabase.auth.getSession();
     const ownerId = data.session?.user.id;
     if (!ownerId) return;
-    await createDashboard(supabase, { ownerId, name, position: dashboards.length });
+    await createDashboard(supabase, {
+      ownerId,
+      name,
+      description: extra?.description ?? null,
+      color: extra?.color ?? null,
+      position: dashboards.length,
+    });
     await load();
   }
 

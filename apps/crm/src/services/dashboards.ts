@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dashboard } from "@dmh/types";
 
-const DASHBOARD_SELECT = "id, owner_id, name, blocks, position, created_at, updated_at";
+const DASHBOARD_SELECT = "id, owner_id, name, description, color, blocks, position, created_at, updated_at";
 
 /** Dashboards nommés du membre du staff connecté (RLS `owner_full_access` — jamais ceux d'un autre). */
 export async function listDashboards(client: SupabaseClient): Promise<Dashboard[]> {
@@ -13,6 +13,8 @@ export async function listDashboards(client: SupabaseClient): Promise<Dashboard[
 export interface DashboardInsert {
   ownerId: string;
   name: string;
+  description?: string | null;
+  color?: string | null;
   blocks?: string[];
   position?: number;
 }
@@ -23,6 +25,8 @@ export async function createDashboard(client: SupabaseClient, input: DashboardIn
     .insert({
       owner_id: input.ownerId,
       name: input.name,
+      description: input.description ?? null,
+      color: input.color ?? null,
       blocks: input.blocks ?? [],
       position: input.position ?? 0,
     })
@@ -34,6 +38,8 @@ export async function createDashboard(client: SupabaseClient, input: DashboardIn
 
 export interface DashboardUpdate {
   name?: string;
+  description?: string | null;
+  color?: string | null;
   blocks?: string[];
   position?: number;
 }
@@ -43,6 +49,8 @@ export async function updateDashboard(client: SupabaseClient, id: string, patch:
     .from("dashboards")
     .update({
       ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.description !== undefined && { description: patch.description }),
+      ...(patch.color !== undefined && { color: patch.color }),
       ...(patch.blocks !== undefined && { blocks: patch.blocks }),
       ...(patch.position !== undefined && { position: patch.position }),
     })
@@ -60,6 +68,8 @@ export async function duplicateDashboard(client: SupabaseClient, dashboard: Dash
   return createDashboard(client, {
     ownerId: dashboard.owner_id,
     name: `${dashboard.name} (copie)`,
+    description: dashboard.description,
+    color: dashboard.color,
     blocks: dashboard.blocks,
     position: dashboard.position,
   });

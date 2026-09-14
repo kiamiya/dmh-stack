@@ -9,14 +9,38 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 audit des 12 écrans Claude Design (Nature A en cours) + lots précédents — validation navigateur en attente
+## Statut : 🔄 S35-8 ("corrige tout ce que tu peux") + lots précédents — validation navigateur en attente
 
-**Nouveau et prioritaire (S35-1/S35-2 ci-dessous)** : composants de vue
-partagés + alignement de l'onglet Entreprises sur Contacts. Aucune
-migration pour ce lot. Le reste de la Nature A (Dashboard/Segments/
-Tâches/Pipeline) suit dans les prochaines itérations — la Nature B
-(Campagne Email, Automatisation, Mapping, Reporting, Paramètres) est
+**Nouveau et prioritaire (S35-8 ci-dessous)** : correctifs résiduels
+trouvés lors de la re-vérification des 7 écrans de la Nature A (chips
+Contacts/Entreprises, sélection multiple Segments, tendances/filtres
+avancés/dashboards nommés du Dashboard). **Migration `043` écrite, non
+appliquée** (colonnes `description`/`color` sur `dashboards`) — sans
+elle, la description/couleur d'un dashboard nommé ne sera pas
+persistée (l'écran fonctionne, la modale s'ouvre, mais l'enregistrement
+échouera tant que la migration n'est pas appliquée). La Nature B
+(Campagne Email, Automatisation, Mapping, Reporting, Paramètres) reste
 documentée dans `PROGRESS.md` comme reportée, rien à tester dessus.
+
+### S35-8 — chips Contacts/Entreprises, sélection Segments, Dashboard (tendances/filtres/dashboards nommés) *(nécessite migration 043 pour la description/couleur)*
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Sur `/` (Contacts), cliquer le chip "Confiance ≥ 85%" | Ne montre que les contacts dont poste + email + LinkedIn sont tous renseignés (complétude ≥ 85%) |
+| 2 | Sur `/?view=companies`, cliquer "Effectif ≥ 100" | Ne montre que les entreprises dont la tranche Pappers indique au moins 100 salariés (ex. "Entre 100 et 199 salariés" inclus, "Entre 50 et 99" exclu) |
+| 3 | Cliquer "CA ≥ 10M€" | Ne montre que les entreprises avec un CA renseigné ≥ 10 000 000 € |
+| 4 | Sur `/tasks`, "..." → "Modifier les colonnes" | Modale avec 6 cases (Type/Échéance/Assigné à/Priorité/Lié à/Origine) ; décocher "Priorité" masque la colonne |
+| 5 | Sur `/lists`, choisir un client, cocher 2-3 lignes | Une barre apparaît : "N liste(s) sélectionnée(s)" + sélecteur de dossier + "Ajouter au dossier" |
+| 6 | Choisir un dossier dans cette barre, cliquer "Ajouter au dossier" | Les listes cochées changent de dossier en un seul rechargement, la sélection se vide |
+| 7 | Cocher la case d'en-tête (tout sélectionner) | Toutes les lignes visibles se cochent ; recliquer décoche tout |
+| 8 | Sur `/dashboard`, regarder les cartes "Total prospects"/"Deals gagnés"/"Commission cumulée" | Une ligne sous le chiffre : "↑ N vs 7j précédents" (vert) ou "↓ N vs 7j précédents" (rouge) ou "= vs 7j précédents" |
+| 9 | Cliquer "+ Filtres avancés" | Deux sélecteurs apparaissent : "Secteur" (libellés NAF réels) et "Étape pipeline" (En négociation/Gagné/Perdu) |
+| 10 | Choisir un secteur | Les prospects hors de ce secteur NAF disparaissent des blocs (funnel, statuts, etc.) |
+| 11 | Choisir "Gagné" dans Étape pipeline | Seuls les deals gagnés restent dans les blocs Deals/Pipeline |
+| 12 | Choisir un membre du staff dans "Propriétaire" | Les deals qui lui sont assignés (`assigned_to`) sont filtrés correctement (avant ce correctif, les deals ignoraient ce filtre) |
+| 13 | Cliquer "+ Créer un tableau de bord" | La modale "Créer un tableau de bord" s'ouvre (Nom/Description/Couleur), pas un `window.prompt` |
+| 14 | Remplir un nom + une description + choisir une couleur, "Enregistrer" | *(nécessite migration 043)* Le dashboard apparaît dans le menu avec un point de couleur devant son nom, la description s'affiche à côté du sélecteur quand il est actif |
+| 15 | Sur un dashboard nommé actif, "Actions" → "Modifier" | Rouvre la même modale pré-remplie (nom/description/couleur actuels), modifiable |
 
 ### S35-2 — Entreprises : bandeau de vues + colonnes Source/Statut
 

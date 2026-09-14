@@ -176,6 +176,7 @@ describe("filtersToSearchParams / searchParamsToFilters", () => {
       emailVerified: true,
       hasPhone: true,
       freshUnder7d: true,
+      confidenceAbove85: true,
     };
     const params = filtersToSearchParams(filters);
     expect(searchParamsToFilters(params)).toEqual(filters);
@@ -212,5 +213,13 @@ describe("filterProspects — filtres rapides (chips)", () => {
       row({ id: "p2", contacts: { first_name: "C", last_name: "D", job_title: null, email: null, phone: null, linkedin_url: null, data_source: null, email_confidence: null, updated_at: old } }),
     ];
     expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, freshUnder7d: true }).map((r) => r.id)).toEqual(["p1"]);
+  });
+
+  it("filtre par confiance (complétude) >= 85%", () => {
+    const rows = [
+      row({ id: "p1", contacts: { first_name: "A", last_name: "B", job_title: "DAF", email: "a@b.fr", phone: null, linkedin_url: "https://linkedin.com/a", data_source: null, email_confidence: null, updated_at: null } }),
+      row({ id: "p2", contacts: { first_name: "C", last_name: "D", job_title: null, email: null, linkedin_url: null, phone: null, data_source: null, email_confidence: null, updated_at: null } }),
+    ];
+    expect(filterProspects(rows, { ...EMPTY_PROSPECT_FILTERS, confidenceAbove85: true }).map((r) => r.id)).toEqual(["p1"]);
   });
 });

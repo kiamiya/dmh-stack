@@ -17,7 +17,7 @@ import type { RuleGroupDraft } from "../RuleGroupsEditor";
 import { getStatusColor, getStatusLabel } from "../../lib/status";
 import { formatCurrency } from "../../lib/deals";
 import { computeCompanyCompleteness } from "../../lib/companyCompleteness";
-import { hasSiren, isCompleteAbove, isFreshUnderDays } from "../../lib/quickFilters";
+import { hasMinEmployeeCount, hasSiren, isCompleteAbove, isFreshUnderDays } from "../../lib/quickFilters";
 import { toCsv } from "../../lib/csv";
 import {
   createSavedView,
@@ -54,10 +54,21 @@ interface CompanyFilters {
   sirenKnown: boolean;
   completeAbove80: boolean;
   freshUnder7d: boolean;
+  minEmployees100: boolean;
+  revenueAbove10m: boolean;
   listId: string;
 }
 
-const EMPTY_COMPANY_FILTERS: CompanyFilters = { sirenKnown: false, completeAbove80: false, freshUnder7d: false, listId: "" };
+const EMPTY_COMPANY_FILTERS: CompanyFilters = {
+  sirenKnown: false,
+  completeAbove80: false,
+  freshUnder7d: false,
+  minEmployees100: false,
+  revenueAbove10m: false,
+  listId: "",
+};
+
+const REVENUE_10M_THRESHOLD = 10_000_000;
 const SAVED_VIEWS_STORAGE_KEY = "dmh-crm-saved-views-companies";
 
 export interface EntreprisesPanelProps {
@@ -177,6 +188,8 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
       sirenKnown: byClient.filter(hasSiren).length,
       completeAbove80: byClient.filter((c) => isCompleteAbove(80, computeCompanyCompleteness(c))).length,
       freshUnder7d: byClient.filter((c) => isFreshUnderDays(7, c.updated_at)).length,
+      minEmployees100: byClient.filter((c) => hasMinEmployeeCount(100, c.employee_range)).length,
+      revenueAbove10m: byClient.filter((c) => c.revenue !== null && c.revenue >= REVENUE_10M_THRESHOLD).length,
     }),
     [byClient],
   );
@@ -195,6 +208,8 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
     if (filters.sirenKnown) rows = rows.filter(hasSiren);
     if (filters.completeAbove80) rows = rows.filter((c) => isCompleteAbove(80, computeCompanyCompleteness(c)));
     if (filters.freshUnder7d) rows = rows.filter((c) => isFreshUnderDays(7, c.updated_at));
+    if (filters.minEmployees100) rows = rows.filter((c) => hasMinEmployeeCount(100, c.employee_range));
+    if (filters.revenueAbove10m) rows = rows.filter((c) => c.revenue !== null && c.revenue >= REVENUE_10M_THRESHOLD);
     return rows;
   }, [byClient, activeList, listMemberIdSet, customFieldValuesById, filters]);
 
@@ -354,6 +369,8 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
           { key: "sirenKnown", label: "SIREN connu", count: chipCounts.sirenKnown, active: filters.sirenKnown },
           { key: "completeAbove80", label: "Complétude ≥ 80%", count: chipCounts.completeAbove80, active: filters.completeAbove80 },
           { key: "freshUnder7d", label: "Fraîcheur < 7j", count: chipCounts.freshUnder7d, active: filters.freshUnder7d },
+          { key: "minEmployees100", label: "Effectif ≥ 100", count: chipCounts.minEmployees100, active: filters.minEmployees100 },
+          { key: "revenueAbove10m", label: "CA ≥ 10M€", count: chipCounts.revenueAbove10m, active: filters.revenueAbove10m },
         ]}
         onToggle={(key) => setFilters((f) => ({ ...f, [key]: !f[key as keyof CompanyFilters] }))}
         showAdvanced={showAdvanced}

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { hasPhone, hasSiren, isCompleteAbove, isEmailVerified, isFreshUnderDays, isStaleOverDays } from "./quickFilters";
+import {
+  extractMinEmployeeCount,
+  hasMinEmployeeCount,
+  hasPhone,
+  hasSiren,
+  isCompleteAbove,
+  isEmailVerified,
+  isFreshUnderDays,
+  isStaleOverDays,
+} from "./quickFilters";
 
 describe("isEmailVerified", () => {
   it("vrai seulement si email_confidence === valid", () => {
@@ -54,5 +63,32 @@ describe("isStaleOverDays", () => {
 
   it("vrai si aucune date (jamais travaillée)", () => {
     expect(isStaleOverDays(14, null, now)).toBe(true);
+  });
+});
+
+describe("extractMinEmployeeCount", () => {
+  it("extrait la borne basse d'une tranche avec séparateur de milliers", () => {
+    expect(extractMinEmployeeCount("Entre 2 000 et 4 999 salariés")).toBe(2000);
+  });
+
+  it("extrait la borne basse d'une tranche simple", () => {
+    expect(extractMinEmployeeCount("50-250")).toBe(50);
+  });
+
+  it("extrait un nombre suivi de texte", () => {
+    expect(extractMinEmployeeCount("10 000 salariés et plus")).toBe(10000);
+  });
+
+  it("retourne null si aucun nombre", () => {
+    expect(extractMinEmployeeCount(null)).toBeNull();
+    expect(extractMinEmployeeCount("Non renseigné")).toBeNull();
+  });
+});
+
+describe("hasMinEmployeeCount", () => {
+  it("compare la borne basse extraite au seuil", () => {
+    expect(hasMinEmployeeCount(100, "Entre 2 000 et 4 999 salariés")).toBe(true);
+    expect(hasMinEmployeeCount(100, "50-250")).toBe(false);
+    expect(hasMinEmployeeCount(100, null)).toBe(false);
   });
 });
