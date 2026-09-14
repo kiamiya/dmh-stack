@@ -83,15 +83,30 @@ export function HelpPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Bouton <strong className="text-foreground">"+ Entreprise"</strong> sur <code>/companies</code> ou{" "}
-              <strong className="text-foreground">"+ Nouveau contact"</strong> sur <code>/contacts</code> — saisie
-              manuelle, un enregistrement à la fois. Il n'existe pas aujourd'hui d'import CSV pour créer des
-              entreprises/contacts <em>ex nihilo</em> depuis le CRM lui-même (l'import de masse se fait par un export
-              Pharow traité par un développeur, voir plus bas).
+              Deux façons de créer des entreprises/contacts <em>ex nihilo</em> directement dans le CRM :{" "}
+              <strong className="text-foreground">saisie manuelle</strong> ("+ Entreprise"/"+ Nouveau contact", un
+              enregistrement à la fois), ou <strong className="text-foreground">import CSV</strong> (bouton
+              "Importer" sur la bascule Contacts, "Importer des entreprises" sur la bascule Entreprises) —
+              correspondance de colonnes auto-détectée et corrigible, aperçu des lignes prêtes/ignorées avant de
+              confirmer, dédup par email (contacts) ou nom d'entreprise (insensible à la casse).
             </p>
             <p>
-              La seule vraie exception : sur <code>/lists</code> (Segments), le bouton{" "}
-              <strong className="text-foreground">"Importer un fichier"</strong> permet d'ajouter un CSV, mais
+              Un contact importé crée aussi un prospect "À enrichir", qui déclenche l'enrichissement automatique
+              Pappers/Dropcontact <strong className="text-foreground">si une règle d'automatisation "Enrichir" est
+              active</strong> pour ce client (même mécanisme qu'une création manuelle ou qu'un export Pharow, voir
+              "Automatiser" plus haut) — sans cette règle, le contact est bien créé mais reste "À enrichir" tant
+              qu'un membre de l'équipe ne clique pas sur le bouton "Enrichir" des fiches Entreprise puis Contact
+              (voir le callout en bas de page). Une entreprise importée seule (sans contact) ne crée pas de prospect
+              et ne déclenche donc rien automatiquement.
+            </p>
+            <p>
+              L'import de masse via un <strong className="text-foreground">export Pharow</strong> (traité par un
+              développeur, pas depuis cette interface) reste utile pour un très gros volume ou un format non
+              standard — mais n'est plus la seule voie pour créer des fiches en nombre.
+            </p>
+            <p>
+              Sur <code>/lists</code> (Segments), le bouton{" "}
+              <strong className="text-foreground">"Importer un fichier"</strong> est différent : il ajoute un CSV
               uniquement pour classer des contacts/entreprises <em>déjà existants</em> dans une nouvelle liste
               (correspondance par email ou SIREN/nom) — il ne crée jamais de nouvelle fiche à partir d'une ligne non
               reconnue, seulement rapporté comme "non reconnue".
