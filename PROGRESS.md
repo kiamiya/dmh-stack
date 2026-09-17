@@ -137,7 +137,7 @@ Dernière mise à jour : 2026-09-14
 | S35-7 | Fiche Contact : bloc "Champs enrichis" (Source/Confiance/Âge par champ + détection de conflit multi-fournisseur) | ✅ fait — **migration 042 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 | S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 appliquée et vérifiée en production le 2026-09-14** — en attente de validation navigateur ; voir Journal pour les écarts explicitement laissés de côté |
-| S36 | Agent d'import intelligent (call Delphine du 17/09) — colonnes non standard à l'import CSV Contacts/Entreprises : wizard séquentiel pré-rempli par Claude (`analyze-import-columns`), ignorer/rattacher à un champ personnalisé existant/en créer un nouveau | ✅ fait côté code, tests unitaires verts (`@dmh/import-agent` + `apps/crm`) — **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9) — en attente de déploiement de l'Edge Function + validation fonctionnelle réelle, voir `TESTING.md` |
+| S36 | Agent d'import intelligent (call Delphine du 17/09) — colonnes non standard à l'import CSV Contacts/Entreprises : wizard séquentiel pré-rempli par Claude (`analyze-import-columns`), ignorer/rattacher à un champ personnalisé existant/en créer un nouveau | ✅ fait — code + tests unitaires verts (`@dmh/import-agent` + `apps/crm`) — **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9) — **Edge Function `analyze-import-columns` déployée en production le 2026-09-17** (`ANTHROPIC_API_KEY` déjà présente côté secrets Supabase) — en attente de validation fonctionnelle réelle, voir `TESTING.md` |
 | S36-N | Reste du besoin Open Data évoqué par Delphine (indicateurs de marché/risque, notes historiques/incidents avec provenance, scoring, propriétaires d'entreprise multiples) | ⬜ non cadré — hors périmètre de S36 (limité au sous-besoin "guider l'utilisateur sur les colonnes non standard"), bloqué sur le choix du dataset Open Data par Delphine/William et la formalisation de la tâche par Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2740,11 +2740,20 @@ Implémenté (S36) :
 
 Tests unitaires ajoutés à chaque étape (`pnpm --filter @dmh/import-agent test`, `pnpm --filter @dmh/crm test`) et `pnpm typecheck && pnpm test` (racine, 12 packages) vérifiés verts avant de continuer, conformément à la règle 2 de `CLAUDE.md`.
 
+**Edge Function déployée** : `analyze-import-columns` déployée en
+production le 2026-09-17 (`supabase functions deploy`, à la demande
+explicite de Loïc) — `ANTHROPIC_API_KEY` était déjà un secret Supabase
+existant (réutilisé par `score-prospect`/`generate-messages`), rien à
+configurer de plus. Correctif au passage : `deno.json` de la fonction
+ne listait pas `zod` dans son import map alors que `packages/config/src/env.ts`
+(bundlé avec la fonction) en dépend — le premier déploiement a échoué
+avec une erreur de bundling Deno explicite, corrigé immédiatement.
+
 **Point de reprise** : `TESTING.md` réécrit avec le protocole de
-validation humaine (nécessite de déployer `analyze-import-columns` sur
-le projet Supabase distant + d'y configurer `ANTHROPIC_API_KEY` comme
-secret — jamais fait, l'Edge Function n'existe qu'en local pour
-l'instant). En attente de validation explicite de Loïc sur ce document
-avant d'enchaîner — soit sur `S36-N` (Open Data à proprement parler, une
-fois le dataset choisi par Delphine/William), soit sur la suite du plan
-S1-S35 restant (validations navigateur en attente sur plusieurs lots).
+validation humaine — tous les prérequis techniques sont maintenant
+réunis, il ne reste que le test fonctionnel réel en navigateur (10 cas,
+voir `TESTING.md`). En attente de validation explicite de Loïc sur ce
+document avant d'enchaîner — soit sur `S36-N` (Open Data à proprement
+parler, une fois le dataset choisi par Delphine/William), soit sur la
+suite du plan S1-S35 restant (validations navigateur en attente sur
+plusieurs lots).

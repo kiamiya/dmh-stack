@@ -21,12 +21,10 @@ les ignorer, les rattacher à un champ personnalisé existant, ou en créer un
 nouveau. **Aucune migration SQL** : tout passe par
 `custom_field_definitions`/`custom_field_values` (S9) déjà en place.
 
-**Prérequis avant de tester** :
-- L'Edge Function `analyze-import-columns` doit être déployée sur le projet
-  Supabase distant (`supabase functions deploy analyze-import-columns`) —
-  elle n'existe pas encore en production.
-- `ANTHROPIC_API_KEY` doit être configurée comme secret de cette fonction
-  côté Supabase (`supabase secrets set`), en plus de `.env.local`.
+**Prérequis** : ✅ déjà faits — l'Edge Function `analyze-import-columns` est
+déployée en production (2026-09-17) et `ANTHROPIC_API_KEY` était déjà
+configurée comme secret Supabase (réutilisée par `score-prospect`/
+`generate-messages`). Rien à faire côté infra avant de tester.
 
 ### Protocole de test
 
