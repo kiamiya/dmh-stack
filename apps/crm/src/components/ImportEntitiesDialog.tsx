@@ -1,16 +1,23 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
+import type { CustomFieldDefinition } from "@dmh/types";
+import type { ColumnAnalysisSuggestion } from "@dmh/import-agent";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
 import { listCompaniesForClient } from "../services/companies";
 import { listContactEmailsForClient } from "../services/contacts";
+import { listFieldDefinitions } from "../services/customFields";
+import { resolveImportCustomFieldColumnMap } from "../services/importCustomFieldResolution";
 import { parseCsv } from "../lib/csv";
 import { autoDetectColumn } from "../lib/importColumnMapping";
+import { sampleColumnValues } from "../lib/importColumnDecision";
+import type { ImportColumnDecision } from "../lib/importColumnDecision";
 import { planContactImport } from "../lib/contactImportPlan";
 import { planCompanyImport } from "../lib/companyImportPlan";
 import { importCompanies, importContacts } from "../services/entityImport";
+import { ImportColumnWizardStep } from "./ImportColumnWizardStep";
 import { useToast } from "./ui/toast";
 
 export interface ImportEntitiesDialogProps {
@@ -35,6 +42,17 @@ const COMPANY_FIELDS = [
   { key: "website", label: "Site web", required: false },
 ] as const;
 
+type ImportStep = "mapping" | "analyzing" | "column-wizard" | "review";
+
+const CUSTOM_FIELD_DECISION_LABEL: Record<ImportColumnDecision["action"], (d: ImportColumnDecision, existing: CustomFieldDefinition[]) => string> = {
+  ignore: () => "ignorée",
+  map_existing: (d, existing) => {
+    const field = d.action === "map_existing" ? existing.find((f) => f.id === d.fieldDefinitionId) : undefined;
+    return `rattachée au champ existant "${field?.label ?? "?"}"`;
+  },
+  create_new: (d) => (d.action === "create_new" ? `nouveau champ "${d.label}" (${d.fieldType})` : ""),
+};
+
 /**
  * Import CSV créant de nouvelles fiches (contrairement à `ImportListDialog`,
  * qui ne fait que rattacher des fiches déjà existantes à une liste). Pour
@@ -45,6 +63,14 @@ const COMPANY_FIELDS = [
  * seules : aucun prospect n'est créé (pas de contact associé), donc aucun
  * enrichissement automatique ne se déclenche pour cet import — limite
  * assumée de l'architecture actuelle (voir TESTING.md).
+ *
+ * Agent d'import (demande de Delphine, 2026-09-17) : les colonnes du fichier
+ * qui ne correspondent à aucun champ standard ne sont plus silencieusement
+ * ignorées — un wizard séquentiel, pré-rempli par une analyse Claude
+ * (`analyze-import-columns`), guide l'utilisateur colonne par colonne pour
+ * décider de les ignorer, les rattacher à un champ personnalisé existant, ou
+ * en créer un nouveau. Si l'analyse échoue, le wizard reste utilisable
+ * manuellement (voir TESTING.md).
  */
 export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImported }: ImportEntitiesDialogProps) {
   const clients = useClients();
@@ -58,6 +84,13 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [step, setStep] = useState<ImportStep>("mapping");
+  const [unmappedColumns, setUnmappedColumns] = useState<string[]>([]);
+  const [existingCustomFields, setExistingCustomFields] = useState<CustomFieldDefinition[]>([]);
+  const [suggestions, setSuggestions] = useState<ColumnAnalysisSuggestion[]>([]);
+  const [analysisFailed, setAnalysisFailed] = useState(false);
+  const [columnDecisions, setColumnDecisions] = useState<ImportColumnDecision[]>([]);
+
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   function reset() {
@@ -66,6 +99,12 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
     setRows([]);
     setMapping({});
     setError(null);
+    setStep("mapping");
+    setUnmappedColumns([]);
+    setExistingCustomFields([]);
+    setSuggestions([]);
+    setAnalysisFailed(false);
+    setColumnDecisions([]);
   }
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -99,16 +138,18 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
           linkedinUrl: mapping.linkedinUrl || undefined,
         },
         new Set(),
+        columnDecisions,
       );
     }
     return planCompanyImport(
       rows,
       { name: mapping.name, city: mapping.city || undefined, website: mapping.website || undefined },
       new Set(),
+      columnDecisions,
     );
-  }, [rows, mapping, missingRequiredMapping, entityType]);
+  }, [rows, mapping, missingRequiredMapping, entityType, columnDecisions]);
 
-  async function handleSubmit() {
+  async function handleContinueFromMapping() {
     if (!clientId) {
       setError("Le client DMH est requis.");
       return;
@@ -121,10 +162,72 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
       setError("Associe une colonne du fichier à chaque champ obligatoire.");
       return;
     }
+    setError(null);
 
+    const mappedColumns = new Set(Object.values(mapping).filter(Boolean));
+    const unmapped = columns.filter((c) => !mappedColumns.has(c));
+
+    if (unmapped.length === 0) {
+      setColumnDecisions([]);
+      setStep("review");
+      return;
+    }
+
+    setUnmappedColumns(unmapped);
+    setStep("analyzing");
+
+    const customFieldEntityType = entityType;
+    let allDefinitions: CustomFieldDefinition[] = [];
+    try {
+      allDefinitions = await listFieldDefinitions(supabase, customFieldEntityType);
+    } catch {
+      allDefinitions = [];
+    }
+    const clientDefinitions = allDefinitions.filter((d) => d.client_id === clientId);
+    setExistingCustomFields(clientDefinitions);
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("analyze-import-columns", {
+        body: {
+          entityType: customFieldEntityType,
+          mappedStandardFields: fields.filter((f) => mapping[f.key]).map((f) => ({ key: f.key, label: f.label })),
+          existingCustomFields: clientDefinitions.map((f) => ({
+            id: f.id,
+            fieldKey: f.field_key,
+            label: f.label,
+            fieldType: f.field_type,
+            selectOptions: f.select_options,
+          })),
+          columns: unmapped.map((c) => ({ name: c, sampleValues: sampleColumnValues(rows, c) })),
+        },
+      });
+      if (invokeError) throw invokeError;
+      setSuggestions(data?.suggestions ?? []);
+      setAnalysisFailed(false);
+    } catch {
+      setSuggestions([]);
+      setAnalysisFailed(true);
+    }
+
+    setStep("column-wizard");
+  }
+
+  function handleColumnWizardComplete(decisions: ImportColumnDecision[]) {
+    setColumnDecisions(decisions);
+    setStep("review");
+  }
+
+  async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
+      const customFieldColumnMap = await resolveImportCustomFieldColumnMap(
+        supabase,
+        clientId,
+        entityType,
+        columnDecisions,
+      );
+
       if (entityType === "contact") {
         const [existingCompanies, existingEmails] = await Promise.all([
           listCompaniesForClient(supabase, clientId),
@@ -141,9 +244,10 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
             linkedinUrl: mapping.linkedinUrl || undefined,
           },
           new Set(existingEmails.map((e) => e.toLowerCase())),
+          columnDecisions,
         );
         const companyIdByName = new Map(existingCompanies.map((c) => [c.name.toLowerCase(), c.id]));
-        const result = await importContacts(supabase, clientId, contactPlan, companyIdByName);
+        const result = await importContacts(supabase, clientId, contactPlan, companyIdByName, customFieldColumnMap);
 
         const parts = [`${result.contactsCreated} contact(s) créé(s)`];
         if (result.companiesCreated > 0) parts.push(`${result.companiesCreated} entreprise(s) créée(s)`);
@@ -157,8 +261,9 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
           rows,
           { name: mapping.name, city: mapping.city || undefined, website: mapping.website || undefined },
           new Set(existingCompanies.map((c) => c.name.toLowerCase())),
+          columnDecisions,
         );
-        const result = await importCompanies(supabase, clientId, companyPlan);
+        const result = await importCompanies(supabase, clientId, companyPlan, customFieldColumnMap);
 
         const parts = [`${result.companiesCreated} entreprise(s) créée(s)`];
         if (companyPlan.skipped.length > 0 || result.errors.length > 0) {
@@ -177,6 +282,11 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
     }
   }
 
+  const suggestionsByColumn: Record<string, ColumnAnalysisSuggestion | undefined> = {};
+  for (const s of suggestions) suggestionsByColumn[s.column] = s;
+  const sampleValuesByColumn: Record<string, string[]> = {};
+  for (const c of unmappedColumns) sampleValuesByColumn[c] = sampleColumnValues(rows, c);
+
   return (
     <Dialog
       open={open}
@@ -189,104 +299,158 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         <DialogTitle>Importer {entityType === "contact" ? "des contacts" : "des entreprises"}</DialogTitle>
       </DialogHeader>
       <DialogContent className="space-y-3">
-        <div>
-          <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-entities-client">
-            Client DMH
-          </label>
-          <select
-            id="import-entities-client"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-full rounded-md border border-border px-3 py-2 text-sm"
-          >
-            <option value="">Sélectionner…</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-entities-file">
-            Fichier CSV
-          </label>
-          <input
-            id="import-entities-file"
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleFileChange}
-            className="w-full text-sm"
-          />
-          {fileName && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {fileName} — {rows.length} ligne(s) détectée(s)
-            </p>
-          )}
-        </div>
-        {columns.length > 0 && (
-          <div className="space-y-2 rounded-md border border-border p-3">
-            <p className="text-xs font-medium text-foreground">Correspondance des colonnes</p>
-            {fields.map((field) => (
-              <div key={field.key} className="flex items-center gap-2">
-                <label className="w-40 shrink-0 text-sm text-muted-foreground">
-                  {field.label}
-                  {field.required && " *"}
-                </label>
-                <select
-                  value={mapping[field.key] ?? ""}
-                  onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
-                >
-                  <option value="">{field.required ? "Choisir une colonne…" : "Ignorer"}</option>
-                  {columns.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+        {step === "mapping" && (
+          <>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-entities-client">
+                Client DMH
+              </label>
+              <select
+                id="import-entities-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <option value="">Sélectionner…</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground" htmlFor="import-entities-file">
+                Fichier CSV
+              </label>
+              <input
+                id="import-entities-file"
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleFileChange}
+                className="w-full text-sm"
+              />
+              {fileName && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {fileName} — {rows.length} ligne(s) détectée(s)
+                </p>
+              )}
+            </div>
+            {columns.length > 0 && (
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="text-xs font-medium text-foreground">Correspondance des colonnes</p>
+                {fields.map((field) => (
+                  <div key={field.key} className="flex items-center gap-2">
+                    <label className="w-40 shrink-0 text-sm text-muted-foreground">
+                      {field.label}
+                      {field.required && " *"}
+                    </label>
+                    <select
+                      value={mapping[field.key] ?? ""}
+                      onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                    >
+                      <option value="">{field.required ? "Choisir une colonne…" : "Ignorer"}</option>
+                      {columns.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+            {entityType === "contact" && (
+              <p className="text-xs text-muted-foreground">
+                Chaque contact importé entre dans le pipeline d'enrichissement (statut "à enrichir"), comme une
+                création manuelle. L'entreprise est réutilisée si son nom correspond déjà à une entreprise existante
+                pour ce client.
+              </p>
+            )}
+            {entityType === "company" && (
+              <p className="text-xs text-muted-foreground">
+                Aucun prospect n'est créé pour un import d'entreprises seules (l'enrichissement automatique nécessite
+                un contact associé) — les entreprises déjà existantes (même nom) ne sont pas recréées.
+              </p>
+            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </>
         )}
-        {plan && (
-          <p className="text-sm text-foreground">
-            {plan.toCreate.length} ligne(s) prête(s) à importer
-            {plan.skipped.length > 0 && <> · {plan.skipped.length} ligne(s) ignorée(s)</>}
+
+        {step === "analyzing" && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Analyse des colonnes non reconnues en cours…
           </p>
         )}
-        {plan && plan.skipped.length > 0 && (
-          <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
-            {plan.skipped.slice(0, 10).map((s) => (
-              <li key={s.csvLine}>
-                Ligne {s.csvLine} : {s.reason}
-              </li>
-            ))}
-            {plan.skipped.length > 10 && <li>… et {plan.skipped.length - 10} autre(s)</li>}
-          </ul>
+
+        {step === "column-wizard" && (
+          <ImportColumnWizardStep
+            columns={unmappedColumns}
+            sampleValuesByColumn={sampleValuesByColumn}
+            suggestionsByColumn={suggestionsByColumn}
+            existingCustomFields={existingCustomFields}
+            analysisFailed={analysisFailed}
+            onComplete={handleColumnWizardComplete}
+            onCancel={() => setStep("mapping")}
+          />
         )}
-        {entityType === "contact" && (
-          <p className="text-xs text-muted-foreground">
-            Chaque contact importé entre dans le pipeline d'enrichissement (statut "à enrichir"), comme une création
-            manuelle. L'entreprise est réutilisée si son nom correspond déjà à une entreprise existante pour ce
-            client.
-          </p>
+
+        {step === "review" && (
+          <>
+            {plan && (
+              <p className="text-sm text-foreground">
+                {plan.toCreate.length} ligne(s) prête(s) à importer
+                {plan.skipped.length > 0 && <> · {plan.skipped.length} ligne(s) ignorée(s)</>}
+              </p>
+            )}
+            {plan && plan.skipped.length > 0 && (
+              <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+                {plan.skipped.slice(0, 10).map((s) => (
+                  <li key={s.csvLine}>
+                    Ligne {s.csvLine} : {s.reason}
+                  </li>
+                ))}
+                {plan.skipped.length > 10 && <li>… et {plan.skipped.length - 10} autre(s)</li>}
+              </ul>
+            )}
+            {columnDecisions.length > 0 && (
+              <div className="space-y-1 rounded-md border border-border p-3">
+                <p className="text-xs font-medium text-foreground">Champs personnalisés</p>
+                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                  {columnDecisions.map((d) => (
+                    <li key={d.column}>
+                      "{d.column}" — {CUSTOM_FIELD_DECISION_LABEL[d.action](d, existingCustomFields)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </>
         )}
-        {entityType === "company" && (
-          <p className="text-xs text-muted-foreground">
-            Aucun prospect n'est créé pour un import d'entreprises seules (l'enrichissement automatique nécessite un
-            contact associé) — les entreprises déjà existantes (même nom) ne sont pas recréées.
-          </p>
-        )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
       </DialogContent>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-          Annuler
-        </Button>
-        <Button type="button" onClick={handleSubmit} disabled={submitting || !plan || plan.toCreate.length === 0}>
-          {submitting ? "…" : "Importer"}
-        </Button>
+        {step === "mapping" && (
+          <>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="button" onClick={handleContinueFromMapping} disabled={!plan || plan.toCreate.length === 0}>
+              Continuer
+            </Button>
+          </>
+        )}
+        {step === "review" && (
+          <>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="button" onClick={handleSubmit} disabled={submitting || !plan || plan.toCreate.length === 0}>
+              {submitting ? "…" : "Importer"}
+            </Button>
+          </>
+        )}
       </DialogFooter>
     </Dialog>
   );

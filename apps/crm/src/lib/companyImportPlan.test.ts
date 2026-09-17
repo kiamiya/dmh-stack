@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planCompanyImport } from "./companyImportPlan";
+import type { ImportColumnDecision } from "./importColumnDecision";
 
 const MAPPING = { name: "Nom", city: "Ville", website: "Site web" };
 
@@ -8,9 +9,22 @@ describe("planCompanyImport", () => {
     const rows = [{ Nom: "ACME", Ville: "Lyon", "Site web": "https://acme.test" }];
     const plan = planCompanyImport(rows, MAPPING, new Set());
     expect(plan.toCreate).toEqual([
-      { csvLine: 2, data: { name: "ACME", city: "Lyon", website: "https://acme.test" } },
+      {
+        csvLine: 2,
+        data: { name: "ACME", city: "Lyon", website: "https://acme.test" },
+        customFieldValues: {},
+      },
     ]);
     expect(plan.skipped).toEqual([]);
+  });
+
+  it("extrait les valeurs des colonnes non standard confirmées par l'agent d'import", () => {
+    const rows = [{ Nom: "ACME", Ville: "Lyon", "Site web": "", Secteur: "Industrie" }];
+    const decisions: ImportColumnDecision[] = [
+      { column: "Secteur", action: "create_new", label: "Secteur", fieldType: "text", fieldKey: "secteur" },
+    ];
+    const plan = planCompanyImport(rows, MAPPING, new Set(), decisions);
+    expect(plan.toCreate[0].customFieldValues).toEqual({ Secteur: "Industrie" });
   });
 
   it("rejette une ligne sans nom", () => {

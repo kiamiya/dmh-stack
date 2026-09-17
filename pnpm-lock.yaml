@@ -54,6 +54,9 @@ importers:
       '@dmh/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@dmh/import-agent':
+        specifier: workspace:*
+        version: link:../../packages/import-agent
       '@dmh/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -209,6 +212,15 @@ importers:
         version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(tsx@4.23.1)
 
   packages/dropcontact:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(tsx@4.23.1)
+
+  packages/import-agent:
     devDependencies:
       typescript:
         specifier: ^5.7.0

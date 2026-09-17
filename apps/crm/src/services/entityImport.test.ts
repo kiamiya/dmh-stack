@@ -5,7 +5,7 @@ import type { ContactImportPlan } from "../lib/contactImportPlan";
 import type { CompanyImportPlan } from "../lib/companyImportPlan";
 
 /** Stub minimal, par table, du sous-ensemble de l'API supabase-js utilisé — pas de réseau. Un compteur par table donne un id unique et prévisible à chaque insertion. */
-function makeStubClient() {
+function makeStubClient(upsertCalls?: Array<Record<string, unknown>>) {
   const countByTable: Record<string, number> = {};
   function nextId(table: string) {
     countByTable[table] = (countByTable[table] ?? 0) + 1;
@@ -18,6 +18,10 @@ function makeStubClient() {
         insert: () => query,
         select: () => query,
         single: () => Promise.resolve({ data: { id: nextId(table) }, error: null }),
+        upsert: (row: Record<string, unknown>) => {
+          upsertCalls?.push(row);
+          return Promise.resolve({ data: null, error: null });
+        },
       };
       return query;
     },
@@ -32,6 +36,7 @@ describe("importContacts", () => {
         {
           csvLine: 2,
           data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
         },
       ],
       skipped: [],
@@ -55,6 +60,7 @@ describe("importContacts", () => {
         {
           csvLine: 2,
           data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
         },
       ],
       skipped: [],
@@ -71,8 +77,16 @@ describe("importContacts", () => {
     const client = makeStubClient();
     const plan: ContactImportPlan = {
       toCreate: [
-        { csvLine: 2, data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null } },
-        { csvLine: 3, data: { firstName: "Bob", lastName: "Exemple", companyName: "acme", jobTitle: null, email: null, linkedinUrl: null } },
+        {
+          csvLine: 2,
+          data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
+        },
+        {
+          csvLine: 3,
+          data: { firstName: "Bob", lastName: "Exemple", companyName: "acme", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
+        },
       ],
       skipped: [],
     };
@@ -99,7 +113,11 @@ describe("importContacts", () => {
 
     const plan: ContactImportPlan = {
       toCreate: [
-        { csvLine: 2, data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null } },
+        {
+          csvLine: 2,
+          data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
+        },
       ],
       skipped: [],
     };
@@ -108,17 +126,82 @@ describe("importContacts", () => {
     expect(result.contactsCreated).toBe(0);
     expect(result.errors).toEqual([{ csvLine: 2, error: "insert refusé" }]);
   });
+
+  it("écrit les valeurs de champs personnalisés résolues pour le contact créé", async () => {
+    const upsertCalls: Array<Record<string, unknown>> = [];
+    const client = makeStubClient(upsertCalls);
+    const plan: ContactImportPlan = {
+      toCreate: [
+        {
+          csvLine: 2,
+          data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: { Secteur: "Industrie", "Colonne vide": null },
+        },
+      ],
+      skipped: [],
+    };
+
+    await importContacts(client, "client-1", plan, new Map(), { Secteur: "field-1" });
+
+    expect(upsertCalls).toHaveLength(1);
+    expect(upsertCalls[0]).toMatchObject({
+      client_id: "client-1",
+      entity_type: "contact",
+      field_definition_id: "field-1",
+      value: "Industrie",
+    });
+  });
+
+  it("n'écrit aucune valeur de champ personnalisé sans customFieldColumnMap (comportement inchangé)", async () => {
+    const upsertCalls: Array<Record<string, unknown>> = [];
+    const client = makeStubClient(upsertCalls);
+    const plan: ContactImportPlan = {
+      toCreate: [
+        {
+          csvLine: 2,
+          data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: { Secteur: "Industrie" },
+        },
+      ],
+      skipped: [],
+    };
+
+    await importContacts(client, "client-1", plan, new Map());
+
+    expect(upsertCalls).toHaveLength(0);
+  });
 });
 
 describe("importCompanies", () => {
   it("crée une entreprise par ligne planifiée", async () => {
     const client = makeStubClient();
     const plan: CompanyImportPlan = {
-      toCreate: [{ csvLine: 2, data: { name: "ACME", city: "Lyon", website: null } }],
+      toCreate: [{ csvLine: 2, data: { name: "ACME", city: "Lyon", website: null }, customFieldValues: {} }],
       skipped: [],
     };
 
     const result = await importCompanies(client, "client-1", plan);
     expect(result).toEqual({ companiesCreated: 1, errors: [] });
+  });
+
+  it("écrit les valeurs de champs personnalisés résolues pour l'entreprise créée", async () => {
+    const upsertCalls: Array<Record<string, unknown>> = [];
+    const client = makeStubClient(upsertCalls);
+    const plan: CompanyImportPlan = {
+      toCreate: [
+        { csvLine: 2, data: { name: "ACME", city: "Lyon", website: null }, customFieldValues: { Effectif: "50" } },
+      ],
+      skipped: [],
+    };
+
+    await importCompanies(client, "client-1", plan, { Effectif: "field-2" });
+
+    expect(upsertCalls).toHaveLength(1);
+    expect(upsertCalls[0]).toMatchObject({
+      client_id: "client-1",
+      entity_type: "company",
+      field_definition_id: "field-2",
+      value: "50",
+    });
   });
 });

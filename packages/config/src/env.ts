@@ -80,6 +80,14 @@ const generateMessagesFunctionEnvSchema = z.object({
   ANTHROPIC_API_KEY: anthropicApiKey,
 });
 
+// Ce dont l'Edge Function analyze-import-columns a réellement besoin :
+// Anthropic uniquement, PAS Supabase — cette fonction n'accède jamais à la
+// base (tout le contexte lui est fourni dans le corps de la requête par le
+// dialog React authentifié qui l'appelle).
+const analyzeImportColumnsFunctionEnvSchema = z.object({
+  ANTHROPIC_API_KEY: anthropicApiKey,
+});
+
 // Ce dont l'Edge Function webhook-smartlead a réellement besoin (pas
 // SMARTLEAD_API_KEY : recevoir un webhook n'appelle pas l'API Smartlead).
 const webhookSmartleadFunctionEnvSchema = z.object({
@@ -114,6 +122,7 @@ export type PappersFunctionEnv = z.infer<typeof pappersFunctionEnvSchema>;
 export type PharowImportEnv = z.infer<typeof pharowImportEnvSchema>;
 export type DropcontactFunctionEnv = z.infer<typeof dropcontactFunctionEnvSchema>;
 export type GenerateMessagesFunctionEnv = z.infer<typeof generateMessagesFunctionEnvSchema>;
+export type AnalyzeImportColumnsFunctionEnv = z.infer<typeof analyzeImportColumnsFunctionEnvSchema>;
 export type WebhookSmartleadFunctionEnv = z.infer<typeof webhookSmartleadFunctionEnvSchema>;
 export type LemlistSyncEnv = z.infer<typeof lemlistSyncEnvSchema>;
 
@@ -195,6 +204,16 @@ export function loadGenerateMessagesFunctionEnv(
   source: EnvSource,
 ): GenerateMessagesFunctionEnv {
   return parseOrThrow(generateMessagesFunctionEnvSchema, source);
+}
+
+/**
+ * Variante scopée pour l'Edge Function `analyze-import-columns` :
+ * Anthropic uniquement, pas de client Supabase dans cette fonction.
+ */
+export function loadAnalyzeImportColumnsFunctionEnv(
+  source: EnvSource,
+): AnalyzeImportColumnsFunctionEnv {
+  return parseOrThrow(analyzeImportColumnsFunctionEnvSchema, source);
 }
 
 /**

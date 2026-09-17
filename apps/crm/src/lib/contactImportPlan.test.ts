@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planContactImport } from "./contactImportPlan";
+import type { ImportColumnDecision } from "./importColumnDecision";
 
 const MAPPING = {
   firstName: "Prénom",
@@ -27,9 +28,29 @@ describe("planContactImport", () => {
           email: "alice@acme.test",
           linkedinUrl: null,
         },
+        customFieldValues: {},
       },
     ]);
     expect(plan.skipped).toEqual([]);
+  });
+
+  it("extrait les valeurs des colonnes non standard confirmées par l'agent d'import", () => {
+    const rows = [
+      {
+        Prénom: "Alice",
+        Nom: "Fictive",
+        Entreprise: "ACME",
+        Poste: "",
+        Email: "",
+        LinkedIn: "",
+        Secteur: "Industrie",
+      },
+    ];
+    const decisions: ImportColumnDecision[] = [
+      { column: "Secteur", action: "create_new", label: "Secteur", fieldType: "text", fieldKey: "secteur" },
+    ];
+    const plan = planContactImport(rows, MAPPING, new Set(), decisions);
+    expect(plan.toCreate[0].customFieldValues).toEqual({ Secteur: "Industrie" });
   });
 
   it("rejette une ligne sans prénom ou nom", () => {

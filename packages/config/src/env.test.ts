@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EnvValidationError,
+  loadAnalyzeImportColumnsFunctionEnv,
   loadCalendarFunctionEnv,
   loadDropcontactFunctionEnv,
   loadGenerateMessagesFunctionEnv,
@@ -226,6 +227,28 @@ describe("loadGenerateMessagesFunctionEnv", () => {
         SUPABASE_SERVICE_ROLE_KEY: validSource.SUPABASE_SERVICE_ROLE_KEY,
       }),
     ).toThrow(EnvValidationError);
+  });
+});
+
+describe("loadAnalyzeImportColumnsFunctionEnv", () => {
+  it("ne requiert que ANTHROPIC_API_KEY, pas de clé Supabase", () => {
+    const env = loadAnalyzeImportColumnsFunctionEnv({
+      ANTHROPIC_API_KEY: validSource.ANTHROPIC_API_KEY,
+    });
+
+    expect(env.ANTHROPIC_API_KEY).toBe("fake-anthropic-key");
+  });
+
+  it("n'est pas bloqué par l'absence de clés d'autres intégrations", () => {
+    expect(() =>
+      loadAnalyzeImportColumnsFunctionEnv({
+        ANTHROPIC_API_KEY: validSource.ANTHROPIC_API_KEY,
+      }),
+    ).not.toThrow();
+  });
+
+  it("lève EnvValidationError si ANTHROPIC_API_KEY manque", () => {
+    expect(() => loadAnalyzeImportColumnsFunctionEnv({})).toThrow(EnvValidationError);
   });
 });
 

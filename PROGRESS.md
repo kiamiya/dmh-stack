@@ -137,6 +137,8 @@ Dernière mise à jour : 2026-09-14
 | S35-7 | Fiche Contact : bloc "Champs enrichis" (Source/Confiance/Âge par champ + détection de conflit multi-fournisseur) | ✅ fait — **migration 042 + redéploiement `enrich-pappers`/`enrich-dropcontact` appliqués et vérifiés en production le 2026-09-11** — en attente de validation navigateur |
 | S35-N | Nature B — écarts documentés, non implémentés (voir section dédiée du Journal) : Campagne Email (éditeur WYSIWYG), Paramètres (équipe/rôles/portail/RGPD), Automatisation (canvas + cascade + garde-fous), Mapping (cascade configurable), Reporting (bibliothèque de rapports + diffusion client) | ❌ non fait — reportés/à cadrer, décision explicite de Loïc |
 | S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 appliquée et vérifiée en production le 2026-09-14** — en attente de validation navigateur ; voir Journal pour les écarts explicitement laissés de côté |
+| S36 | Agent d'import intelligent (call Delphine du 17/09) — colonnes non standard à l'import CSV Contacts/Entreprises : wizard séquentiel pré-rempli par Claude (`analyze-import-columns`), ignorer/rattacher à un champ personnalisé existant/en créer un nouveau | ✅ fait côté code, tests unitaires verts (`@dmh/import-agent` + `apps/crm`) — **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9) — en attente de déploiement de l'Edge Function + validation fonctionnelle réelle, voir `TESTING.md` |
+| S36-N | Reste du besoin Open Data évoqué par Delphine (indicateurs de marché/risque, notes historiques/incidents avec provenance, scoring, propriétaires d'entreprise multiples) | ⬜ non cadré — hors périmètre de S36 (limité au sous-besoin "guider l'utilisateur sur les colonnes non standard"), bloqué sur le choix du dataset Open Data par Delphine/William et la formalisation de la tâche par Loïc |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2704,3 +2706,45 @@ webhook Smartlead ouvertures/clics/réponses, synchro Lemlist manuelle,
 champs personnalisés utilisables en segments/automatisations, OAuth
 calendrier, mapping Pappers/Dropcontact) correspondent bien au code —
 aucune autre correction nécessaire.
+
+## 2026-09-17 — S36 : agent d'import intelligent (call Delphine du 17/09)
+
+Loïc a transmis le résumé d'un call avec Delphine sur l'intégration de
+jeux de données Open Data dans le CRM (indicateurs de marché/risque,
+notes historiques, provenance, scoring, propriétaires d'entreprise
+multiples). Avant d'agir, restitution du découpage de tâches perçu +
+proposition de plan — Loïc a corrigé : le besoin réel et immédiat
+discuté en fin de call est plus étroit qu'un chantier Open Data complet,
+c'est un **agent d'import** qui analyse un fichier et guide l'utilisateur
+pas à pas sur les données qui ne font pas partie des champs requis
+normalement par le système. Le reste (Open Data à proprement parler,
+notes/incidents, provenance, multi-propriétaires) reste non cadré,
+tracé en `S36-N` — bloqué sur le choix du dataset par Delphine/William
+et la formalisation de la tâche par Loïc, donc rien à construire dessus
+pour l'instant.
+
+Décisions produit validées par Loïc avant implémentation (voir plan) :
+Contacts ET Entreprises, CSV uniquement (pas d'Excel), wizard séquentiel
+une colonne à la fois, priorité systématique à la réutilisation d'un
+champ personnalisé existant avant d'en créer un nouveau.
+
+Implémenté (S36) :
+- Nouveau package `packages/import-agent` (miroir de `packages/claude-messages`) : `buildImportColumnAnalysisPrompt` + `analyzeImportColumns` (sortie structurée `output_config.format`, un seul appel Claude batch par import analysant toutes les colonnes non reconnues d'un coup).
+- Nouvelle Edge Function `supabase/functions/analyze-import-columns` — **sans accès DB** (contrairement à `score-prospect`/`generate-messages`), appelée directement depuis le dialog React authentifié via `supabase.functions.invoke`, tout le contexte (colonnes échantillonnées, champs déjà mappés, champs personnalisés existants du client) lui étant fourni dans le corps de la requête. Nouveau schéma d'env scopé `analyzeImportColumnsFunctionEnvSchema` (Anthropic uniquement).
+- `apps/crm/src/lib/importColumnDecision.ts` : échantillonnage des valeurs (5 par colonne, dédupliquées, tronquées à 80 caractères, scan limité aux 200 premières lignes), extraction des valeurs par ligne, construction des définitions à créer (dédupliquées par `fieldKey`), détection de conflits entre décisions.
+- `contactImportPlan.ts`/`companyImportPlan.ts` étendus avec un paramètre `columnDecisions` optionnel (défaut `[]`, rétro-compatible) — chaque ligne planifiée porte désormais ses `customFieldValues`.
+- Nouveau service `apps/crm/src/services/importCustomFieldResolution.ts` : résout les `field_definition_id` (réutilisation directe si champ existant, une seule création par `fieldKey` unique si nouveau, avec repli sur `listFieldDefinitions` en cas de conflit d'unicité concurrent).
+- `entityImport.ts` (`importContacts`/`importCompanies`) étendu pour écrire les valeurs de champs personnalisés via `upsertValue` (déjà existant), après création de chaque fiche — une ligne en erreur n'interrompt toujours pas le reste, comme avant.
+- Nouveau composant `ImportColumnWizardStep.tsx` + refonte multi-étapes de `ImportEntitiesDialog.tsx` (`mapping` → `analyzing` → `column-wizard` → `review`) — comportement strictement inchangé si le fichier n'a aucune colonne orpheline (saut direct à `review`). Dégradation propre si l'analyse Claude échoue (wizard manuel, sans blocage).
+- **Aucune migration SQL** : tout repose sur `custom_field_definitions`/`custom_field_values` (S9), conformément à la contrainte de Delphine de ne pas créer de nouvelle table "à la volée".
+
+Tests unitaires ajoutés à chaque étape (`pnpm --filter @dmh/import-agent test`, `pnpm --filter @dmh/crm test`) et `pnpm typecheck && pnpm test` (racine, 12 packages) vérifiés verts avant de continuer, conformément à la règle 2 de `CLAUDE.md`.
+
+**Point de reprise** : `TESTING.md` réécrit avec le protocole de
+validation humaine (nécessite de déployer `analyze-import-columns` sur
+le projet Supabase distant + d'y configurer `ANTHROPIC_API_KEY` comme
+secret — jamais fait, l'Edge Function n'existe qu'en local pour
+l'instant). En attente de validation explicite de Loïc sur ce document
+avant d'enchaîner — soit sur `S36-N` (Open Data à proprement parler, une
+fois le dataset choisi par Delphine/William), soit sur la suite du plan
+S1-S35 restant (validations navigateur en attente sur plusieurs lots).

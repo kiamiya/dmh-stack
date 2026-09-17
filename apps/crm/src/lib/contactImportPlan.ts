@@ -1,3 +1,6 @@
+import { extractCustomFieldRawValues } from "./importColumnDecision";
+import type { ImportColumnDecision } from "./importColumnDecision";
+
 export interface ContactImportRow {
   firstName: string;
   lastName: string;
@@ -11,6 +14,8 @@ export interface ContactImportPlanItem {
   /** Numéro de ligne dans le fichier CSV (en-tête = ligne 1). */
   csvLine: number;
   data: ContactImportRow;
+  /** Valeur brute (colonne CSV -> valeur) pour chaque colonne non ignorée d'`ImportColumnDecision`. */
+  customFieldValues: Record<string, string | null>;
 }
 
 export interface ContactImportSkipped {
@@ -38,11 +43,16 @@ export interface ContactImportMapping {
  * l'exécution). Une ligne sans prénom/nom/entreprise est rejetée (jamais
  * créée à moitié) ; un email déjà utilisé (en base ou déjà vu plus tôt dans
  * le même fichier) est rejeté pour éviter un doublon de contact.
+ *
+ * `columnDecisions` (agent d'import, colonnes non standard) est optionnel et
+ * vide par défaut — comportement inchangé pour un appelant qui ne s'en sert
+ * pas.
  */
 export function planContactImport(
   rows: Array<Record<string, string>>,
   mapping: ContactImportMapping,
   existingEmails: Set<string>,
+  columnDecisions: ImportColumnDecision[] = [],
 ): ContactImportPlan {
   const toCreate: ContactImportPlanItem[] = [];
   const skipped: ContactImportSkipped[] = [];
@@ -81,6 +91,7 @@ export function planContactImport(
         email: rawEmail,
         linkedinUrl: mapping.linkedinUrl ? row[mapping.linkedinUrl]?.trim() || null : null,
       },
+      customFieldValues: extractCustomFieldRawValues(row, columnDecisions),
     });
   });
 
