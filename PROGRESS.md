@@ -139,6 +139,7 @@ Dernière mise à jour : 2026-09-14
 | S35-8 | "corrige tout ce que tu peux" — re-vérification des 7 écrans corrigés (S35-1 à S35-7), écarts résiduels réels corrigés : chips Contacts/Entreprises (Confiance≥85%, Effectif≥100, CA≥10M€), Segments (sélection multiple + "Ajouter au dossier" en masse), Dashboard (tendance 7j sur les cartes KPI, filtres avancés Secteur/Étape pipeline, description+couleur par dashboard nommé) | ✅ fait — **migration 043 appliquée et vérifiée en production le 2026-09-14** — en attente de validation navigateur ; voir Journal pour les écarts explicitement laissés de côté |
 | S36 | Agent d'import intelligent (call Delphine du 17/09) — colonnes non standard à l'import CSV Contacts/Entreprises : wizard séquentiel pré-rempli par Claude (`analyze-import-columns`), ignorer/rattacher à un champ personnalisé existant/en créer un nouveau | ✅ fait — code + tests unitaires verts (`@dmh/import-agent` + `apps/crm`) — **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9) — **Edge Function `analyze-import-columns` déployée en production le 2026-09-17** (`ANTHROPIC_API_KEY` déjà présente côté secrets Supabase) — en attente de validation fonctionnelle réelle, voir `TESTING.md` |
 | S36-N | Reste du besoin Open Data évoqué par Delphine (indicateurs de marché/risque, notes historiques/incidents avec provenance, scoring, propriétaires d'entreprise multiples) | ⬜ non cadré — hors périmètre de S36 (limité au sous-besoin "guider l'utilisateur sur les colonnes non standard"), bloqué sur le choix du dataset Open Data par Delphine/William et la formalisation de la tâche par Loïc |
+| S37 | Modèle de fiche de prospection (fichier `Fiche_CRM_Generique_pour_Loic.docx` transmis par Delphine le 17/09, généré via Claude à partir du dataset ARIA) — bouton "Appliquer le modèle" dans Champs personnalisés, crée en un clic 7 champs standards (rôle décisionnel, niveau de chaleur, source du signal, référence traçable, date du signal, offres concernées, grille de qualification) | ✅ fait — code + tests unitaires verts, **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9, idempotent par `field_key`) — en attente de validation navigateur, voir `TESTING.md`. Bloc "Statut du compte" (Client DMH direct/rattaché) du gabarit explicitement exclu — recoupe l'architecture clients DMH/finaux (Phase G), bloquée sur William (S34-10/S34-17) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2757,3 +2758,66 @@ document avant d'enchaîner — soit sur `S36-N` (Open Data à proprement
 parler, une fois le dataset choisi par Delphine/William), soit sur la
 suite du plan S1-S35 restant (validations navigateur en attente sur
 plusieurs lots).
+
+## 2026-09-17 (suite) — S37 : modèle de fiche de prospection (fichier Delphine)
+
+Loïc a transmis un fichier envoyé par Delphine
+(`Fiche_CRM_Generique_pour_Loic.docx`, un gabarit générique de fiche de
+prospection généré par elle via Claude à partir de son dataset ARIA).
+Lecture du fichier (extraction du XML docx, pas d'outil dédié
+disponible) : 9 blocs. Comparaison avec le modèle de données existant :
+
+- Déjà couvert sans rien construire : identification entreprise
+  (`companies`, alimenté par Pappers), interlocuteur (`contacts` +
+  `contact_companies`, plusieurs contacts par entreprise déjà supporté),
+  historique de la relation (`interactions` + attribution
+  `first_contact_at`), prochaine action (`tasks`). "Source du contact"
+  partiellement déjà là (`contacts.data_source`, mais limité aux valeurs
+  d'enrichissement pappers/dropcontact/linkedin/manual, pas aux sources
+  commerciales du gabarit).
+- Bloc "Statut du compte" (Client DMH direct / rattaché à un compte
+  prescripteur) explicitement **exclu** de cette tâche — ce n'est pas un
+  simple champ, ça recoupe l'architecture clients DMH/finaux (Phase G),
+  déjà tracée comme bloquée sur William depuis S34-10/S34-17. Pas de
+  raccourci construit ici pour ne pas dupliquer ce chantier.
+- Champs réellement nouveaux, tous réalisables via le système de champs
+  personnalisés existant (S9) sans migration : rôle décisionnel
+  (Décideur/Influenceur/Filtrant, par contact), niveau de chaleur
+  (COLD/WARM/HOT, par entreprise), source du signal + référence traçable
+  + date du signal (traçabilité du "pourquoi cette société est
+  référencée" — recoupe directement le besoin Open Data de S36-N),
+  offres concernées (choix multiples, libellés génériques "Offre 1..4 /
+  Autre" à éditer par client), grille de qualification (choix multiples,
+  critères génériques "à définir" à éditer par client), besoins probables
+  et angle d'accroche (texte libre).
+
+Implémenté (S37), à la demande explicite de Loïc ("fais là, et je
+testerai après") :
+- `apps/crm/src/lib/prospectingFieldsTemplate.ts` : liste pure des 7
+  champs du gabarit (`PROSPECTING_TEMPLATE_FIELDS`), avec leurs types et
+  options par défaut.
+- `apps/crm/src/services/prospectingFieldsTemplate.ts` :
+  `applyProspectingFieldsTemplate(client, clientId)` — crée les champs
+  manquants pour ce client via `createFieldDefinition`
+  (`services/customFields.ts` existant), idempotent (comparaison par
+  `field_key` + `client_id`, ne recrée jamais un champ déjà présent).
+- Bouton "Appliquer le modèle de fiche de prospection" ajouté en haut de
+  `CustomFieldSettingsPage` (`/settings` → Champs personnalisés) : choisit
+  le client DMH (sélecteur déjà existant du formulaire "Ajouter un
+  champ"), un clic crée les 7 champs manquants, toast de résumé
+  (créés/déjà existants).
+- **Aucune migration SQL.**
+
+Tests unitaires ajoutés (gabarit : pas de doublon de clé, options
+non-vides pour select/multiselect, exclusion du bloc "Statut du compte" ;
+service : création complète, idempotence, isolation par client,
+répartition contact/company) — `pnpm typecheck && pnpm test` (racine, 13
+packages) vérifiés verts avant de considérer la tâche terminée.
+
+**Point de reprise** : en attente que Loïc teste (lui-même, dans l'ordre
+qu'il souhaite) à la fois S36 (agent d'import) et S37 (bouton modèle de
+fiche de prospection) en conditions réelles — aucun protocole
+`TESTING.md` dédié à S37 rédigé séparément (feature simple, un clic +
+vérification visuelle de la liste de champs créés, pas d'appel à une API
+externe qui justifierait un protocole détaillé). Ensuite : `S36-N` (Open
+Data, une fois le dataset choisi) ou suite du plan S1-S35.

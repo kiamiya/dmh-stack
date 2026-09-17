@@ -9,7 +9,9 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Agent d'import intelligent (colonnes non standard, Contacts/Entreprises) — validation navigateur en attente
+## Statut : 🔄 Deux fonctionnalités en attente de validation navigateur (S36 + S37)
+
+## S36 — Agent d'import intelligent (colonnes non standard, Contacts/Entreprises)
 
 Nouvelle fonctionnalité (demande de Delphine relayée par Loïc le 2026-09-17) :
 lors d'un import CSV de Contacts ou d'Entreprises (`ImportEntitiesDialog`),
@@ -50,3 +52,37 @@ configurée comme secret Supabase (réutilisée par `score-prospect`/
   séparément.
 - Pas de tutoriel/onboarding guidé pour l'usage général de l'import (évoqué
   dans le même call, hors périmètre de ce lot).
+
+## S37 — Modèle de fiche de prospection (fichier Delphine, `/settings`)
+
+Nouveau bouton "Appliquer le modèle de fiche de prospection" en haut de la
+page Champs personnalisés (`/settings`) : crée en un clic, pour le client
+DMH sélectionné, les 7 champs personnalisés du gabarit générique envoyé par
+Delphine (rôle décisionnel, niveau de chaleur, source du signal, référence
+traçable, date du signal, offres concernées, grille de qualification).
+**Aucune migration SQL**, aucun appel API externe — feature simple,
+protocole de vérification visuelle uniquement.
+
+**Prérequis** : aucun — fonctionnalité 100 % locale (pas de secret, pas
+de déploiement).
+
+### Protocole de test
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Aller sur `/settings` (Champs personnalisés), choisir un client DMH dans le sélecteur du formulaire "Ajouter un champ", cliquer "Appliquer le modèle de fiche de prospection" | Toast de résumé (ex. "7 champ(s) créé(s)."). Sur l'onglet "Contacts", le champ "Rôle décisionnel" (liste déroulante Décideur/Influenceur/Filtrant) apparaît dans le tableau |
+| 2 | Basculer sur l'onglet "Entreprises" | Les 6 autres champs apparaissent : Niveau de chaleur, Source du signal, Référence traçable, Date du signal, Offres concernées, Grille de qualification, Besoins probables et angle d'accroche |
+| 3 | Recliquer sur "Appliquer le modèle de fiche de prospection" pour le même client | Toast "0 champ(s) créé(s), 7 déjà existant(s)." — aucun doublon créé (idempotent) |
+| 4 | Cliquer le bouton sans avoir choisi de client DMH | Le bouton est désactivé (grisé) tant qu'aucun client n'est sélectionné |
+| 5 | Appliquer le modèle à un deuxième client DMH différent | Les 7 champs sont créés pour ce second client aussi, indépendamment du premier (pas de conflit de clé entre clients) |
+| 6 | Ouvrir une fiche Contact du client concerné, vérifier le bloc champs personnalisés | "Rôle décisionnel" est éditable avec les 3 options (Décideur/Influenceur/Filtrant) |
+| 7 | Ouvrir une fiche Entreprise du client concerné | "Niveau de chaleur" (COLD/WARM/HOT), "Offres concernées" et "Grille de qualification" sont éditables en choix multiples (tags), avec les libellés génériques ("Offre 1", "Critère 1 — à définir", etc.) — à renommer manuellement par client une fois les offres/critères réels connus (comme documenté dans le gabarit source) |
+
+### Hors périmètre de ce test (rappel)
+
+- Le bloc "Statut du compte" (Client DMH direct / rattaché à un compte
+  prescripteur) du gabarit Delphine n'est pas construit — recoupe
+  l'architecture clients DMH/finaux (Phase G), bloquée sur William.
+- Pas de renommage automatique des libellés génériques d'offres/critères
+  par client — reste une édition manuelle via `/settings` une fois les
+  vraies offres/critères connus.

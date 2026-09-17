@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
+import { supabase } from "../lib/supabase";
 import { slugifyFieldKey, validateCustomFieldForm } from "../lib/customFieldForm";
+import { applyProspectingFieldsTemplate } from "../services/prospectingFieldsTemplate";
 
 const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   text: "Texte",
@@ -29,7 +31,7 @@ const ENTITY_TYPE_LABELS: Record<CustomFieldEntityType, string> = {
 export function CustomFieldSettingsPage() {
   const clients = useClients();
   const [entityType, setEntityType] = useState<CustomFieldEntityType>("contact");
-  const { definitions, create } = useFieldDefinitions(entityType);
+  const { definitions, create, reload } = useFieldDefinitions(entityType);
   const { toast } = useToast();
 
   const [clientId, setClientId] = useState("");
@@ -38,6 +40,27 @@ export function CustomFieldSettingsPage() {
   const [selectOptionsRaw, setSelectOptionsRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
+
+  async function handleApplyProspectingTemplate() {
+    if (!clientId) {
+      setError("Choisis un client DMH avant d'appliquer le modèle de fiche de prospection.");
+      return;
+    }
+    setApplyingTemplate(true);
+    setError(null);
+    try {
+      const result = await applyProspectingFieldsTemplate(supabase, clientId);
+      const parts = [`${result.created.length} champ(s) créé(s)`];
+      if (result.skipped.length > 0) parts.push(`${result.skipped.length} déjà existant(s)`);
+      toast(parts.join(", ") + ".", "success");
+      await reload();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setApplyingTemplate(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -79,6 +102,22 @@ export function CustomFieldSettingsPage() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · propriétés" title="Champs personnalisés" />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Modèle de fiche de prospection</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Crée en un clic, pour le client DMH sélectionné ci-dessous, les champs personnalisés du gabarit générique
+            de fiche de prospection (rôle décisionnel, niveau de chaleur, source du signal, offres concernées,
+            grille de qualification…). Sans effet sur les champs déjà existants.
+          </p>
+          <Button type="button" onClick={handleApplyProspectingTemplate} disabled={applyingTemplate || !clientId}>
+            {applyingTemplate ? "…" : "Appliquer le modèle de fiche de prospection"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="flex gap-1 border-b border-border">
         {(Object.keys(ENTITY_TYPE_LABELS) as CustomFieldEntityType[]).map((type) => (
