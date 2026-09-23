@@ -9,7 +9,7 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 S38-1 (correctif bloquant) + S36 + S37 en attente de validation navigateur
+## Statut : ✅ S38-1 validé (tests exécutés par Claude à la demande de Loïc, 2026-09-23) — 🔄 S36 + S37 toujours en attente de validation navigateur
 
 ## S38-1 — Création de fiches cassée depuis le 07/09 (migration 044)
 
@@ -28,6 +28,8 @@ C'est la vraie cause du "0 contact créé" de la démo du 18/09.
 | 5 | Rejouer l'import CSV de contacts de la démo | N contact(s) créé(s) (plus de "0 contact créé") |
 | 6 | Déplacer une opportunité d'étape dans le Kanban | Toujours fonctionnel (seule table où `stage_id` existe) |
 | 7 | (si une ligne échoue encore) Lire le message dans la fenêtre d'import | La fenêtre reste ouverte et affiche le message d'erreur réel avec les numéros de ligne, au lieu d'un simple compteur |
+
+**Constaté le 2026-09-23** (script jetable contre la prod, vraies fonctions de service du CRM, client `[TEST Claude]`, données préfixées `ZZ-S38` puis supprimées — 0 restant vérifié) : cas 1 à 6 ✅ (contact+entreprise, entreprise seule, tâche, import 2 entreprises + 2 valeurs "Effectif estimé" dans un nouveau champ, import 2 contacts en `@acme.test` + 2 prospects, opportunité créée puis déplacée d'étape). Cas 7 couvert par tests unitaires (`importErrorSummary.test.ts`), pas vérifié visuellement. Limite : exécuté avec la clé `service_role` (RLS contournée) — la migration 044 ne touche pas aux policies RLS, le chemin navigateur reste donc équivalent.
 
 
 ## S36 — Agent d'import intelligent (colonnes non standard, Contacts/Entreprises)
