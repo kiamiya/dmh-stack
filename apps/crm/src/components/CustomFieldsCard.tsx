@@ -8,6 +8,13 @@ export interface CustomFieldsCardProps {
   entityType: CustomFieldEntityType;
   entityId: string;
   clientId: string;
+  /** S38-9 : n'afficher qu'une section (défaut : les deux). */
+  section?: "system" | "custom";
+  /** S38-9 : bloc personnalisé — uniquement ces champs, sous ce titre. */
+  onlyFieldKeys?: string[];
+  title?: string;
+  /** S38-9 : champs déjà affichés dans un bloc personnalisé, à ne pas répéter. */
+  excludeFieldKeys?: Set<string>;
 }
 
 /**
@@ -15,7 +22,15 @@ export interface CustomFieldsCardProps {
  * S38-6 : "Fiche de prospection" (champs système, communs à tous les clients) puis "Champs personnalisés"
  * (propres au client de la fiche uniquement — avant S38-6, les champs de tous les clients s'affichaient).
  */
-export function CustomFieldsCard({ entityType, entityId, clientId }: CustomFieldsCardProps) {
+export function CustomFieldsCard({
+  entityType,
+  entityId,
+  clientId,
+  section,
+  onlyFieldKeys,
+  title,
+  excludeFieldKeys,
+}: CustomFieldsCardProps) {
   const { definitions, loading: definitionsLoading } = useFieldDefinitions(entityType, clientId);
   const { values, save } = useCustomFieldValues(entityType, entityId);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -113,19 +128,31 @@ export function CustomFieldsCard({ entityType, entityId, clientId }: CustomField
     );
   }
 
-  const sections = [
-    { title: "Fiche de prospection", defs: definitions.filter((d) => d.is_system) },
-    { title: "Champs personnalisés", defs: definitions.filter((d) => !d.is_system) },
-  ].filter((section) => section.defs.length > 0);
+  const shown = definitions.filter((d) => !excludeFieldKeys?.has(d.field_key));
+  const sections = onlyFieldKeys
+    ? [
+        {
+          title: title ?? "Champs",
+          defs: onlyFieldKeys
+            .map((key) => definitions.find((d) => d.field_key === key))
+            .filter((d): d is CustomFieldDefinition => d !== undefined),
+        },
+      ]
+    : [
+        ...(section !== "custom" ? [{ title: "Fiche de prospection", defs: shown.filter((d) => d.is_system) }] : []),
+        ...(section !== "system" ? [{ title: "Champs personnalisés", defs: shown.filter((d) => !d.is_system) }] : []),
+      ].filter((s) => s.defs.length > 0);
 
   return (
     <>
-      {sections.map((section) => (
-        <Card key={section.title}>
+      {sections.map((s) => (
+        <Card key={s.title}>
           <CardHeader>
-            <CardTitle>{section.title}</CardTitle>
+            <CardTitle>{s.title}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">{section.defs.map(renderField)}</CardContent>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {s.defs.length > 0 ? s.defs.map(renderField) : <p className="text-sm text-muted-foreground">Aucun champ dans ce bloc.</p>}
+          </CardContent>
         </Card>
       ))}
     </>
