@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-14
+Dernière mise à jour : 2026-09-23
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -140,6 +140,19 @@ Dernière mise à jour : 2026-09-14
 | S36 | Agent d'import intelligent (call Delphine du 17/09) — colonnes non standard à l'import CSV Contacts/Entreprises : wizard séquentiel pré-rempli par Claude (`analyze-import-columns`), ignorer/rattacher à un champ personnalisé existant/en créer un nouveau | ✅ fait — code + tests unitaires verts (`@dmh/import-agent` + `apps/crm`) — **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9) — **Edge Function `analyze-import-columns` déployée en production le 2026-09-17** (`ANTHROPIC_API_KEY` déjà présente côté secrets Supabase) — en attente de validation fonctionnelle réelle, voir `TESTING.md` |
 | S36-N | Reste du besoin Open Data évoqué par Delphine (indicateurs de marché/risque, notes historiques/incidents avec provenance, scoring, propriétaires d'entreprise multiples) | ⬜ non cadré — hors périmètre de S36 (limité au sous-besoin "guider l'utilisateur sur les colonnes non standard"), bloqué sur le choix du dataset Open Data par Delphine/William et la formalisation de la tâche par Loïc |
 | S37 | Modèle de fiche de prospection (fichier `Fiche_CRM_Generique_pour_Loic.docx` transmis par Delphine le 17/09, généré via Claude à partir du dataset ARIA) — bouton "Appliquer le modèle" dans Champs personnalisés, crée en un clic 7 champs standards (rôle décisionnel, niveau de chaleur, source du signal, référence traçable, date du signal, offres concernées, grille de qualification) | ✅ fait — code + tests unitaires verts, **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9, idempotent par `field_key`) — en attente de validation navigateur, voir `TESTING.md`. Bloc "Statut du compte" (Client DMH direct/rattaché) du gabarit explicitement exclu — recoupe l'architecture clients DMH/finaux (Phase G), bloquée sur William (S34-10/S34-17) |
+| S38-12 | CR réunion Delphine/Loïc (17/09) — retirer de `TESTING.md` (S36, cas 7) la consigne "couper le réseau" (jugée absurde : la plateforme est elle-même inaccessible sans réseau) | ✅ fait |
+| S38-1 | CR (17/09) — bug import de contacts : 0 contact créé pendant la démo (cause à reproduire ; le code d'import ne valide pas le format email, l'hypothèse "domaine test" n'est donc pas la bonne) | ⬜ à faire |
+| S38-2 | CR (17/09) — import : validation du format email + correction inline des valeurs en erreur (réutiliser `EMAIL_RE` de `contactForm.ts`) | ⬜ à faire |
+| S38-3 | CR (17/09) — import : politique de conflit (conserver / écraser / compléter les champs vides), choix global par import (modèle HubSpot) — aujourd'hui un doublon est simplement ignoré | ⬜ à faire |
+| S38-4 | CR (17/09) — import en page plein écran : modèle CSV téléchargeable, indicateurs de mapping (coché/non coché), distinction propriétés contact / entreprise | ⬜ à faire |
+| S38-5 | CR (17/09) — base juridique RGPD à l'import de contacts, défaut "intérêt légitime prospect" (B2B) — migration `contacts.legal_basis` ; doc HubSpot transmise par Delphine (Discord) | ⬜ à faire |
+| S38-6 | CR (17/09) — les 7 champs de la fiche de prospection (S37) deviennent des champs système communs à tous les clients (options "Offres concernées"/"Grille de qualification" restent paramétrables par client) — migration + reprise des valeurs S37 | ⬜ à faire |
+| S38-7 | CR (17/09) — édition d'un champ existant (libellé, options : ajouter/renommer/supprimer) — aujourd'hui seule la création existe | ⬜ à faire |
+| S38-8 | CR (17/09) — fiche entreprise en 3 colonnes façon HubSpot (gauche : infos clés + actions rapides note/email/appel/tâche/réunion ; centre : historique ; droite : connexions) | ⬜ à faire |
+| S38-9 | CR (17/09) — composition des blocs de la fiche entreprise personnalisable et sauvegardée par client DMH (dépend de S38-8) — migration | ⬜ à faire |
+| S38-10 | CR (17/09) — automatisation : nouveau déclencheur "statut du prospect modifié" (ex. contact enrichi → tâche d'appel ; l'action `create_task` existe déjà) — migration | ⬜ à faire |
+| S38-11 | CR (17/09) — derniers écarts graphiques vs Claude Design (écrans où l'ancien design persiste — liste à dresser par audit) | ⬜ à faire |
+| S38-N | CR (17/09) — hors dev / bloqué : architecture comptes (clarifiée par Delphine : toute entreprise = compte, DMH = un compte comme les autres, environnements cloisonnés, marque blanche → Phase G, bloquée sur William) ; reporting interne vs dataviz externe (décision Loïc/William) ; séquences de tâches Lemlist (William) ; sous-menus de l'Aide (non prioritaire) | ⬜ en attente |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2821,3 +2834,27 @@ fiche de prospection) en conditions réelles — aucun protocole
 vérification visuelle de la liste de champs créés, pas d'appel à une API
 externe qui justifierait un protocole détaillé). Ensuite : `S36-N` (Open
 Data, une fois le dataset choisi) ou suite du plan S1-S35.
+
+## 2026-09-23 — S38 : CR de la réunion Delphine/Loïc du 17/09
+
+Loïc a transmis le compte rendu de la réunion de suivi avec Delphine
+(revue des champs, fiche entreprise, import, tâches ; comparaison HubSpot ;
+RGPD ; reporting). Découpage restitué à Loïc puis **validé tel quel**
+(lot S38, tableau ci-dessus). Déjà couverts, rien à développer : champ
+"offre" déjà côté entreprise (S37), lecteur de tâches (S34-13,
+`TaskFocusMode`), wizard des colonnes non reconnues (S36).
+
+Arbitrages par défaut retenus (questions posées sans réponse explicite,
+recommandations appliquées, à corriger si besoin) : options des champs
+système paramétrables par client (S38-6) ; politique de conflit à l'import
+choisie globalement pour tout l'import (S38-3) ; base juridique RGPD
+demandée à l'import uniquement, comme dans le CR (S38-5).
+
+Ordre : S38-12 (trivial) → bloc import (S38-1 à S38-5, bug démontré en
+réunion en premier) → champs (S38-6/7) → fiche entreprise (S38-8/9) →
+automatisation (S38-10) → finitions graphiques (S38-11).
+
+**S38-12** : cas 7 du protocole S36 de `TESTING.md` corrigé (seule la
+suppression temporaire du secret `ANTHROPIC_API_KEY` reste proposée).
+
+**Point de reprise** : S38-1 (reproduire le bug "0 contact créé").
