@@ -34,7 +34,17 @@ export async function resolveImportCustomFieldColumnMap(
   if (newFields.length === 0) return columnMap;
 
   const createdIdByFieldKey = new Map<string, string>();
+  // S38-6 : une clé déjà prise par un champ système est réutilisée, jamais
+  // dupliquée en champ personnalisé du client.
+  const systemIdByFieldKey = new Map(
+    (await listFieldDefinitions(client, entityType)).filter((d) => d.is_system).map((d) => [d.field_key, d.id]),
+  );
   for (const field of newFields) {
+    const systemId = systemIdByFieldKey.get(field.fieldKey);
+    if (systemId) {
+      createdIdByFieldKey.set(field.fieldKey, systemId);
+      continue;
+    }
     try {
       const created = await createFieldDefinition(client, {
         clientId,
@@ -47,7 +57,7 @@ export async function resolveImportCustomFieldColumnMap(
       createdIdByFieldKey.set(field.fieldKey, created.id);
     } catch {
       const existing = await listFieldDefinitions(client, entityType);
-      const match = existing.find((d) => d.client_id === clientId && d.field_key === field.fieldKey);
+      const match = existing.find((d) => (d.is_system || d.client_id === clientId) && d.field_key === field.fieldKey);
       if (!match) throw new Error(`Impossible de créer ou retrouver le champ personnalisé "${field.label}"`);
       createdIdByFieldKey.set(field.fieldKey, match.id);
     }

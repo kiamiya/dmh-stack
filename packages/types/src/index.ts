@@ -250,13 +250,23 @@ export type CustomFieldType = "text" | "number" | "date" | "boolean" | "select" 
 
 export interface CustomFieldDefinition {
   id: string;
-  client_id: string;
+  /** null pour un champ système (S38-6, migration 046) — commun à tous les clients. */
+  client_id: string | null;
+  /** Champ système (fiche de prospection) : visible pour tous les clients, non supprimable. */
+  is_system: boolean;
   entity_type: CustomFieldEntityType;
   field_key: string;
   label: string;
   field_type: CustomFieldType;
   select_options: string[] | null;
   created_at: string;
+}
+
+/** Surcharge des options d'un champ liste/choix multiples pour un client (S38-6, migration 046). */
+export interface CustomFieldClientOptions {
+  field_definition_id: string;
+  client_id: string;
+  select_options: string[];
 }
 
 export interface CustomFieldValue {

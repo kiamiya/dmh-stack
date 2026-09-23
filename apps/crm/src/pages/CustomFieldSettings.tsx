@@ -11,7 +11,6 @@ import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
 import { supabase } from "../lib/supabase";
 import { slugifyFieldKey, validateCustomFieldForm } from "../lib/customFieldForm";
-import { applyProspectingFieldsTemplate } from "../services/prospectingFieldsTemplate";
 
 const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   text: "Texte",
@@ -40,31 +39,16 @@ export function CustomFieldSettingsPage() {
   const [selectOptionsRaw, setSelectOptionsRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
-  async function handleApplyProspectingTemplate() {
-    if (!clientId) {
-      setError("Choisis un client DMH avant d'appliquer le modèle de fiche de prospection.");
-      return;
-    }
-    setApplyingTemplate(true);
-    setError(null);
-    try {
-      const result = await applyProspectingFieldsTemplate(supabase, clientId);
-      const parts = [`${result.created.length} champ(s) créé(s)`];
-      if (result.skipped.length > 0) parts.push(`${result.skipped.length} déjà existant(s)`);
-      toast(parts.join(", ") + ".", "success");
-      await reload();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setApplyingTemplate(false);
-    }
-  }
+  // S38-6 : champs système (communs à tous) + champs du client choisi ; sans client, tous les champs.
+  const visibleDefinitions = clientId
+    ? definitions.filter((d) => d.is_system || d.client_id === clientId)
+    : definitions;
+  const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const existingKeys = definitions.map((d) => d.field_key);
+    const existingKeys = visibleDefinitions.map((d) => d.field_key);
     const validationError = validateCustomFieldForm({ label, fieldType, selectOptionsRaw, existingKeys });
     if (validationError) {
       setError(validationError);
@@ -103,21 +87,12 @@ export function CustomFieldSettingsPage() {
     <div className="space-y-4 p-6">
       <PageHeader kicker="Données & réglages · propriétés" title="Champs personnalisés" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Modèle de fiche de prospection</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Crée en un clic, pour le client DMH sélectionné ci-dessous, les champs personnalisés du gabarit générique
-            de fiche de prospection (rôle décisionnel, niveau de chaleur, source du signal, offres concernées,
-            grille de qualification…). Sans effet sur les champs déjà existants.
-          </p>
-          <Button type="button" onClick={handleApplyProspectingTemplate} disabled={applyingTemplate || !clientId}>
-            {applyingTemplate ? "…" : "Appliquer le modèle de fiche de prospection"}
-          </Button>
-        </CardContent>
-      </Card>
+      <p className="text-sm text-muted-foreground">
+        Les champs <strong className="text-foreground">système</strong> (fiche de prospection : rôle décisionnel,
+        niveau de chaleur, source du signal, offres concernées, grille de qualification…) sont communs à tous les
+        clients et ne peuvent pas être supprimés. Les champs <strong className="text-foreground">personnalisés</strong>{" "}
+        sont propres à un client. Choisis un client pour ne voir que ses champs.
+      </p>
 
       <div className="flex gap-1 border-b border-border">
         {(Object.keys(ENTITY_TYPE_LABELS) as CustomFieldEntityType[]).map((type) => (
@@ -191,21 +166,25 @@ export function CustomFieldSettingsPage() {
             <TableHead>Libellé</TableHead>
             <TableHead>Clé</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>Portée</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {definitions.map((d) => (
+          {visibleDefinitions.map((d) => (
             <TableRow key={d.id}>
               <TableCell className="font-medium text-foreground">{d.label}</TableCell>
               <TableCell className="text-muted-foreground">{d.field_key}</TableCell>
               <TableCell>
                 <Badge>{FIELD_TYPE_LABELS[d.field_type]}</Badge>
               </TableCell>
+              <TableCell className="text-muted-foreground">
+                {d.is_system ? <Badge>Système</Badge> : (clientNameById.get(d.client_id ?? "") ?? "—")}
+              </TableCell>
             </TableRow>
           ))}
-          {definitions.length === 0 && (
+          {visibleDefinitions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={3} className="text-center text-muted-foreground">
+              <TableCell colSpan={4} className="text-center text-muted-foreground">
                 Aucun champ personnalisé pour "{ENTITY_TYPE_LABELS[entityType]}".
               </TableCell>
             </TableRow>

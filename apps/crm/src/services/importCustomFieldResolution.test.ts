@@ -5,7 +5,8 @@ import type { ImportColumnDecision } from "../lib/importColumnDecision";
 
 interface StubDefinition {
   id: string;
-  client_id: string;
+  client_id: string | null;
+  is_system?: boolean;
   entity_type: string;
   field_key: string;
   label: string;
@@ -131,5 +132,29 @@ describe("resolveImportCustomFieldColumnMap", () => {
     ]);
     expect(map).toEqual({});
     expect(insertCalls).toHaveLength(0);
+  });
+
+  it("S38-6 : réutilise un champ système de même clé au lieu d'en créer un doublon pour le client", async () => {
+    const { client, insertCalls } = makeStubClient({
+      existingDefinitions: [
+        {
+          id: "system-offres",
+          client_id: null,
+          is_system: true,
+          entity_type: "company",
+          field_key: "offres_concernees",
+          label: "Offres concernées",
+          field_type: "multiselect",
+          select_options: ["Offre 1"],
+          created_at: "2026-09-23",
+        },
+      ],
+    });
+    const decisions: ImportColumnDecision[] = [
+      { column: "Offres", action: "create_new", label: "Offres concernées", fieldType: "multiselect", fieldKey: "offres_concernees" },
+    ];
+    const map = await resolveImportCustomFieldColumnMap(client, "client-1", "company", decisions);
+    expect(map).toEqual({ Offres: "system-offres" });
+    expect(insertCalls).toEqual([]);
   });
 });

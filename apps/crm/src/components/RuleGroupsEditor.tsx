@@ -82,8 +82,8 @@ export interface RuleGroupsEditorProps {
  * plutôt qu'une saisie libre du nom de colonne.
  */
 export function RuleGroupsEditor({ entityType, clientId, groups, onChange }: RuleGroupsEditorProps) {
-  const { definitions } = useFieldDefinitions(entityType);
-  const customFields = definitions.filter((d) => d.client_id === clientId);
+  // S38-6 : champs système + champs de ce client (options surchargées pour ce client).
+  const { definitions: customFields } = useFieldDefinitions(entityType, clientId);
   const baseFields = BASE_FIELDS[entityType];
   const defaultField = baseFields[0]?.value ?? "";
 

@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CustomFieldDefinition, CustomFieldEntityType, CustomFieldType, CustomFieldValue } from "@dmh/types";
+import type {
+  CustomFieldClientOptions,
+  CustomFieldDefinition,
+  CustomFieldEntityType,
+  CustomFieldType,
+  CustomFieldValue,
+} from "@dmh/types";
 
 export async function listFieldDefinitions(
   client: SupabaseClient,
@@ -7,7 +13,7 @@ export async function listFieldDefinitions(
 ): Promise<CustomFieldDefinition[]> {
   const { data, error } = await client
     .from("custom_field_definitions")
-    .select("id, client_id, entity_type, field_key, label, field_type, select_options, created_at")
+    .select("id, client_id, is_system, entity_type, field_key, label, field_type, select_options, created_at")
     .eq("entity_type", entityType)
     .order("label");
   if (error) throw new Error(error.message);
@@ -113,4 +119,14 @@ export async function upsertValue(client: SupabaseClient, input: FieldValueUpser
       { onConflict: "entity_id,field_definition_id" },
     );
   if (error) throw new Error(error.message);
+}
+
+/** Surcharges d'options par client (S38-6) — ex. "Offres concernées" renommées pour ce client. */
+export async function listClientFieldOptions(client: SupabaseClient, clientId: string): Promise<CustomFieldClientOptions[]> {
+  const { data, error } = await client
+    .from("custom_field_client_options")
+    .select("field_definition_id, client_id, select_options")
+    .eq("client_id", clientId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CustomFieldClientOptions[];
 }

@@ -8,7 +8,8 @@ import { PageHeader } from "../components/ui/page-header";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
 import { listCompaniesForClient } from "../services/companies";
-import { listFieldDefinitions } from "../services/customFields";
+import { listClientFieldOptions, listFieldDefinitions } from "../services/customFields";
+import { resolveDefinitionsForClient } from "../lib/customFieldScope";
 import { resolveImportCustomFieldColumnMap } from "../services/importCustomFieldResolution";
 import { parseCsv } from "../lib/csv";
 import { autoDetectColumn } from "../lib/importColumnMapping";
@@ -208,13 +209,17 @@ export function ImportPage() {
     setStep("analyzing");
 
     const customFieldEntityType = entityType;
-    let allDefinitions: CustomFieldDefinition[] = [];
+    // S38-6 : champs système + champs de ce client, avec ses options — proposés en priorité par l'agent d'import.
+    let clientDefinitions: CustomFieldDefinition[] = [];
     try {
-      allDefinitions = await listFieldDefinitions(supabase, customFieldEntityType);
+      const [allDefinitions, overrides] = await Promise.all([
+        listFieldDefinitions(supabase, customFieldEntityType),
+        listClientFieldOptions(supabase, clientId),
+      ]);
+      clientDefinitions = resolveDefinitionsForClient(allDefinitions, clientId, overrides);
     } catch {
-      allDefinitions = [];
+      clientDefinitions = [];
     }
-    const clientDefinitions = allDefinitions.filter((d) => d.client_id === clientId);
     setExistingCustomFields(clientDefinitions);
 
     try {
