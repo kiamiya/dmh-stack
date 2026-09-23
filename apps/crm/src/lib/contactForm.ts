@@ -10,6 +10,11 @@ export interface ContactFormInput {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LINKEDIN_RE = /^https?:\/\/([\w-]+\.)?linkedin\.com\//i;
 
+/** Pure : format email minimal (x@y.z, sans espace) — même règle pour le formulaire et l'import CSV (S38-2). */
+export function isValidEmail(email: string): boolean {
+  return EMAIL_RE.test(email.trim());
+}
+
 /** Pure : valide le formulaire "Ajouter un contact". Retourne un message d'erreur FR, ou `null` si valide. */
 export function validateContactForm({
   clientId,
@@ -23,7 +28,7 @@ export function validateContactForm({
   if (!companyId) return "L'entreprise est requise.";
   if (!firstName.trim()) return "Le prénom est requis.";
   if (!lastName.trim()) return "Le nom est requis.";
-  if (email.trim() && !EMAIL_RE.test(email.trim())) return "L'email n'est pas valide.";
+  if (email.trim() && !isValidEmail(email)) return "L'email n'est pas valide.";
   if (linkedinUrl.trim() && !LINKEDIN_RE.test(linkedinUrl.trim())) {
     return "L'URL LinkedIn n'est pas valide (doit commencer par https://linkedin.com/ ou https://www.linkedin.com/).";
   }

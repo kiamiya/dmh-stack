@@ -1,5 +1,6 @@
 import { extractCustomFieldRawValues } from "./importColumnDecision";
 import type { ImportColumnDecision } from "./importColumnDecision";
+import { isValidEmail } from "./contactForm";
 
 export interface ContactImportRow {
   firstName: string;
@@ -21,6 +22,8 @@ export interface ContactImportPlanItem {
 export interface ContactImportSkipped {
   csvLine: number;
   reason: string;
+  /** Présent si la ligne est écartée pour un email mal formé — corrigeable dans l'interface (S38-2). */
+  invalidEmail?: { rowIndex: number; value: string };
 }
 
 export interface ContactImportPlan {
@@ -42,7 +45,10 @@ export interface ContactImportMapping {
  * jamais d'une écriture en base (voir `services/entityImport.ts` pour
  * l'exécution). Une ligne sans prénom/nom/entreprise est rejetée (jamais
  * créée à moitié) ; un email déjà utilisé (en base ou déjà vu plus tôt dans
- * le même fichier) est rejeté pour éviter un doublon de contact.
+ * le même fichier) est rejeté pour éviter un doublon de contact ; un email
+ * mal formé est rejeté avec `invalidEmail` pour permettre sa correction
+ * directe dans l'interface (S38-2) — la qualité de la donnée reste de la
+ * responsabilité de l'utilisateur, rien n'est corrigé automatiquement.
  *
  * `columnDecisions` (agent d'import, colonnes non standard) est optionnel et
  * vide par défaut — comportement inchangé pour un appelant qui ne s'en sert
@@ -74,6 +80,10 @@ export function planContactImport(
     }
 
     const rawEmail = mapping.email ? row[mapping.email]?.trim() || null : null;
+    if (rawEmail && !isValidEmail(rawEmail)) {
+      skipped.push({ csvLine, reason: `Email invalide : "${rawEmail}"`, invalidEmail: { rowIndex: index, value: rawEmail } });
+      return;
+    }
     const emailKey = rawEmail ? rawEmail.toLowerCase() : null;
     if (emailKey && seenEmails.has(emailKey)) {
       skipped.push({ csvLine, reason: `Email déjà utilisé : "${rawEmail}"` });

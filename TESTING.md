@@ -9,7 +9,31 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ✅ S38-1 validé (tests exécutés par Claude à la demande de Loïc, 2026-09-23) — 🔄 S36 + S37 toujours en attente de validation navigateur
+## Statut : 🔄 S38-2 en attente de validation navigateur — ✅ S38-1 validé — 🔄 S36 + S37 toujours en attente
+
+## S38-2 — Emails mal formés à l'import : correction directe
+
+À l'import de contacts, une ligne dont l'email ne respecte pas le format `x@y.z` n'est plus importée telle quelle : elle apparaît dans un encadré rouge à l'étape récapitulatif, avec un champ pour corriger l'email ou un bouton pour importer le contact sans email. **Aucune migration**, aucun prérequis.
+
+Fichier de test à créer (`test-s38-2.csv`) :
+
+```
+Prénom,Nom,Entreprise,Email
+Alice,Test,ZZ Test S38,alice@acme.test
+Bob,Test,ZZ Test S38,acmetest.test
+Claire,Test,ZZ Test S38,claire @acme.test
+```
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Prospects → Importer des contacts, choisir un client, charger le fichier, Continuer | Récapitulatif : "1 ligne(s) prête(s) à importer · 2 ligne(s) ignorée(s)", encadré rouge listant les lignes 3 et 4 avec leur email dans un champ |
+| 2 | Taper `bob@acme` dans le champ de la ligne 3 | Bordure rouge, bouton "Corriger" grisé |
+| 3 | Compléter en `bob@acme.test` puis "Corriger" (ou Entrée) | La ligne 3 disparaît de l'encadré, compteur à "2 ligne(s) prête(s)" |
+| 4 | Ligne 4 : cliquer "Importer sans email" | L'encadré disparaît, "3 ligne(s) prête(s)" |
+| 5 | Importer | Toast "3 contact(s) créé(s), 1 entreprise(s) créée(s)." ; Claire existe sans email, Bob avec `bob@acme.test` |
+| 6 | Réimporter le fichier d'origine sans rien corriger | Seule Alice est proposée… puis écartée comme "Email déjà utilisé" à l'import ; Bob/Claire restent dans l'encadré et ne sont pas importés |
+| 7 | Supprimer ensuite les 3 contacts et l'entreprise "ZZ Test S38" | (nettoyage) |
+
 
 ## S38-1 — Création de fiches cassée depuis le 07/09 (migration 044)
 

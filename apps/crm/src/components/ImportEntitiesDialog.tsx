@@ -18,6 +18,8 @@ import { planContactImport } from "../lib/contactImportPlan";
 import { planCompanyImport } from "../lib/companyImportPlan";
 import { importCompanies, importContacts } from "../services/entityImport";
 import { ImportColumnWizardStep } from "./ImportColumnWizardStep";
+import { InvalidEmailCorrectionRow } from "./InvalidEmailCorrectionRow";
+import { applyCellCorrection } from "../lib/importRowCorrection";
 import { useToast } from "./ui/toast";
 import { formatImportToast, summarizeImportErrors } from "../lib/importErrorSummary";
 import type { ImportRowError } from "../services/entityImport";
@@ -150,6 +152,14 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
       columnDecisions,
     );
   }, [rows, mapping, missingRequiredMapping, entityType, columnDecisions]);
+
+  // S38-2 : lignes écartées pour email mal formé (corrigeables sur place) vs autres motifs.
+  const skippedRows: Array<{ csvLine: number; reason: string; invalidEmail?: { rowIndex: number; value: string } }> =
+    plan?.skipped ?? [];
+  const invalidEmailRows = skippedRows.filter(
+    (s): s is typeof s & { invalidEmail: { rowIndex: number; value: string } } => s.invalidEmail !== undefined,
+  );
+  const otherSkipped = skippedRows.filter((s) => s.invalidEmail === undefined);
 
   async function handleContinueFromMapping() {
     if (!clientId) {
@@ -412,14 +422,32 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
                 {plan.skipped.length > 0 && <> · {plan.skipped.length} ligne(s) ignorée(s)</>}
               </p>
             )}
-            {plan && plan.skipped.length > 0 && (
+            {invalidEmailRows.length > 0 && (
+              <div className="space-y-1 rounded-md border border-destructive/40 p-3">
+                <p className="text-xs font-medium text-foreground">
+                  {invalidEmailRows.length} email(s) mal formé(s) — corrige-les ou importe ces contacts sans email
+                  (sinon ces lignes ne seront pas importées)
+                </p>
+                <ul className="max-h-40 space-y-1 overflow-y-auto">
+                  {invalidEmailRows.map((s) => (
+                    <InvalidEmailCorrectionRow
+                      key={`${s.csvLine}-${s.invalidEmail.value}`}
+                      csvLine={s.csvLine}
+                      value={s.invalidEmail.value}
+                      onCorrect={(value) => setRows((prev) => applyCellCorrection(prev, s.invalidEmail.rowIndex, mapping.email, value))}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {otherSkipped.length > 0 && (
               <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
-                {plan.skipped.slice(0, 10).map((s) => (
+                {otherSkipped.slice(0, 10).map((s) => (
                   <li key={s.csvLine}>
                     Ligne {s.csvLine} : {s.reason}
                   </li>
                 ))}
-                {plan.skipped.length > 10 && <li>… et {plan.skipped.length - 10} autre(s)</li>}
+                {otherSkipped.length > 10 && <li>… et {otherSkipped.length - 10} autre(s)</li>}
               </ul>
             )}
             {columnDecisions.length > 0 && (

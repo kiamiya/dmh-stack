@@ -94,4 +94,25 @@ describe("planContactImport", () => {
     expect(plan.toCreate).toHaveLength(2);
     expect(plan.skipped).toEqual([]);
   });
+
+  it("rejette un email mal formé en indiquant la ligne à corriger (S38-2)", () => {
+    const rows = [
+      { Prénom: "Alice", Nom: "Fictive", Entreprise: "ACME", Poste: "", Email: "alice@acme.test", LinkedIn: "" },
+      { Prénom: "Bob", Nom: "Exemple", Entreprise: "ACME", Poste: "", Email: "acmetest.test", LinkedIn: "" },
+    ];
+    const plan = planContactImport(rows, MAPPING, new Set());
+    expect(plan.toCreate.map((i) => i.data.firstName)).toEqual(["Alice"]);
+    expect(plan.skipped).toEqual([
+      { csvLine: 3, reason: 'Email invalide : "acmetest.test"', invalidEmail: { rowIndex: 1, value: "acmetest.test" } },
+    ]);
+  });
+
+  it("n'utilise pas un email invalide pour la détection de doublons", () => {
+    const rows = [
+      { Prénom: "Alice", Nom: "Fictive", Entreprise: "ACME", Poste: "", Email: "pas un email", LinkedIn: "" },
+      { Prénom: "Bob", Nom: "Exemple", Entreprise: "ACME", Poste: "", Email: "pas un email", LinkedIn: "" },
+    ];
+    const plan = planContactImport(rows, MAPPING, new Set());
+    expect(plan.skipped.map((s) => s.invalidEmail?.rowIndex)).toEqual([0, 1]);
+  });
 });
