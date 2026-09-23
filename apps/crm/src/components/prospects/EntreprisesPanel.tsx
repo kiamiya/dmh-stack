@@ -420,14 +420,14 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
             <button
               type="button"
               onClick={() => setNewListMode("static")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Statique
             </button>
             <button
               type="button"
               onClick={() => setNewListMode("dynamic")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Dynamique (critères)
             </button>

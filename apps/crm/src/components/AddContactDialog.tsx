@@ -198,7 +198,7 @@ export function AddContactDialog({ open, onOpenChange, onCreated }: AddContactDi
                 className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
               {duplicate && (
-                <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
+                <p className="mt-1 text-xs text-warning">
                   Un contact avec cet email existe déjà pour ce client :{" "}
                   <Link to={`/contacts/${duplicate.id}`} target="_blank" className="underline">
                     {duplicate.first_name} {duplicate.last_name}

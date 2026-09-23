@@ -704,7 +704,7 @@ export function ListsPage() {
                     <button
                       type="button"
                       onClick={() => setFilterFolderId("")}
-                      className={`block w-full rounded px-1.5 py-1 text-left text-xs ${filterFolderId === "" ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                      className={`block w-full rounded-md px-1.5 py-1 text-left text-xs ${filterFolderId === "" ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
                     >
                       Tous les dossiers
                     </button>
@@ -714,7 +714,7 @@ export function ListsPage() {
                           <button
                             type="button"
                             onClick={() => setFilterFolderId(node.folder.id)}
-                            className={`flex-1 rounded px-1.5 py-1 text-left text-xs ${filterFolderId === node.folder.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                            className={`flex-1 rounded-md px-1.5 py-1 text-left text-xs ${filterFolderId === node.folder.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
                           >
                             {node.folder.name}
                           </button>
@@ -732,7 +732,7 @@ export function ListsPage() {
                             <button
                               type="button"
                               onClick={() => setFilterFolderId(child.id)}
-                              className={`flex-1 rounded px-1.5 py-1 text-left text-xs ${filterFolderId === child.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+                              className={`flex-1 rounded-md px-1.5 py-1 text-left text-xs ${filterFolderId === child.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
                             >
                               {child.name}
                             </button>
@@ -740,7 +740,7 @@ export function ListsPage() {
                               value={child.parent_id ?? ""}
                               onChange={(e) => handleMoveFolder(child.id, e.target.value || null)}
                               title="Déplacer vers"
-                              className="rounded border border-border bg-transparent text-[10px] text-muted-foreground"
+                              className="rounded-md border border-border bg-transparent text-[10px] text-muted-foreground"
                             >
                               <option value="">Racine</option>
                               {folderTree
@@ -1009,14 +1009,14 @@ export function ListsPage() {
             <button
               type="button"
               onClick={() => setNewMode("static")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Statique
             </button>
             <button
               type="button"
               onClick={() => setNewMode("dynamic")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Dynamique (critères)
             </button>

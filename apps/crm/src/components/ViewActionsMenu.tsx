@@ -30,7 +30,7 @@ export function ViewActionsMenu({ actions, title }: ViewActionsMenuProps) {
           type="button"
           title={title}
           aria-label={title}
-          className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           ⋯
         </button>

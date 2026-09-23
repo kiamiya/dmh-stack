@@ -2,8 +2,8 @@
 export function CompletenessBar({ percent }: { percent: number }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div className="h-1 w-11 rounded bg-muted">
-        <div className="h-full rounded bg-accent" style={{ width: `${percent}%` }} />
+      <div className="h-1 w-11 rounded-md bg-muted">
+        <div className="h-full rounded-md bg-accent" style={{ width: `${percent}%` }} />
       </div>
       <span className="text-xs tabular-nums text-muted-foreground">{percent}%</span>
     </div>

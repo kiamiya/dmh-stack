@@ -567,7 +567,7 @@ export function ContactDetailPage() {
                 type="button"
                 disabled={merging}
                 onClick={handleMerge}
-                className="shrink-0 bg-red-600 text-white hover:bg-red-700"
+                className="shrink-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 {merging ? "…" : "Confirmer la fusion"}
               </Button>

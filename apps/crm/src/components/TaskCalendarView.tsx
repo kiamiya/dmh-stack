@@ -79,7 +79,7 @@ export function TaskCalendarView({ tasks, onSelectTask }: TaskCalendarViewProps)
                   key={task.id}
                   type="button"
                   onClick={() => onSelectTask(task)}
-                  className="block w-full truncate rounded px-1 py-0.5 text-left hover:opacity-80"
+                  className="block w-full truncate rounded-md px-1 py-0.5 text-left hover:opacity-80"
                 >
                   <Badge variant={getTaskStatusColor(task.status)} className="w-full justify-start truncate">
                     {task.title}

@@ -264,14 +264,14 @@ export function TasksPage() {
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${view === "list" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Liste
             </button>
             <button
               type="button"
               onClick={() => setView("calendar")}
-              className={`rounded px-2 py-1 text-xs font-medium ${view === "calendar" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${view === "calendar" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Calendrier
             </button>

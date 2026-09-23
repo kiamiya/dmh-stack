@@ -413,14 +413,14 @@ export function OpportunitiesPage() {
             <button
               type="button"
               onClick={() => setDisplayMode("list")}
-              className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Liste
             </button>
             <button
               type="button"
               onClick={() => setDisplayMode("kanban")}
-              className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Kanban
             </button>
@@ -532,14 +532,14 @@ export function OpportunitiesPage() {
             <button
               type="button"
               onClick={() => setNewListMode("static")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newListMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Statique
             </button>
             <button
               type="button"
               onClick={() => setNewListMode("dynamic")}
-              className={`rounded px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+              className={`rounded-md px-2 py-1 text-xs font-medium ${newListMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
             >
               Dynamique (critères)
             </button>

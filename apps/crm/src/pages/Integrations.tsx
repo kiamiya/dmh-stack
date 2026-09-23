@@ -43,7 +43,7 @@ export function IntegrationsPage() {
                   </span>
                   <span className="font-heading text-base font-semibold text-foreground">{integration.label}</span>
                   <span
-                    className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${integration.configured ? "bg-green-500" : "bg-yellow-500"}`}
+                    className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${integration.configured ? "bg-success" : "bg-warning"}`}
                   />
                 </div>
                 <p className="min-h-8 text-xs text-muted-foreground">{DESCRIPTIONS[integration.key] ?? ""}</p>

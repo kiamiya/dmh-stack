@@ -26,7 +26,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
   return (
     <div
       {...dragHandleProps}
-      className="cursor-grab rounded-md border border-border bg-card p-2 shadow-sm active:cursor-grabbing"
+      className="cursor-grab rounded-md border border-border bg-background p-2 active:cursor-grabbing"
     >
       <div className="flex items-start gap-1.5">
         <Avatar name={companyName} size="sm" />
@@ -52,7 +52,7 @@ export function ProspectCard({ prospect, dragHandleProps }: ProspectCardProps) {
         <span
           className={cn(
             "flex items-center gap-1 truncate",
-            stagnant ? "font-medium text-yellow-700 dark:text-yellow-400" : "text-muted-foreground",
+            stagnant ? "font-medium text-warning" : "text-muted-foreground",
           )}
           title={`Dernière activité : ${formatRelativeTime(prospect.last_activity_at)}`}
         >

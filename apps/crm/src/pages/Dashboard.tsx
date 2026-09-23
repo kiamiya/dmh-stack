@@ -531,7 +531,7 @@ export function DashboardPage() {
     if (diff === 0) return <span className="text-xs text-muted-foreground">= vs 7j précédents</span>;
     const positive = diff > 0;
     return (
-      <span className={`text-xs ${positive ? "text-green-600" : "text-destructive"}`}>
+      <span className={`text-xs ${positive ? "text-success" : "text-destructive"}`}>
         {positive ? "↑" : "↓"} {formatValue(Math.abs(diff))} vs 7j précédents
       </span>
     );
@@ -611,7 +611,7 @@ export function DashboardPage() {
           title="Rafraîchir"
           aria-label="Rafraîchir"
           onClick={handleRefresh}
-          className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           ↻
         </button>

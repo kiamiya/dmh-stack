@@ -134,7 +134,7 @@ export function AddCompanyDialog({ open, onOpenChange, onCreated, lockedClientId
               className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
             {duplicate && (
-              <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
+              <p className="mt-1 text-xs text-warning">
                 Une entreprise homonyme existe déjà pour ce client :{" "}
                 <Link to={`/companies/${duplicate.id}`} target="_blank" className="underline">
                   {duplicate.name}

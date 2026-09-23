@@ -80,7 +80,7 @@ export function CalendarEventGrid({ events, onSelectEvent }: CalendarEventGridPr
                   key={event.id}
                   type="button"
                   onClick={() => onSelectEvent(event)}
-                  className="block w-full truncate rounded px-1 py-0.5 text-left hover:opacity-80"
+                  className="block w-full truncate rounded-md px-1 py-0.5 text-left hover:opacity-80"
                 >
                   <Badge variant={PROVIDER_VARIANT[event.provider]} className="w-full justify-start truncate">
                     {new Date(event.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {event.title}

@@ -422,7 +422,7 @@ export function ProspectsListPage() {
             <span
               className={cn(
                 "flex items-center gap-1",
-                stagnant && "font-medium text-yellow-700 dark:text-yellow-400",
+                stagnant && "font-medium text-warning",
               )}
             >
               {stagnant && <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} />}
@@ -583,14 +583,14 @@ export function ProspectsListPage() {
           <button
             type="button"
             onClick={() => setEntityView("contacts")}
-            className={`rounded px-3 py-1.5 text-sm font-medium ${entityView === "contacts" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${entityView === "contacts" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
           >
             Contacts <span className="ml-1 text-xs opacity-70">{byClientForCount.length}</span>
           </button>
           <button
             type="button"
             onClick={() => setEntityView("companies")}
-            className={`rounded px-3 py-1.5 text-sm font-medium ${entityView === "companies" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${entityView === "companies" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
           >
             Entreprises <span className="ml-1 text-xs opacity-70">{companiesForCount.length}</span>
           </button>
@@ -627,7 +627,7 @@ export function ProspectsListPage() {
                   title="Synchroniser"
                   aria-label="Synchroniser"
                   onClick={() => reload()}
-                  className="rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
                   ↻
                 </button>
@@ -635,14 +635,14 @@ export function ProspectsListPage() {
                   <button
                     type="button"
                     onClick={() => setDisplayMode("list")}
-                    className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${displayMode === "list" ? "bg-secondary" : "text-muted-foreground"}`}
                   >
                     Liste
                   </button>
                   <button
                     type="button"
                     onClick={() => setDisplayMode("kanban")}
-                    className={`rounded px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${displayMode === "kanban" ? "bg-secondary" : "text-muted-foreground"}`}
                   >
                     Kanban
                   </button>
@@ -871,14 +871,14 @@ export function ProspectsListPage() {
                 <button
                   type="button"
                   onClick={() => setNewSegmentMode("static")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${newSegmentMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
+                  className={`rounded-md px-2 py-1 text-xs font-medium ${newSegmentMode === "static" ? "bg-secondary" : "text-muted-foreground"}`}
                 >
                   Statique
                 </button>
                 <button
                   type="button"
                   onClick={() => setNewSegmentMode("dynamic")}
-                  className={`rounded px-2 py-1 text-xs font-medium ${newSegmentMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
+                  className={`rounded-md px-2 py-1 text-xs font-medium ${newSegmentMode === "dynamic" ? "bg-secondary" : "text-muted-foreground"}`}
                 >
                   Dynamique (critères)
                 </button>

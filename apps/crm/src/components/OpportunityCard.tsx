@@ -17,7 +17,7 @@ export function OpportunityCard({ deal, dragHandleProps }: OpportunityCardProps)
   return (
     <div
       {...dragHandleProps}
-      className="cursor-grab rounded-md border border-border bg-card p-3 shadow-sm active:cursor-grabbing"
+      className="cursor-grab rounded-md border border-border bg-background p-3 active:cursor-grabbing"
     >
       <Link
         to={`/opportunities/${deal.id}`}
@@ -34,7 +34,7 @@ export function OpportunityCard({ deal, dragHandleProps }: OpportunityCardProps)
         <span
           className={
             stagnant
-              ? "flex items-center gap-1 font-medium text-yellow-700 dark:text-yellow-400"
+              ? "flex items-center gap-1 font-medium text-warning"
               : "flex items-center gap-1 text-muted-foreground"
           }
         >

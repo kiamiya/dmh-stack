@@ -98,7 +98,7 @@ export function CompanyLayoutDialog({
               <p className="text-xs font-medium text-foreground">{LAYOUT_COLUMN_LABEL[column]}</p>
               {draft.columns[column].length === 0 && <p className="text-xs text-muted-foreground">Vide</p>}
               {draft.columns[column].map((block, index) => (
-                <div key={block.id} className="space-y-1 rounded border border-border px-2 py-1.5 text-xs">
+                <div key={block.id} className="space-y-1 rounded-md border border-border px-2 py-1.5 text-xs">
                   <label className="flex items-center gap-1.5">
                     <input
                       type="checkbox"
@@ -141,7 +141,7 @@ export function CompanyLayoutDialog({
                       aria-label={`Colonne de ${blockLabel(block)}`}
                       value={column}
                       onChange={(e) => setDraft((d) => moveBlockToColumn(d, block.id, e.target.value as LayoutColumn))}
-                      className="rounded border border-border px-1 py-0.5"
+                      className="rounded-md border border-border px-1 py-0.5"
                     >
                       {LAYOUT_COLUMNS.map((c) => (
                         <option key={c} value={c}>
