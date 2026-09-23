@@ -95,7 +95,7 @@ Dernière mise à jour : 2026-09-23
 | S30 | Audit design "Relais" v2 (re-fetch mockup) — combler les écarts + layout Pipeline | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S31 | Audit design "Relais" v3 (fondations CSS + layout partagé) — cartes transparentes, icônes Lucide, badges menu, recherche Header | ✅ fait — validation visuelle réelle en attente de Loïc |
 | S32 | Analyse détaillée écran par écran (design "Relais") + lot "chrome" + 8/11 écrans | ✅ fait — 4 derniers écrans recadrés avec Loïc : Campagnes/Mapping/Paramètres restent en périmètre réduit, Automatisations étendu (voir S32-auto) |
-| S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — reste le remplissage du secret Vault + validation manuelle (voir TESTING.md) |
+| S32-auto | Automatisations — moteur étendu (branches Oui/Non + action "Enrichir") + canvas UI | 🔄 code + tests verts, migration 030 appliquée en production (confirmée par Loïc le 2026-09-07) — secret Vault corrigé et vérifié le 2026-09-23 (contenait `<sb_secret_…>` avec chevrons) — reste la validation manuelle (voir TESTING.md) |
 | S32-segments | Segments (/lists) — combler les écarts avec le mockup (comparaison demandée par Loïc) | 🔄 Lot A + Lot B en production (validation manuelle en attente, voir TESTING.md) ; Lot C (Dossiers) code+tests verts, **migration 032 appliquée en production le 2026-09-10** (confirmée par Loïc) — validation navigateur en attente |
 | S33-0 | Revue dev CRM (08/09) — audit champs personnalisés globaux vs par contact | ✅ fait — pas de code à écrire, voir Journal |
 | S33-1 | Revue dev CRM (08/09) — masquer Contacts/Entreprises/Pipeline de la sidebar (doublon avec Prospect) | ✅ fait côté code — routes `/contacts`, `/companies`, `/pipeline` conservées en deep-link, en attente de validation navigateur |
@@ -2889,4 +2889,6 @@ production. (Fausse alerte levée le 2026-09-23 : un script de diagnostic jetabl
 
 **Nouveau problème trouvé (S32-auto)** : le secret Vault `app_service_role_key` est renseigné mais vaut littéralement `<sb_secret_…>` — les chevrons du modèle de la migration 030 (`'<vraie clé service_role>'`) ont été conservés. L'appel `pg_net` d'enrichissement automatique envoie donc un Bearer invalide (échec silencieux, appel asynchrone). De plus, une clé `sb_secret_` n'est pas un JWT : si les Edge Functions vérifient le JWT (défaut), elle serait refusée même sans chevrons. Correction proposée : remplacer par la clé `service_role` JWT (celle de `.env.local`, validée) — écriture en prod, en attente de confirmation Loïc.
 
-**Point de reprise** : confirmation Loïc pour corriger le secret Vault, puis S38-2.
+**Secret Vault corrigé par Loïc le 2026-09-23** (SQL Editor, `vault.update_secret`, instructions pas à pas fournies) — vérifié : longueur 219, préfixe `eyJ`, md5 identique à `SUPABASE_SERVICE_ROLE_KEY` de `.env.local`. Rappel : `automation_rules` est vide en production — aucune règle "Enrichir" active, l'enrichissement automatique ne partira qu'une fois une automatisation créée dans le CRM.
+
+**Point de reprise** : S38-2 (validation format email + correction inline à l'import).
