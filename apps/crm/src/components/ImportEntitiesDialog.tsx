@@ -7,7 +7,6 @@ import { Button } from "./ui/button";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
 import { listCompaniesForClient } from "../services/companies";
-import { listContactEmailsForClient } from "../services/contacts";
 import { listFieldDefinitions } from "../services/customFields";
 import { resolveImportCustomFieldColumnMap } from "../services/importCustomFieldResolution";
 import { parseCsv } from "../lib/csv";
@@ -16,7 +15,17 @@ import { sampleColumnValues } from "../lib/importColumnDecision";
 import type { ImportColumnDecision } from "../lib/importColumnDecision";
 import { planContactImport } from "../lib/contactImportPlan";
 import { planCompanyImport } from "../lib/companyImportPlan";
-import { importCompanies, importContacts } from "../services/entityImport";
+import {
+  importCompanies,
+  importContacts,
+  listCompaniesForImportConflict,
+  listContactsForImportConflict,
+  updateExistingCompanies,
+  updateExistingContacts,
+} from "../services/entityImport";
+import type { ExistingCompanyForImport, ExistingContactForImport } from "../services/entityImport";
+import { IMPORT_CONFLICT_POLICY_OPTIONS } from "../lib/importConflict";
+import type { ImportConflictPolicy } from "../lib/importConflict";
 import { ImportColumnWizardStep } from "./ImportColumnWizardStep";
 import { InvalidEmailCorrectionRow } from "./InvalidEmailCorrectionRow";
 import { applyCellCorrection } from "../lib/importRowCorrection";
@@ -94,6 +103,10 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
   const [suggestions, setSuggestions] = useState<ColumnAnalysisSuggestion[]>([]);
   const [analysisFailed, setAnalysisFailed] = useState(false);
   const [columnDecisions, setColumnDecisions] = useState<ImportColumnDecision[]>([]);
+  // S38-3 : fiches déjà en base (chargées à la sortie de l'étape de correspondance) + politique de conflit.
+  const [existingContacts, setExistingContacts] = useState<ExistingContactForImport[]>([]);
+  const [existingCompanies, setExistingCompanies] = useState<ExistingCompanyForImport[]>([]);
+  const [conflictPolicy, setConflictPolicy] = useState<ImportConflictPolicy>("skip");
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
@@ -109,6 +122,9 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
     setSuggestions([]);
     setAnalysisFailed(false);
     setColumnDecisions([]);
+    setExistingContacts([]);
+    setExistingCompanies([]);
+    setConflictPolicy("skip");
   }
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -141,17 +157,19 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
           email: mapping.email || undefined,
           linkedinUrl: mapping.linkedinUrl || undefined,
         },
-        new Set(),
+        new Set(existingContacts.map((c) => c.email.toLowerCase())),
         columnDecisions,
+        conflictPolicy,
       );
     }
     return planCompanyImport(
       rows,
       { name: mapping.name, city: mapping.city || undefined, website: mapping.website || undefined },
-      new Set(),
+      new Set(existingCompanies.map((c) => c.name.toLowerCase())),
       columnDecisions,
+      conflictPolicy,
     );
-  }, [rows, mapping, missingRequiredMapping, entityType, columnDecisions]);
+  }, [rows, mapping, missingRequiredMapping, entityType, columnDecisions, existingContacts, existingCompanies, conflictPolicy]);
 
   // S38-2 : lignes écartées pour email mal formé (corrigeables sur place) vs autres motifs.
   const skippedRows: Array<{ csvLine: number; reason: string; invalidEmail?: { rowIndex: number; value: string } }> =
@@ -175,6 +193,14 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
       return;
     }
     setError(null);
+
+    try {
+      if (entityType === "contact") setExistingContacts(await listContactsForImportConflict(supabase, clientId));
+      else setExistingCompanies(await listCompaniesForImportConflict(supabase, clientId));
+    } catch (err) {
+      setError((err as Error).message);
+      return;
+    }
 
     const mappedColumns = new Set(Object.values(mapping).filter(Boolean));
     const unmapped = columns.filter((c) => !mappedColumns.has(c));
@@ -242,9 +268,9 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
 
       let rowErrors: ImportRowError[] = [];
       if (entityType === "contact") {
-        const [existingCompanies, existingEmails] = await Promise.all([
+        const [companiesForClient, contactsForConflict] = await Promise.all([
           listCompaniesForClient(supabase, clientId),
-          listContactEmailsForClient(supabase, clientId),
+          listContactsForImportConflict(supabase, clientId),
         ]);
         const contactPlan = planContactImport(
           rows,
@@ -256,31 +282,49 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
             email: mapping.email || undefined,
             linkedinUrl: mapping.linkedinUrl || undefined,
           },
-          new Set(existingEmails.map((e) => e.toLowerCase())),
+          new Set(contactsForConflict.map((c) => c.email.toLowerCase())),
           columnDecisions,
+          conflictPolicy,
         );
-        const companyIdByName = new Map(existingCompanies.map((c) => [c.name.toLowerCase(), c.id]));
+        const companyIdByName = new Map(companiesForClient.map((c) => [c.name.toLowerCase(), c.id]));
         const result = await importContacts(supabase, clientId, contactPlan, companyIdByName, customFieldColumnMap);
+        const updates = await updateExistingContacts(
+          supabase,
+          clientId,
+          contactPlan.toUpdate,
+          new Map(contactsForConflict.map((c) => [c.email.toLowerCase(), c])),
+          conflictPolicy,
+          customFieldColumnMap,
+        );
 
         const parts = [`${result.contactsCreated} contact(s) créé(s)`];
+        if (updates.updated > 0) parts.push(`${updates.updated} mis à jour`);
         if (result.companiesCreated > 0) parts.push(`${result.companiesCreated} entreprise(s) créée(s)`);
-        toast(formatImportToast(parts, contactPlan.skipped.length, result.errors.length), result.errors.length > 0 ? "destructive" : "success");
-        rowErrors = result.errors;
+        rowErrors = [...result.errors, ...updates.errors];
+        toast(formatImportToast(parts, contactPlan.skipped.length, rowErrors.length), rowErrors.length > 0 ? "destructive" : "success");
       } else {
-        const existingCompanies = await listCompaniesForClient(supabase, clientId);
+        const companiesForConflict = await listCompaniesForImportConflict(supabase, clientId);
         const companyPlan = planCompanyImport(
           rows,
           { name: mapping.name, city: mapping.city || undefined, website: mapping.website || undefined },
-          new Set(existingCompanies.map((c) => c.name.toLowerCase())),
+          new Set(companiesForConflict.map((c) => c.name.toLowerCase())),
           columnDecisions,
+          conflictPolicy,
         );
         const result = await importCompanies(supabase, clientId, companyPlan, customFieldColumnMap);
-
-        toast(
-          formatImportToast([`${result.companiesCreated} entreprise(s) créée(s)`], companyPlan.skipped.length, result.errors.length),
-          result.errors.length > 0 ? "destructive" : "success",
+        const updates = await updateExistingCompanies(
+          supabase,
+          clientId,
+          companyPlan.toUpdate,
+          new Map(companiesForConflict.map((c) => [c.name.toLowerCase(), c])),
+          conflictPolicy,
+          customFieldColumnMap,
         );
-        rowErrors = result.errors;
+
+        const parts = [`${result.companiesCreated} entreprise(s) créée(s)`];
+        if (updates.updated > 0) parts.push(`${updates.updated} mise(s) à jour`);
+        rowErrors = [...result.errors, ...updates.errors];
+        toast(formatImportToast(parts, companyPlan.skipped.length, rowErrors.length), rowErrors.length > 0 ? "destructive" : "success");
       }
 
       onImported();
@@ -416,9 +460,31 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
 
         {step === "review" && (
           <>
+            <fieldset className="space-y-1 rounded-md border border-border p-3">
+              <legend className="px-1 text-xs font-medium text-foreground">
+                Si {entityType === "contact" ? "un contact existe déjà (même email)" : "une entreprise existe déjà (même nom)"}
+              </legend>
+              {IMPORT_CONFLICT_POLICY_OPTIONS.map((o) => (
+                <label key={o.value} className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    type="radio"
+                    name="import-conflict-policy"
+                    value={o.value}
+                    checked={conflictPolicy === o.value}
+                    onChange={() => setConflictPolicy(o.value)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium text-foreground">{o.label}</span>
+                    <span className="block text-muted-foreground">{o.description}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             {plan && (
               <p className="text-sm text-foreground">
-                {plan.toCreate.length} ligne(s) prête(s) à importer
+                {plan.toCreate.length} à créer
+                {plan.toUpdate.length > 0 && <> · {plan.toUpdate.length} fiche(s) existante(s) à mettre à jour</>}
                 {plan.skipped.length > 0 && <> · {plan.skipped.length} ligne(s) ignorée(s)</>}
               </p>
             )}
@@ -482,7 +548,11 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={submitting || !plan || plan.toCreate.length === 0}>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || !plan || plan.toCreate.length + plan.toUpdate.length === 0}
+            >
               {submitting ? "…" : "Importer"}
             </Button>
           </>

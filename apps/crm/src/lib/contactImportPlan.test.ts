@@ -82,7 +82,7 @@ describe("planContactImport", () => {
     ];
     const plan = planContactImport(rows, MAPPING, new Set());
     expect(plan.toCreate).toHaveLength(1);
-    expect(plan.skipped).toEqual([{ csvLine: 3, reason: 'Email déjà utilisé : "alice@acme.test"' }]);
+    expect(plan.skipped).toEqual([{ csvLine: 3, reason: 'Email en double dans le fichier : "alice@acme.test"' }]);
   });
 
   it("accepte des lignes sans email (optionnel)", () => {
@@ -114,5 +114,29 @@ describe("planContactImport", () => {
     ];
     const plan = planContactImport(rows, MAPPING, new Set());
     expect(plan.skipped.map((s) => s.invalidEmail?.rowIndex)).toEqual([0, 1]);
+  });
+
+  it("S38-3 : un email déjà en base part en mise à jour si la politique n'est pas 'skip'", () => {
+    const rows = [
+      { Prénom: "Alice", Nom: "Fictive", Entreprise: "ACME", Poste: "CTO", Email: "ALICE@acme.test", LinkedIn: "" },
+      { Prénom: "Bob", Nom: "Exemple", Entreprise: "ACME", Poste: "", Email: "bob@acme.test", LinkedIn: "" },
+    ];
+    const skip = planContactImport(rows, MAPPING, new Set(["alice@acme.test"]));
+    expect(skip.toUpdate).toEqual([]);
+    expect(skip.skipped).toHaveLength(1);
+    const fill = planContactImport(rows, MAPPING, new Set(["alice@acme.test"]), [], "fill_empty");
+    expect(fill.toUpdate.map((i) => i.data.email)).toEqual(["ALICE@acme.test"]);
+    expect(fill.toCreate.map((i) => i.data.email)).toEqual(["bob@acme.test"]);
+    expect(fill.skipped).toEqual([]);
+  });
+
+  it("S38-3 : un doublon interne au fichier reste écarté même en mode écrasement", () => {
+    const rows = [
+      { Prénom: "Alice", Nom: "Fictive", Entreprise: "ACME", Poste: "", Email: "alice@acme.test", LinkedIn: "" },
+      { Prénom: "Alice", Nom: "Bis", Entreprise: "ACME", Poste: "", Email: "alice@acme.test", LinkedIn: "" },
+    ];
+    const plan = planContactImport(rows, MAPPING, new Set(["alice@acme.test"]), [], "overwrite");
+    expect(plan.toUpdate).toHaveLength(1);
+    expect(plan.skipped.map((s) => s.csvLine)).toEqual([3]);
   });
 });

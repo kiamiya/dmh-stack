@@ -48,6 +48,14 @@ describe("planCompanyImport", () => {
     ];
     const plan = planCompanyImport(rows, MAPPING, new Set());
     expect(plan.toCreate).toHaveLength(1);
-    expect(plan.skipped).toEqual([{ csvLine: 3, reason: 'Entreprise déjà existante : "acme"' }]);
+    expect(plan.skipped).toEqual([{ csvLine: 3, reason: 'Entreprise en double dans le fichier : "acme"' }]);
+  });
+
+  it("S38-3 : une entreprise déjà en base part en mise à jour si la politique n'est pas 'skip'", () => {
+    const rows = [{ Nom: "acme", Ville: "Lyon" }, { Nom: "Neuve", Ville: "" }];
+    const plan = planCompanyImport(rows, { name: "Nom", city: "Ville" }, new Set(["acme"]), [], "overwrite");
+    expect(plan.toUpdate.map((i) => i.data.name)).toEqual(["acme"]);
+    expect(plan.toCreate.map((i) => i.data.name)).toEqual(["Neuve"]);
+    expect(plan.skipped).toEqual([]);
   });
 });

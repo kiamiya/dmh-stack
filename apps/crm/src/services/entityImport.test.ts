@@ -39,6 +39,7 @@ describe("importContacts", () => {
           customFieldValues: {},
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -63,6 +64,7 @@ describe("importContacts", () => {
           customFieldValues: {},
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -88,6 +90,7 @@ describe("importContacts", () => {
           customFieldValues: {},
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -119,6 +122,7 @@ describe("importContacts", () => {
           customFieldValues: {},
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -138,6 +142,7 @@ describe("importContacts", () => {
           customFieldValues: { Secteur: "Industrie", "Colonne vide": null },
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -163,6 +168,7 @@ describe("importContacts", () => {
           customFieldValues: { Secteur: "Industrie" },
         },
       ],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -177,6 +183,7 @@ describe("importCompanies", () => {
     const client = makeStubClient();
     const plan: CompanyImportPlan = {
       toCreate: [{ csvLine: 2, data: { name: "ACME", city: "Lyon", website: null }, customFieldValues: {} }],
+      toUpdate: [],
       skipped: [],
     };
 
@@ -191,6 +198,7 @@ describe("importCompanies", () => {
       toCreate: [
         { csvLine: 2, data: { name: "ACME", city: "Lyon", website: null }, customFieldValues: { Effectif: "50" } },
       ],
+      toUpdate: [],
       skipped: [],
     };
 

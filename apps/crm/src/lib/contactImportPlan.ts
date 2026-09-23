@@ -1,6 +1,7 @@
 import { extractCustomFieldRawValues } from "./importColumnDecision";
 import type { ImportColumnDecision } from "./importColumnDecision";
 import { isValidEmail } from "./contactForm";
+import type { ImportConflictPolicy } from "./importConflict";
 
 export interface ContactImportRow {
   firstName: string;
@@ -28,6 +29,8 @@ export interface ContactImportSkipped {
 
 export interface ContactImportPlan {
   toCreate: ContactImportPlanItem[];
+  /** Lignes correspondant à un contact déjà en base (même email) à mettre à jour selon la politique de conflit (S38-3) — toujours vide avec `skip`. */
+  toUpdate: ContactImportPlanItem[];
   skipped: ContactImportSkipped[];
 }
 
@@ -59,10 +62,12 @@ export function planContactImport(
   mapping: ContactImportMapping,
   existingEmails: Set<string>,
   columnDecisions: ImportColumnDecision[] = [],
+  conflictPolicy: ImportConflictPolicy = "skip",
 ): ContactImportPlan {
   const toCreate: ContactImportPlanItem[] = [];
+  const toUpdate: ContactImportPlanItem[] = [];
   const skipped: ContactImportSkipped[] = [];
-  const seenEmails = new Set(existingEmails);
+  const seenEmails = new Set<string>();
 
   rows.forEach((row, index) => {
     const csvLine = index + 2;
@@ -86,12 +91,17 @@ export function planContactImport(
     }
     const emailKey = rawEmail ? rawEmail.toLowerCase() : null;
     if (emailKey && seenEmails.has(emailKey)) {
-      skipped.push({ csvLine, reason: `Email déjà utilisé : "${rawEmail}"` });
+      skipped.push({ csvLine, reason: `Email en double dans le fichier : "${rawEmail}"` });
       return;
     }
     if (emailKey) seenEmails.add(emailKey);
+    const existsInDb = emailKey !== null && existingEmails.has(emailKey);
+    if (existsInDb && conflictPolicy === "skip") {
+      skipped.push({ csvLine, reason: `Email déjà utilisé : "${rawEmail}"` });
+      return;
+    }
 
-    toCreate.push({
+    (existsInDb ? toUpdate : toCreate).push({
       csvLine,
       data: {
         firstName,
@@ -105,5 +115,5 @@ export function planContactImport(
     });
   });
 
-  return { toCreate, skipped };
+  return { toCreate, toUpdate, skipped };
 }

@@ -1,5 +1,6 @@
 import { extractCustomFieldRawValues } from "./importColumnDecision";
 import type { ImportColumnDecision } from "./importColumnDecision";
+import type { ImportConflictPolicy } from "./importConflict";
 
 export interface CompanyImportRow {
   name: string;
@@ -22,6 +23,8 @@ export interface CompanyImportSkipped {
 
 export interface CompanyImportPlan {
   toCreate: CompanyImportPlanItem[];
+  /** Lignes correspondant à une entreprise déjà en base (même nom) à mettre à jour selon la politique de conflit (S38-3) — toujours vide avec `skip`. */
+  toUpdate: CompanyImportPlanItem[];
   skipped: CompanyImportSkipped[];
 }
 
@@ -47,10 +50,12 @@ export function planCompanyImport(
   mapping: CompanyImportMapping,
   existingNames: Set<string>,
   columnDecisions: ImportColumnDecision[] = [],
+  conflictPolicy: ImportConflictPolicy = "skip",
 ): CompanyImportPlan {
   const toCreate: CompanyImportPlanItem[] = [];
+  const toUpdate: CompanyImportPlanItem[] = [];
   const skipped: CompanyImportSkipped[] = [];
-  const seenNames = new Set(existingNames);
+  const seenNames = new Set<string>();
 
   rows.forEach((row, index) => {
     const csvLine = index + 2;
@@ -63,12 +68,17 @@ export function planCompanyImport(
 
     const key = name.toLowerCase();
     if (seenNames.has(key)) {
-      skipped.push({ csvLine, reason: `Entreprise déjà existante : "${name}"` });
+      skipped.push({ csvLine, reason: `Entreprise en double dans le fichier : "${name}"` });
       return;
     }
     seenNames.add(key);
+    const existsInDb = existingNames.has(key);
+    if (existsInDb && conflictPolicy === "skip") {
+      skipped.push({ csvLine, reason: `Entreprise déjà existante : "${name}"` });
+      return;
+    }
 
-    toCreate.push({
+    (existsInDb ? toUpdate : toCreate).push({
       csvLine,
       data: {
         name,
@@ -79,5 +89,5 @@ export function planCompanyImport(
     });
   });
 
-  return { toCreate, skipped };
+  return { toCreate, toUpdate, skipped };
 }
