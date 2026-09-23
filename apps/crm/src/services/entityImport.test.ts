@@ -5,7 +5,10 @@ import type { ContactImportPlan } from "../lib/contactImportPlan";
 import type { CompanyImportPlan } from "../lib/companyImportPlan";
 
 /** Stub minimal, par table, du sous-ensemble de l'API supabase-js utilisé — pas de réseau. Un compteur par table donne un id unique et prévisible à chaque insertion. */
-function makeStubClient(upsertCalls?: Array<Record<string, unknown>>) {
+function makeStubClient(
+  upsertCalls?: Array<Record<string, unknown>>,
+  insertCalls?: Array<{ table: string; payload: Record<string, unknown> }>,
+) {
   const countByTable: Record<string, number> = {};
   function nextId(table: string) {
     countByTable[table] = (countByTable[table] ?? 0) + 1;
@@ -15,7 +18,10 @@ function makeStubClient(upsertCalls?: Array<Record<string, unknown>>) {
   return {
     from: (table: string) => {
       const query = {
-        insert: () => query,
+        insert: (payload: Record<string, unknown>) => {
+          insertCalls?.push({ table, payload });
+          return query;
+        },
         select: () => query,
         single: () => Promise.resolve({ data: { id: nextId(table) }, error: null }),
         upsert: (row: Record<string, unknown>) => {
@@ -29,6 +35,24 @@ function makeStubClient(upsertCalls?: Array<Record<string, unknown>>) {
 }
 
 describe("importContacts", () => {
+  it("S38-5 : transmet la base juridique RGPD choisie à la création du contact", async () => {
+    const inserts: Array<{ table: string; payload: Record<string, unknown> }> = [];
+    const client = makeStubClient(undefined, inserts);
+    const plan: ContactImportPlan = {
+      toCreate: [
+        {
+          csvLine: 2,
+          data: { firstName: "Alice", lastName: "Fictive", companyName: "ACME", jobTitle: null, email: null, linkedinUrl: null },
+          customFieldValues: {},
+        },
+      ],
+      toUpdate: [],
+      skipped: [],
+    };
+    await importContacts(client, "client-1", plan, new Map(), {}, "legitimate_interest_prospect");
+    expect(inserts.find((i) => i.table === "contacts")?.payload.legal_basis).toBe("legitimate_interest_prospect");
+  });
+
   it("crée une entreprise, un contact et un prospect par ligne planifiée", async () => {
     const client = makeStubClient();
     const plan: ContactImportPlan = {

@@ -27,6 +27,8 @@ import {
 import type { ExistingCompanyForImport, ExistingContactForImport } from "../services/entityImport";
 import { IMPORT_CONFLICT_POLICY_OPTIONS } from "../lib/importConflict";
 import type { ImportConflictPolicy } from "../lib/importConflict";
+import type { ContactLegalBasis } from "@dmh/types";
+import { DEFAULT_IMPORT_LEGAL_BASIS, LEGAL_BASIS_OPTIONS, parseLegalBasis } from "../lib/legalBasis";
 import { ImportColumnWizardStep } from "../components/ImportColumnWizardStep";
 import { InvalidEmailCorrectionRow } from "../components/InvalidEmailCorrectionRow";
 import { applyCellCorrection } from "../lib/importRowCorrection";
@@ -113,6 +115,8 @@ export function ImportPage() {
   const [existingContacts, setExistingContacts] = useState<ExistingContactForImport[]>([]);
   const [existingCompanies, setExistingCompanies] = useState<ExistingCompanyForImport[]>([]);
   const [conflictPolicy, setConflictPolicy] = useState<ImportConflictPolicy>("skip");
+  // S38-5 : base juridique RGPD appliquée aux contacts importés.
+  const [legalBasis, setLegalBasis] = useState<ContactLegalBasis>(DEFAULT_IMPORT_LEGAL_BASIS);
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
@@ -276,7 +280,7 @@ export function ImportPage() {
           conflictPolicy,
         );
         const companyIdByName = new Map(companiesForClient.map((c) => [c.name.toLowerCase(), c.id]));
-        const result = await importContacts(supabase, clientId, contactPlan, companyIdByName, customFieldColumnMap);
+        const result = await importContacts(supabase, clientId, contactPlan, companyIdByName, customFieldColumnMap, legalBasis);
         const updates = await updateExistingContacts(
           supabase,
           clientId,
@@ -284,6 +288,7 @@ export function ImportPage() {
           new Map(contactsForConflict.map((c) => [c.email.toLowerCase(), c])),
           conflictPolicy,
           customFieldColumnMap,
+          legalBasis,
         );
 
         const parts = [`${result.contactsCreated} contact(s) créé(s)`];
@@ -506,6 +511,30 @@ export function ImportPage() {
 
         {step === "review" && (
           <>
+            {entityType === "contact" && (
+              <div className="space-y-1 rounded-md border border-border p-3">
+                <label className="block text-xs font-medium text-foreground" htmlFor="import-legal-basis">
+                  Base juridique du traitement (RGPD) *
+                </label>
+                <select
+                  id="import-legal-basis"
+                  value={legalBasis}
+                  onChange={(e) => setLegalBasis(parseLegalBasis(e.target.value) ?? DEFAULT_IMPORT_LEGAL_BASIS)}
+                  className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                >
+                  {LEGAL_BASIS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Appliquée à tous les contacts de cet import (et aux contacts existants qui n'en ont pas encore). En
+                  prospection B2B, "Intérêt légitime — prospect" est la base habituelle ; le consentement explicite
+                  concerne surtout le B2C.
+                </p>
+              </div>
+            )}
             <fieldset className="space-y-1 rounded-md border border-border p-3">
               <legend className="px-1 text-xs font-medium text-foreground">
                 Si {entityType === "contact" ? "un contact existe déjà (même email)" : "une entreprise existe déjà (même nom)"}

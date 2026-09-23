@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ContactLegalBasis } from "@dmh/types";
 import { createCompany, updateCompany } from "./companies";
 import { createContact, updateContact } from "./contacts";
 import { createProspect } from "./prospects";
@@ -54,6 +55,7 @@ export async function importContacts(
   plan: ContactImportPlan,
   existingCompaniesByName: Map<string, string>,
   customFieldColumnMap: Record<string, string> = {},
+  legalBasis: ContactLegalBasis | null = null,
 ): Promise<ContactImportResult> {
   const result: ContactImportResult = {
     contactsCreated: 0,
@@ -90,6 +92,7 @@ export async function importContacts(
         jobTitle: item.data.jobTitle,
         email: item.data.email,
         linkedinUrl: item.data.linkedinUrl,
+        legalBasis,
       });
       result.contactsCreated++;
 
@@ -163,6 +166,7 @@ export interface ExistingContactForImport {
   last_name: string | null;
   job_title: string | null;
   linkedin_url: string | null;
+  legal_basis: ContactLegalBasis | null;
 }
 
 export interface ExistingCompanyForImport {
@@ -179,7 +183,7 @@ export async function listContactsForImportConflict(
 ): Promise<ExistingContactForImport[]> {
   const { data, error } = await client
     .from("contacts")
-    .select("id, email, first_name, last_name, job_title, linkedin_url")
+    .select("id, email, first_name, last_name, job_title, linkedin_url, legal_basis")
     .eq("client_id", clientId)
     .not("email", "is", null);
   if (error) throw new Error(error.message);
@@ -242,6 +246,7 @@ export async function updateExistingContacts(
   existingByEmail: Map<string, ExistingContactForImport>,
   policy: ImportConflictPolicy,
   customFieldColumnMap: Record<string, string> = {},
+  legalBasis: ContactLegalBasis | null = null,
 ): Promise<ImportUpdateResult> {
   const result: ImportUpdateResult = { updated: 0, unchanged: 0, errors: [] };
   for (const item of items) {
@@ -263,18 +268,22 @@ export async function updateExistingContacts(
         },
         policy,
       );
-      if (Object.keys(patch).length > 0) {
+      // Base juridique RGPD (S38-5) : posée seulement si le contact n'en a pas
+      // encore — une base juridique déjà retenue n'est jamais écrasée par un import.
+      const setLegalBasis = legalBasis !== null && existing.legal_basis === null;
+      if (Object.keys(patch).length > 0 || setLegalBasis) {
         await updateContact(client, existing.id, {
           firstName: patch.first_name,
           lastName: patch.last_name,
           jobTitle: patch.job_title,
           linkedinUrl: patch.linkedin_url,
+          ...(setLegalBasis && { legalBasis }),
         });
       }
       const written = await writeCustomFieldValuesForExisting(
         client, clientId, "contact", existing.id, item.customFieldValues, customFieldColumnMap, policy,
       );
-      if (Object.keys(patch).length > 0 || written > 0) result.updated++;
+      if (Object.keys(patch).length > 0 || setLegalBasis || written > 0) result.updated++;
       else result.unchanged++;
     } catch (err) {
       result.errors.push({ csvLine: item.csvLine, error: err instanceof Error ? err.message : String(err) });

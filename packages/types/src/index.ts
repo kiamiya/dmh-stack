@@ -47,6 +47,14 @@ export interface Company {
 
 export type EmailConfidence = "valid" | "accept" | "risky" | "not_found";
 export type ContactDataSource = "pharow" | "dropcontact" | "linkedin" | "manual";
+/** Base juridique RGPD du traitement (S38-5, migration 045) — modèle HubSpot. */
+export type ContactLegalBasis =
+  | "legitimate_interest_prospect"
+  | "legitimate_interest_client"
+  | "legitimate_interest_other"
+  | "contract"
+  | "consent"
+  | "not_applicable";
 
 export interface Contact {
   id: string;
@@ -62,6 +70,8 @@ export interface Contact {
   appointment_date: string | null;
   months_in_role: number | null;
   data_source: ContactDataSource | null;
+  /** Base juridique RGPD (S38-5) — null = non renseignée (contacts antérieurs à la migration 045). */
+  legal_basis: ContactLegalBasis | null;
   /** request_id Dropcontact en cours de traitement (API asynchrone), null une fois résolu. */
   dropcontact_request_id: string | null;
   created_at: string;

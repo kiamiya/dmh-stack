@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ContactLegalBasis } from "@dmh/types";
 
 export interface ContactListRow {
   id: string;
@@ -78,13 +79,14 @@ export interface ContactDetailRow {
   linkedin_url: string | null;
   phone: string | null;
   data_source: string | null;
+  legal_basis: ContactLegalBasis | null;
   company_id: string;
   company_list_id: string | null;
   companies: { id: string; name: string } | null;
 }
 
 const CONTACT_DETAIL_SELECT =
-  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, data_source, company_id, company_list_id, companies(id, name)";
+  "id, client_id, first_name, last_name, job_title, email, email_confidence, linkedin_url, phone, data_source, legal_basis, company_id, company_list_id, companies(id, name)";
 
 export async function getContact(client: SupabaseClient, id: string): Promise<ContactDetailRow> {
   const { data, error } = await client.from("contacts").select(CONTACT_DETAIL_SELECT).eq("id", id).single();
@@ -100,6 +102,7 @@ export interface ContactUpdate {
   linkedinUrl?: string | null;
   phone?: string | null;
   companyListId?: string | null;
+  legalBasis?: ContactLegalBasis | null;
 }
 
 export async function updateContact(client: SupabaseClient, id: string, patch: ContactUpdate): Promise<void> {
@@ -113,6 +116,7 @@ export async function updateContact(client: SupabaseClient, id: string, patch: C
       ...(patch.linkedinUrl !== undefined && { linkedin_url: patch.linkedinUrl }),
       ...(patch.phone !== undefined && { phone: patch.phone }),
       ...(patch.companyListId !== undefined && { company_list_id: patch.companyListId }),
+      ...(patch.legalBasis !== undefined && { legal_basis: patch.legalBasis }),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
@@ -127,6 +131,8 @@ export interface ContactInsert {
   email: string | null;
   linkedinUrl: string | null;
   phone?: string | null;
+  /** Base juridique RGPD (S38-5) — renseignée par l'import, laissée null par la saisie manuelle. */
+  legalBasis?: ContactLegalBasis | null;
 }
 
 /**
@@ -148,6 +154,7 @@ export async function createContact(client: SupabaseClient, input: ContactInsert
       email: input.email,
       linkedin_url: input.linkedinUrl,
       phone: input.phone ?? null,
+      legal_basis: input.legalBasis ?? null,
       data_source: "manual",
     })
     .select("id")

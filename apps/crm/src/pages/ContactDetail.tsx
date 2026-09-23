@@ -29,6 +29,7 @@ import { getInteractionTypeColor, getInteractionTypeLabel } from "../lib/interac
 import { MASKED_VALUE, useViewMode } from "../lib/viewMode";
 import { listFieldProvenance } from "../services/fieldProvenance";
 import type { FieldProvenanceRow } from "../services/fieldProvenance";
+import { LEGAL_BASIS_OPTIONS, legalBasisLabel, parseLegalBasis } from "../lib/legalBasis";
 import { groupFieldProvenance } from "../lib/fieldProvenance";
 
 const DATA_SOURCE_LABELS: Record<string, string> = {
@@ -96,6 +97,7 @@ export function ContactDetailPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [legalBasis, setLegalBasis] = useState("");
   const [saving, setSaving] = useState(false);
   const [linkCompanyId, setLinkCompanyId] = useState("");
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
@@ -108,6 +110,7 @@ export function ContactDetailPage() {
     setEmail(contact.email ?? "");
     setPhone(contact.phone ?? "");
     setLinkedinUrl(contact.linkedin_url ?? "");
+    setLegalBasis(contact.legal_basis ?? "");
   }, [contact]);
 
   useEffect(() => {
@@ -141,6 +144,7 @@ export function ContactDetailPage() {
         email: email.trim() || null,
         phone: phone.trim() || null,
         linkedinUrl: linkedinUrl.trim() || null,
+        legalBasis: parseLegalBasis(legalBasis),
       });
       toast("Contact mis à jour.", "success");
     } catch (err) {
@@ -296,6 +300,21 @@ export function ContactDetailPage() {
             placeholder="URL LinkedIn"
             className="rounded-md border border-border px-3 py-2 text-sm"
           />
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-2">
+            Base juridique RGPD
+            <select
+              value={legalBasis}
+              onChange={(e) => setLegalBasis(e.target.value)}
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">{legalBasisLabel(null)}</option>
+              {LEGAL_BASIS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
           {contact.data_source && (
             <p className="text-xs text-muted-foreground sm:col-span-2">
               Source des données : {DATA_SOURCE_LABELS[contact.data_source] ?? contact.data_source}

@@ -39,6 +39,7 @@ const alice: ExistingContactForImport = {
   last_name: "Fictive",
   job_title: "CEO",
   linkedin_url: null,
+  legal_basis: null,
 };
 const byEmail = new Map([["alice@acme.test", alice]]);
 const item = (over: Partial<{ jobTitle: string | null; linkedinUrl: string | null }> = {}, custom: Record<string, string | null> = {}) => ({
@@ -104,6 +105,21 @@ describe("updateExistingContacts", () => {
     );
     expect(r.updated).toBe(1);
     expect(r.errors).toEqual([{ csvLine: 2, error: "Contact existant introuvable pour cet email" }]);
+  });
+
+  it("S38-5 : pose la base juridique sur un contact existant qui n'en a pas", async () => {
+    const { client, calls } = makeStub();
+    const r = await updateExistingContacts(client, "cl", [item({ jobTitle: "CEO", linkedinUrl: null })], byEmail, "skip", {}, "legitimate_interest_prospect");
+    expect(r.updated).toBe(1);
+    expect(calls).toEqual([{ table: "contacts", op: "update", payload: { legal_basis: "legitimate_interest_prospect" } }]);
+  });
+
+  it("S38-5 : n'écrase jamais une base juridique déjà renseignée", async () => {
+    const { client, calls } = makeStub();
+    const withBasis = new Map([["alice@acme.test", { ...alice, legal_basis: "consent" as const }]]);
+    const r = await updateExistingContacts(client, "cl", [item({ jobTitle: "CEO", linkedinUrl: null })], withBasis, "overwrite", {}, "legitimate_interest_prospect");
+    expect(r).toEqual({ updated: 0, unchanged: 1, errors: [] });
+    expect(calls).toEqual([]);
   });
 });
 
