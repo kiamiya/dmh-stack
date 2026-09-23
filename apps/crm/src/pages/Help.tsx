@@ -86,9 +86,19 @@ export function HelpPage() {
               Deux façons de créer des entreprises/contacts <em>ex nihilo</em> directement dans le CRM :{" "}
               <strong className="text-foreground">saisie manuelle</strong> ("+ Entreprise"/"+ Nouveau contact", un
               enregistrement à la fois), ou <strong className="text-foreground">import CSV</strong> (bouton
-              "Importer" sur la bascule Contacts, "Importer des entreprises" sur la bascule Entreprises) —
-              correspondance de colonnes auto-détectée et corrigible, aperçu des lignes prêtes/ignorées avant de
-              confirmer, dédup par email (contacts) ou nom d'entreprise (insensible à la casse).
+              "Importer" sur la bascule Contacts, "Importer des entreprises" sur la bascule Entreprises) — une page
+              plein écran avec un modèle CSV téléchargeable, une correspondance de colonnes auto-détectée et
+              corrigible (✓ associé / ○ non associé, propriétés du contact et de l'entreprise séparées), puis un
+              récapitulatif avant de confirmer.
+            </p>
+            <p>
+              Au récapitulatif : les emails mal formés sont listés et <strong className="text-foreground">corrigeables
+              sur place</strong> (ou importables sans email) — rien n'est corrigé automatiquement, la qualité du
+              fichier reste de ta responsabilité. Si une fiche existe déjà (même email pour un contact, même nom
+              d'entreprise, insensible à la casse), tu choisis pour tout l'import :{" "}
+              <strong className="text-foreground">ignorer</strong>, <strong className="text-foreground">compléter les
+              champs vides</strong> ou <strong className="text-foreground">écraser avec les valeurs du fichier</strong>{" "}
+              (une cellule vide du fichier n'efface jamais une valeur existante).
             </p>
             <p>
               Un contact importé crée aussi un prospect "À enrichir", qui déclenche l'enrichissement automatique

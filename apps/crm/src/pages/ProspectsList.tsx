@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { openProspectLinkState } from "../lib/navigation";
 import {
   createColumnHelper,
@@ -61,7 +61,6 @@ import { listActivityFlagsByContactForClient } from "../services/interactions";
 import { supabase } from "../lib/supabase";
 import { useToast } from "../components/ui/toast";
 import { AddContactDialog } from "../components/AddContactDialog";
-import { ImportEntitiesDialog } from "../components/ImportEntitiesDialog";
 import { RuleGroupsEditor } from "../components/RuleGroupsEditor";
 import type { RuleGroupDraft } from "../components/RuleGroupsEditor";
 import { KanbanBoardShell, KanbanColumn } from "../components/KanbanColumn";
@@ -147,7 +146,7 @@ export function ProspectsListPage() {
   const [entityView, setEntityView] = useState<"contacts" | "companies">(initialViewParam === "companies" ? "companies" : "contacts");
   const [displayMode, setDisplayMode] = useState<"list" | "kanban">(initialViewParam === "kanban" ? "kanban" : "list");
   const [addContactOpen, setAddContactOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<ProspectFilters>(() => searchParamsToFilters(searchParams));
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -568,7 +567,7 @@ export function ProspectsListPage() {
         actions={
           entityView === "contacts" ? (
             <>
-              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => navigate("/import/contacts")}>
                 Importer
               </Button>
               <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)}>
@@ -995,7 +994,6 @@ export function ProspectsListPage() {
           )}
 
           <AddContactDialog open={addContactOpen} onOpenChange={setAddContactOpen} onCreated={() => reload()} />
-          <ImportEntitiesDialog open={importOpen} onOpenChange={setImportOpen} entityType="contact" onImported={() => reload()} />
         </>
       )}
     </div>

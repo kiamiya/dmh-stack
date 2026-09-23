@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import type { ChangeEvent } from "react";
 import type { CustomFieldDefinition } from "@dmh/types";
 import type { ColumnAnalysisSuggestion } from "@dmh/import-agent";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Button } from "./ui/button";
+import { Button } from "../components/ui/button";
+import { PageHeader } from "../components/ui/page-header";
 import { supabase } from "../lib/supabase";
 import { useClients } from "../hooks/useClients";
 import { listCompaniesForClient } from "../services/companies";
@@ -26,34 +27,30 @@ import {
 import type { ExistingCompanyForImport, ExistingContactForImport } from "../services/entityImport";
 import { IMPORT_CONFLICT_POLICY_OPTIONS } from "../lib/importConflict";
 import type { ImportConflictPolicy } from "../lib/importConflict";
-import { ImportColumnWizardStep } from "./ImportColumnWizardStep";
-import { InvalidEmailCorrectionRow } from "./InvalidEmailCorrectionRow";
+import { ImportColumnWizardStep } from "../components/ImportColumnWizardStep";
+import { InvalidEmailCorrectionRow } from "../components/InvalidEmailCorrectionRow";
 import { applyCellCorrection } from "../lib/importRowCorrection";
-import { useToast } from "./ui/toast";
+import { useToast } from "../components/ui/toast";
+import {
+  buildImportTemplateCsv,
+  describeImportColumns,
+  groupImportFields,
+  IMPORT_FIELD_GROUP_LABEL,
+  importFieldsFor,
+} from "../lib/importFields";
+import type { ImportEntityType } from "../lib/importFields";
 import { formatImportToast, summarizeImportErrors } from "../lib/importErrorSummary";
 import type { ImportRowError } from "../services/entityImport";
 
-export interface ImportEntitiesDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  entityType: "contact" | "company";
-  onImported: () => void;
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
-
-const CONTACT_FIELDS = [
-  { key: "firstName", label: "Prénom", required: true },
-  { key: "lastName", label: "Nom", required: true },
-  { key: "companyName", label: "Entreprise", required: true },
-  { key: "jobTitle", label: "Poste", required: false },
-  { key: "email", label: "Email", required: false },
-  { key: "linkedinUrl", label: "URL LinkedIn", required: false },
-] as const;
-
-const COMPANY_FIELDS = [
-  { key: "name", label: "Nom de l'entreprise", required: true },
-  { key: "city", label: "Ville", required: false },
-  { key: "website", label: "Site web", required: false },
-] as const;
 
 type ImportStep = "mapping" | "analyzing" | "column-wizard" | "review";
 
@@ -84,11 +81,20 @@ const CUSTOM_FIELD_DECISION_LABEL: Record<ImportColumnDecision["action"], (d: Im
  * décider de les ignorer, les rattacher à un champ personnalisé existant, ou
  * en créer un nouveau. Si l'analyse échoue, le wizard reste utilisable
  * manuellement (voir TESTING.md).
+ *
+ * S38-4 (retour de Delphine du 17/09, modèle HubSpot) : page plein écran
+ * (`/import/contacts`, `/import/companies`) au lieu d'une modale, modèle CSV
+ * téléchargeable, indicateurs de correspondance (coché/non coché) et
+ * distinction propriétés du contact / de l'entreprise.
  */
-export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImported }: ImportEntitiesDialogProps) {
+export function ImportPage() {
+  const { entity } = useParams();
+  const entityType: ImportEntityType = entity === "companies" ? "company" : "contact";
+  const navigate = useNavigate();
+  const returnTo = entityType === "contact" ? "/" : "/?view=companies";
   const clients = useClients();
   const { toast } = useToast();
-  const fields = entityType === "contact" ? CONTACT_FIELDS : COMPANY_FIELDS;
+  const fields = importFieldsFor(entityType);
 
   const [clientId, setClientId] = useState("");
   const [fileName, setFileName] = useState("");
@@ -109,23 +115,6 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
   const [conflictPolicy, setConflictPolicy] = useState<ImportConflictPolicy>("skip");
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-
-  function reset() {
-    setClientId("");
-    setFileName("");
-    setRows([]);
-    setMapping({});
-    setError(null);
-    setStep("mapping");
-    setUnmappedColumns([]);
-    setExistingCustomFields([]);
-    setSuggestions([]);
-    setAnalysisFailed(false);
-    setColumnDecisions([]);
-    setExistingContacts([]);
-    setExistingCompanies([]);
-    setConflictPolicy("skip");
-  }
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -327,7 +316,6 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         toast(formatImportToast(parts, companyPlan.skipped.length, rowErrors.length), rowErrors.length > 0 ? "destructive" : "success");
       }
 
-      onImported();
       // Erreurs d'écriture en base : on garde la fenêtre ouverte avec le vrai
       // message (S38-1 — un simple compteur avait masqué un trigger cassé).
       const errorSummary = summarizeImportErrors(rowErrors);
@@ -335,8 +323,7 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         setError(errorSummary);
         return;
       }
-      reset();
-      onOpenChange(false);
+      navigate(returnTo);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -350,17 +337,27 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
   for (const c of unmappedColumns) sampleValuesByColumn[c] = sampleColumnValues(rows, c);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) reset();
-        onOpenChange(next);
-      }}
-    >
-      <DialogHeader>
-        <DialogTitle>Importer {entityType === "contact" ? "des contacts" : "des entreprises"}</DialogTitle>
-      </DialogHeader>
-      <DialogContent className="space-y-3">
+    <div className="space-y-4">
+      <PageHeader
+        kicker="Import CSV"
+        title={entityType === "contact" ? "Importer des contacts" : "Importer des entreprises"}
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadCsv(
+                buildImportTemplateCsv(entityType),
+                entityType === "contact" ? "modele-import-contacts.csv" : "modele-import-entreprises.csv",
+              )
+            }
+          >
+            Télécharger le modèle CSV
+          </Button>
+        }
+      />
+      <div className="space-y-4 rounded-md border border-border bg-card p-4">
         {step === "mapping" && (
           <>
             <div>
@@ -399,28 +396,77 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
               )}
             </div>
             {columns.length > 0 && (
-              <div className="space-y-2 rounded-md border border-border p-3">
-                <p className="text-xs font-medium text-foreground">Correspondance des colonnes</p>
-                {fields.map((field) => (
-                  <div key={field.key} className="flex items-center gap-2">
-                    <label className="w-40 shrink-0 text-sm text-muted-foreground">
-                      {field.label}
-                      {field.required && " *"}
-                    </label>
-                    <select
-                      value={mapping[field.key] ?? ""}
-                      onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                      className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
-                    >
-                      <option value="">{field.required ? "Choisir une colonne…" : "Ignorer"}</option>
-                      {columns.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3 rounded-md border border-border p-3">
+                  <p className="text-xs font-medium text-foreground">Correspondance des champs</p>
+                  {groupImportFields(fields).map(({ group, fields: groupFields }) => (
+                    <div key={group} className="space-y-2">
+                      <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                        {IMPORT_FIELD_GROUP_LABEL[group]}
+                      </p>
+                      {groupFields.map((field) => {
+                        const mapped = Boolean(mapping[field.key]);
+                        return (
+                          <div key={field.key} className="flex items-center gap-2">
+                            <span
+                              aria-label={mapped ? "Associé" : "Non associé"}
+                              className={`w-4 shrink-0 text-center text-sm ${
+                                mapped ? "text-success" : field.required ? "text-destructive" : "text-muted-foreground"
+                              }`}
+                            >
+                              {mapped ? "✓" : "○"}
+                            </span>
+                            <label className="w-40 shrink-0 text-sm text-muted-foreground">
+                              {field.label}
+                              {field.required && " *"}
+                            </label>
+                            <select
+                              value={mapping[field.key] ?? ""}
+                              onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                            >
+                              <option value="">{field.required ? "Choisir une colonne…" : "Ignorer"}</option>
+                              {columns.map((c) => (
+                                <option key={c} value={c}>
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2 rounded-md border border-border p-3">
+                  <p className="text-xs font-medium text-foreground">Colonnes du fichier</p>
+                  <table className="w-full table-fixed text-xs">
+                    <thead className="text-left text-muted-foreground">
+                      <tr>
+                        <th className="w-1/3 pb-1 font-medium">Colonne</th>
+                        <th className="w-1/3 pb-1 font-medium">Exemple</th>
+                        <th className="w-1/3 pb-1 font-medium">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {describeImportColumns(columns, mapping, fields).map((c) => (
+                        <tr key={c.column} className="border-t border-border">
+                          <td className="truncate py-1 pr-2 text-foreground">{c.column}</td>
+                          <td className="truncate py-1 pr-2 text-muted-foreground">
+                            {sampleColumnValues(rows, c.column)[0] ?? "—"}
+                          </td>
+                          <td className="py-1">
+                            {c.status === "mapped" ? (
+                              <span className="text-success">✓ {c.fieldLabel}</span>
+                            ) : (
+                              <span className="text-muted-foreground">○ à configurer à l'étape suivante</span>
+                            )}
+                          </td>
+                        </tr>
                       ))}
-                    </select>
-                  </div>
-                ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
             {entityType === "contact" && (
@@ -531,11 +577,11 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
             {error && <p className="text-sm text-destructive">{error}</p>}
           </>
         )}
-      </DialogContent>
-      <DialogFooter>
+      </div>
+      <div className="flex justify-end gap-2">
         {step === "mapping" && (
           <>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => navigate(returnTo)}>
               Annuler
             </Button>
             <Button type="button" onClick={handleContinueFromMapping} disabled={!plan || plan.toCreate.length === 0}>
@@ -545,7 +591,7 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         )}
         {step === "review" && (
           <>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => navigate(returnTo)}>
               Annuler
             </Button>
             <Button
@@ -557,7 +603,7 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
             </Button>
           </>
         )}
-      </DialogFooter>
-    </Dialog>
+      </div>
+    </div>
   );
 }

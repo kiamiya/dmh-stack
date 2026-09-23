@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useCompanies } from "../../hooks/useCompanies";
@@ -32,7 +32,6 @@ import { SavedViewTabs } from "../SavedViewTabs";
 import { QuickFilterChips } from "../QuickFilterChips";
 import { CompletenessBar } from "../CompletenessBar";
 import { AddCompanyDialog } from "../AddCompanyDialog";
-import { ImportEntitiesDialog } from "../ImportEntitiesDialog";
 import { useToast } from "../ui/toast";
 import { useStaffMembers } from "../../hooks/useStaffMembers";
 import { useSession } from "../../lib/useSession";
@@ -97,7 +96,7 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
   const { session } = useSession();
   const createdBy = session?.user.id && staff.some((s) => s.id === session.user.id) ? session.user.id : null;
   const [addOpen, setAddOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { lists, create: createList, remove: removeList, addCompanies: addCompaniesToList, listMemberIds } = useCompanyLists(clientId);
   const [listMemberIdSet, setListMemberIdSet] = useState<Set<string> | null>(null);
@@ -446,7 +445,7 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
         <Button variant="outline" size="sm" onClick={handleExport}>
           Exporter
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => navigate("/import/companies")}>
           Importer des entreprises
         </Button>
         <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
@@ -553,12 +552,6 @@ export function EntreprisesPanel({ clientId }: EntreprisesPanelProps) {
       )}
 
       <AddCompanyDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => reload()} />
-      <ImportEntitiesDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        entityType="company"
-        onImported={() => reload()}
-      />
     </div>
   );
 }

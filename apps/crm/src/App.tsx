@@ -2,6 +2,7 @@ import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Location } from "react-router-dom";
 import { LoginPage } from "./pages/Login";
 import { ProspectsListPage } from "./pages/ProspectsList";
+import { ImportPage } from "./pages/Import";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
 import { PipelinePage } from "./pages/Pipeline";
 import { DashboardPage } from "./pages/Dashboard";
@@ -136,6 +137,7 @@ export default function App() {
           <Route path="/enrichment-mapping" element={<EnrichmentMappingPage />} />
           <Route path="/settings/help" element={<HelpPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/import/:entity" element={<ImportPage />} />
         </Route>
       </Routes>
       {backgroundLocation && (
