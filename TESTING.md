@@ -17,9 +17,7 @@ Toute insertion de contact/entreprise/prospect/tâche échouait en production
 (`record "new" has no field "stage_id"`, régression de la migration 018).
 C'est la vraie cause du "0 contact créé" de la démo du 18/09.
 
-**Prérequis** : migration `044_fix_automation_stage_field_access_regression.sql`
-appliquée en production (`pnpm exec supabase db push`) — à faire après ta
-confirmation.
+**Prérequis** : ✅ migration `044_fix_automation_stage_field_access_regression.sql` appliquée et vérifiée en production le 2026-09-23.
 
 | # | Test | Résultat attendu |
 |---|---|---|
