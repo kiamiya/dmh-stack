@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { CustomFieldEntityType, CustomFieldType } from "@dmh/types";
+import type { CustomFieldDefinition, CustomFieldEntityType, CustomFieldType } from "@dmh/types";
 import { useClients } from "../hooks/useClients";
 import { useFieldDefinitions } from "../hooks/useFieldDefinitions";
 import { Button } from "../components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { PageHeader } from "../components/ui/page-header";
 import { useToast } from "../components/ui/toast";
+import { EditFieldDefinitionDialog } from "../components/EditFieldDefinitionDialog";
 import { supabase } from "../lib/supabase";
 import { slugifyFieldKey, validateCustomFieldForm } from "../lib/customFieldForm";
 
@@ -30,20 +31,20 @@ const ENTITY_TYPE_LABELS: Record<CustomFieldEntityType, string> = {
 export function CustomFieldSettingsPage() {
   const clients = useClients();
   const [entityType, setEntityType] = useState<CustomFieldEntityType>("contact");
-  const { definitions, create, reload } = useFieldDefinitions(entityType);
-  const { toast } = useToast();
-
   const [clientId, setClientId] = useState("");
+  // S38-6 : avec un client choisi, champs système + champs de ce client, options surchargées pour ce client ;
+  // sans client, toutes les définitions brutes.
+  const { definitions, create, reload } = useFieldDefinitions(entityType, clientId || null);
+  const { toast } = useToast();
+  const [editing, setEditing] = useState<CustomFieldDefinition | null>(null);
+
   const [label, setLabel] = useState("");
   const [fieldType, setFieldType] = useState<CustomFieldType>("text");
   const [selectOptionsRaw, setSelectOptionsRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // S38-6 : champs système (communs à tous) + champs du client choisi ; sans client, tous les champs.
-  const visibleDefinitions = clientId
-    ? definitions.filter((d) => d.is_system || d.client_id === clientId)
-    : definitions;
+  const visibleDefinitions = definitions;
   const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
   async function handleSubmit(e: FormEvent) {
@@ -167,6 +168,7 @@ export function CustomFieldSettingsPage() {
             <TableHead>Clé</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Portée</TableHead>
+            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -180,17 +182,30 @@ export function CustomFieldSettingsPage() {
               <TableCell className="text-muted-foreground">
                 {d.is_system ? <Badge>Système</Badge> : (clientNameById.get(d.client_id ?? "") ?? "—")}
               </TableCell>
+              <TableCell className="text-right">
+                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(d)}>
+                  Modifier
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
           {visibleDefinitions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
+              <TableCell colSpan={5} className="text-center text-muted-foreground">
                 Aucun champ personnalisé pour "{ENTITY_TYPE_LABELS[entityType]}".
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
+
+      <EditFieldDefinitionDialog
+        definition={editing}
+        clientId={clientId || null}
+        clientName={clientId ? (clientNameById.get(clientId) ?? null) : null}
+        onClose={() => setEditing(null)}
+        onSaved={() => reload()}
+      />
     </div>
   );
 }
