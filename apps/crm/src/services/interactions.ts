@@ -112,3 +112,41 @@ export async function createNote(client: SupabaseClient, input: CreateNoteInput)
   if (error) throw new Error(error.message);
   return data as unknown as InteractionRow;
 }
+
+/** Interactions de plusieurs prospects (ex. tous ceux d'une entreprise, S38-8), plus récentes d'abord. */
+export async function listInteractionsForProspects(client: SupabaseClient, prospectIds: string[]): Promise<InteractionRow[]> {
+  if (prospectIds.length === 0) return [];
+  const { data, error } = await client
+    .from("interactions")
+    .select(INTERACTION_SELECT)
+    .in("prospect_id", prospectIds)
+    .order("occurred_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as InteractionRow[];
+}
+
+export interface CreateCallLogInput {
+  prospectId: string;
+  clientId: string;
+  content: string;
+  createdBy: string | null;
+}
+
+/** Appel journalisé à la main depuis une fiche (action rapide "Appel", S38-8) = une `interaction` type=`call`, canal téléphone. */
+export async function createCallLog(client: SupabaseClient, input: CreateCallLogInput): Promise<InteractionRow> {
+  const { data, error } = await client
+    .from("interactions")
+    .insert({
+      prospect_id: input.prospectId,
+      client_id: input.clientId,
+      type: "call",
+      channel: "phone",
+      content: input.content,
+      created_by: input.createdBy,
+      occurred_at: new Date().toISOString(),
+    })
+    .select(INTERACTION_SELECT)
+    .single();
+  if (error) throw new Error(error.message);
+  return data as unknown as InteractionRow;
+}

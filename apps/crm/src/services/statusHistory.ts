@@ -17,3 +17,14 @@ export async function listStatusHistory(client: SupabaseClient): Promise<StatusH
   if (error) throw new Error(error.message);
   return (data ?? []) as StatusHistoryRow[];
 }
+
+/** Historique de statut de plusieurs prospects (ex. tous ceux d'une entreprise, S38-8). */
+export async function listStatusHistoryForProspects(client: SupabaseClient, prospectIds: string[]): Promise<StatusHistoryRow[]> {
+  if (prospectIds.length === 0) return [];
+  const { data, error } = await client
+    .from("prospect_status_history")
+    .select("prospect_id, old_status, new_status, changed_by, changed_at")
+    .in("prospect_id", prospectIds);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as StatusHistoryRow[];
+}

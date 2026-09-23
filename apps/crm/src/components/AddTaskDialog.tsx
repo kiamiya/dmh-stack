@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
@@ -31,9 +31,11 @@ export interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (input: TaskInsert) => Promise<void>;
+  /** Pré-remplissage à l'ouverture (action rapide "Tâche" d'une fiche, S38-8). */
+  defaults?: { clientId?: string; companyId?: string; contactId?: string; taskType?: TaskType };
 }
 
-export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogProps) {
+export function AddTaskDialog({ open, onOpenChange, onCreated, defaults }: AddTaskDialogProps) {
   const clients = useClients();
   const { contacts } = useContacts();
   const { companies } = useCompanies();
@@ -54,6 +56,15 @@ export function AddTaskDialog({ open, onOpenChange, onCreated }: AddTaskDialogPr
   const [priority, setPriority] = useState<TaskPriority>("normal");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open || !defaults) return;
+    if (defaults.clientId) setClientId(defaults.clientId);
+    if (defaults.companyId) setCompanyId(defaults.companyId);
+    if (defaults.contactId) setContactId(defaults.contactId);
+    if (defaults.taskType) setTaskType(defaults.taskType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function reset() {
     setClientId("");

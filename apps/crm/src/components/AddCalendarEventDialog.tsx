@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
@@ -17,11 +17,13 @@ export interface AddCalendarEventDialogProps {
   onOpenChange: (open: boolean) => void;
   connections: CalendarConnection[];
   onCreated: (provider: "google" | "microsoft", input: NewCalendarEventInput) => Promise<void>;
+  /** Pré-remplissage à l'ouverture (action rapide "Réunion" d'une fiche, S38-8). */
+  defaults?: { clientId?: string; companyId?: string; contactId?: string };
 }
 
 const nowLocal = () => toDatetimeLocalValue(new Date().toISOString());
 
-export function AddCalendarEventDialog({ open, onOpenChange, connections, onCreated }: AddCalendarEventDialogProps) {
+export function AddCalendarEventDialog({ open, onOpenChange, connections, onCreated, defaults }: AddCalendarEventDialogProps) {
   const clients = useClients();
   const { contacts } = useContacts();
   const { companies } = useCompanies();
@@ -42,6 +44,14 @@ export function AddCalendarEventDialog({ open, onOpenChange, connections, onCrea
   const filteredContacts = contacts.filter((c) => !clientId || c.client_id === clientId);
   const filteredCompanies = companies.filter((c) => !clientId || c.client_id === clientId);
   const filteredDeals = deals.filter((d) => !clientId || d.client_id === clientId);
+
+  useEffect(() => {
+    if (!open || !defaults) return;
+    if (defaults.clientId) setClientId(defaults.clientId);
+    if (defaults.companyId) setCompanyId(defaults.companyId);
+    if (defaults.contactId) setContactId(defaults.contactId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function reset() {
     setProvider(connections[0]?.provider ?? "");
