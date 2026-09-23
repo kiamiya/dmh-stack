@@ -5,6 +5,18 @@ describe("summarizeTrigger", () => {
   it("traduit le déclencheur en français", () => {
     expect(summarizeTrigger("record_created")).toBe("À la création");
     expect(summarizeTrigger("stage_changed")).toBe("Au changement d'étape");
+    expect(summarizeTrigger("status_changed")).toBe("Au changement de statut");
+  });
+
+  it("S38-10 : précise le statut cible du déclencheur 'changement de statut'", () => {
+    expect(summarizeTrigger("status_changed", { to_status: "enriched_contact" })).toMatch(/^Quand le statut passe à "/);
+    expect(summarizeTrigger("status_changed", { to_status: "inconnu" })).toBe("Au changement de statut");
+  });
+
+  it("S38-10 : mentionne le type de la tâche créée", () => {
+    expect(summarizeAction([{ action_type: "create_task", action_config: { title: "Appeler", task_type: "call" } }])).toBe(
+      'Créer tâche (Appel) : "Appeler"',
+    );
   });
 });
 

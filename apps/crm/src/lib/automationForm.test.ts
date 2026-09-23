@@ -25,4 +25,9 @@ describe("validateAutomationRuleForm", () => {
       validateAutomationRuleForm({ name: "Test", entityType: "contact", triggerType: "stage_changed" }),
     ).toMatch(/opportunités/);
   });
+
+  it("S38-10 : 'changement de statut' réservé aux prospects", () => {
+    expect(validateAutomationRuleForm({ name: "Appel après enrichissement", entityType: "prospect", triggerType: "status_changed" })).toBeNull();
+    expect(validateAutomationRuleForm({ name: "X", entityType: "contact", triggerType: "status_changed" })).toMatch(/prospects/);
+  });
 });

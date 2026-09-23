@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { AutomationActionBranch, AutomationActionType, AutomationEntityType, AutomationTriggerType } from "@dmh/types";
+import type {
+  AutomationActionBranch,
+  AutomationActionType,
+  AutomationEntityType,
+  AutomationTriggerType,
+  ProspectStatus,
+  TaskType,
+} from "@dmh/types";
+import { ALL_PROSPECT_STATUSES, getStatusLabel } from "../lib/status";
 import { useClients } from "../hooks/useClients";
 import { useAutomationRules } from "../hooks/useAutomationRules";
 import { usePipelineStages } from "../hooks/usePipelineStages";
@@ -28,6 +36,7 @@ const ENTITY_LABELS: Record<AutomationEntityType, string> = {
 const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   record_created: "À la création",
   stage_changed: "Au changement d'étape",
+  status_changed: "Au changement de statut",
 };
 
 /** Ébauche d'action côté formulaire — traduite en `ActionInsert` (branche + payload) à la soumission. `trigger_enrichment` n'a d'effet réel côté moteur que pour l'entité `prospect` (migration 030), donc masqué ailleurs. */
@@ -36,10 +45,19 @@ interface ActionDraft {
   taskTitle: string;
   dueInDays: string;
   assignedTo: string;
+  /** Type de la tâche créée (S38-10) — "" = non précisé. */
+  taskType: TaskType | "";
   provider: "pappers" | "dropcontact";
 }
 
-const EMPTY_ACTION: ActionDraft = { actionType: "create_task", taskTitle: "", dueInDays: "", assignedTo: "", provider: "pappers" };
+const EMPTY_ACTION: ActionDraft = { actionType: "create_task", taskTitle: "", dueInDays: "", assignedTo: "", taskType: "", provider: "pappers" };
+
+const TASK_TYPE_OPTIONS: Array<{ value: TaskType; label: string }> = [
+  { value: "call", label: "Appel" },
+  { value: "email", label: "Email" },
+  { value: "meeting", label: "RDV" },
+  { value: "data", label: "Donnée" },
+];
 
 /** Pure : une action d'ébauche est prête à être envoyée si elle a de quoi produire un `action_config` valide côté moteur. */
 function actionIsReady(action: ActionDraft): boolean {
@@ -60,6 +78,7 @@ function actionInsertFor(action: ActionDraft, branch: AutomationActionBranch, po
       title: action.taskTitle.trim(),
       ...(action.dueInDays.trim() && { due_in_days: Number(action.dueInDays) }),
       ...(action.assignedTo && { assigned_to: action.assignedTo }),
+      ...(action.taskType && { task_type: action.taskType }),
     },
   };
 }
@@ -100,6 +119,18 @@ function ActionFieldsEditor({
             placeholder="Échéance (jours, optionnel)"
             className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
           />
+          <select
+            value={value.taskType}
+            onChange={(e) => onChange({ ...value, taskType: e.target.value as TaskType | "" })}
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          >
+            <option value="">Type de tâche (optionnel)</option>
+            {TASK_TYPE_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
           <select
             value={value.assignedTo}
             onChange={(e) => onChange({ ...value, assignedTo: e.target.value })}
@@ -153,6 +184,7 @@ export function AutomationsPage() {
   const [entityType, setEntityType] = useState<AutomationEntityType>("opportunity");
   const [triggerType, setTriggerType] = useState<AutomationTriggerType>("stage_changed");
   const [toStageId, setToStageId] = useState("");
+  const [toStatus, setToStatus] = useState<ProspectStatus | "">("");
   const [conditions, setConditions] = useState<ConditionDraft[]>([]);
   const [useBranches, setUseBranches] = useState(false);
   const [action, setAction] = useState<ActionDraft>(EMPTY_ACTION);
@@ -171,6 +203,7 @@ export function AutomationsPage() {
     setIfTrueAction(EMPTY_ACTION);
     setIfFalseAction(EMPTY_ACTION);
     setToStageId("");
+    setToStatus("");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -201,7 +234,12 @@ export function AutomationsPage() {
         name: name.trim(),
         entityType,
         triggerType,
-        triggerConfig: triggerType === "stage_changed" && toStageId ? { to_stage_id: toStageId } : {},
+        triggerConfig:
+          triggerType === "stage_changed" && toStageId
+            ? { to_stage_id: toStageId }
+            : triggerType === "status_changed" && toStatus
+              ? { to_status: toStatus }
+              : {},
       });
 
       for (const cond of conditions) {
@@ -292,7 +330,24 @@ export function AutomationsPage() {
                       <option value="stage_changed" disabled={entityType !== "opportunity"}>
                         {TRIGGER_LABELS.stage_changed}
                       </option>
+                      <option value="status_changed" disabled={entityType !== "prospect"}>
+                        {TRIGGER_LABELS.status_changed}
+                      </option>
                     </select>
+                    {triggerType === "status_changed" && entityType === "prospect" && (
+                      <select
+                        value={toStatus}
+                        onChange={(e) => setToStatus(e.target.value as ProspectStatus | "")}
+                        className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Vers n'importe quel statut</option>
+                        {ALL_PROSPECT_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            Vers "{getStatusLabel(s)}"
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {triggerType === "stage_changed" && entityType === "opportunity" && (
                       <select
                         value={toStageId}
@@ -357,7 +412,7 @@ export function AutomationsPage() {
                     <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
                       <div className="flex flex-1 flex-col gap-0 sm:flex-row sm:items-stretch">
                         <ChainBlock label={ENTITY_LABELS[r.entity_type]}>
-                          <span className="text-sm text-foreground">{summarizeTrigger(r.trigger_type)}</span>
+                          <span className="text-sm text-foreground">{summarizeTrigger(r.trigger_type, r.trigger_config)}</span>
                         </ChainBlock>
                         <ChainArrow />
                         <ChainBlock label="Conditions">

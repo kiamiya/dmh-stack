@@ -325,7 +325,8 @@ export interface ClientUser {
  * d'action (voir le commentaire en tête de la migration).
  */
 export type AutomationEntityType = "contact" | "company" | "opportunity" | "task" | "prospect";
-export type AutomationTriggerType = "record_created" | "stage_changed";
+/** `status_changed` : prospect uniquement, cible optionnelle `trigger_config.to_status` (S38-10, migration 048). */
+export type AutomationTriggerType = "record_created" | "stage_changed" | "status_changed";
 export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set" | "is_not_set";
 export type AutomationActionType = "create_task" | "trigger_enrichment";
 export type AutomationActionBranch = "always" | "if_true" | "if_false";

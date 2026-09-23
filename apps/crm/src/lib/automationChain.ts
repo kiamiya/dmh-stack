@@ -1,8 +1,10 @@
-import type { AutomationActionBranch, AutomationConditionOperator, AutomationTriggerType } from "@dmh/types";
+import type { AutomationActionBranch, AutomationConditionOperator, AutomationTriggerType, ProspectStatus } from "@dmh/types";
+import { ALL_PROSPECT_STATUSES, getStatusLabel } from "./status";
 
 const TRIGGER_LABELS: Record<AutomationTriggerType, string> = {
   record_created: "À la création",
   stage_changed: "Au changement d'étape",
+  status_changed: "Au changement de statut",
 };
 
 const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
@@ -16,7 +18,11 @@ const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
 };
 
 /** Pure : libellé du bloc "déclencheur" de la chaîne visuelle. */
-export function summarizeTrigger(triggerType: AutomationTriggerType): string {
+export function summarizeTrigger(triggerType: AutomationTriggerType, triggerConfig: Record<string, unknown> = {}): string {
+  const toStatus = triggerConfig.to_status;
+  if (triggerType === "status_changed" && typeof toStatus === "string" && ALL_PROSPECT_STATUSES.includes(toStatus as ProspectStatus)) {
+    return `Quand le statut passe à "${getStatusLabel(toStatus as ProspectStatus)}"`;
+  }
   return TRIGGER_LABELS[triggerType];
 }
 
@@ -28,6 +34,8 @@ export function summarizeConditions(conditions: Array<{ field: string; operator:
     .join(" ET ");
 }
 
+const TASK_TYPE_LABELS: Record<string, string> = { call: "Appel", email: "Email", meeting: "RDV", data: "Donnée" };
+
 const PROVIDER_LABELS: Record<string, string> = {
   pappers: "Pappers",
   dropcontact: "Dropcontact",
@@ -38,7 +46,8 @@ export function summarizeAction(actions: Array<{ action_type: string; action_con
   const createTask = actions.find((a) => a.action_type === "create_task");
   if (createTask) {
     const title = typeof createTask.action_config.title === "string" ? createTask.action_config.title : "";
-    return `Créer tâche : "${title}"`;
+    const typeLabel = TASK_TYPE_LABELS[String(createTask.action_config.task_type)];
+    return typeLabel ? `Créer tâche (${typeLabel}) : "${title}"` : `Créer tâche : "${title}"`;
   }
   const enrich = actions.find((a) => a.action_type === "trigger_enrichment");
   if (enrich) {
