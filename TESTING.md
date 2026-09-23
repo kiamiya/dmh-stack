@@ -9,7 +9,28 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Deux fonctionnalités en attente de validation navigateur (S36 + S37)
+## Statut : 🔄 S38-1 (correctif bloquant) + S36 + S37 en attente de validation navigateur
+
+## S38-1 — Création de fiches cassée depuis le 07/09 (migration 044)
+
+Toute insertion de contact/entreprise/prospect/tâche échouait en production
+(`record "new" has no field "stage_id"`, régression de la migration 018).
+C'est la vraie cause du "0 contact créé" de la démo du 18/09.
+
+**Prérequis** : migration `044_fix_automation_stage_field_access_regression.sql`
+appliquée en production (`pnpm exec supabase db push`) — à faire après ta
+confirmation.
+
+| # | Test | Résultat attendu |
+|---|---|---|
+| 1 | Créer un contact à la main (+ Nouveau → Contact) | Contact créé, visible dans Prospects |
+| 2 | Créer une entreprise à la main | Entreprise créée |
+| 3 | Créer une tâche à la main | Tâche créée |
+| 4 | Rejouer l'import CSV d'entreprises de la démo (colonne "Effectif estimé") | N entreprise(s) créée(s), valeurs "Effectif estimé" visibles sur les fiches |
+| 5 | Rejouer l'import CSV de contacts de la démo | N contact(s) créé(s) (plus de "0 contact créé") |
+| 6 | Déplacer une opportunité d'étape dans le Kanban | Toujours fonctionnel (seule table où `stage_id` existe) |
+| 7 | (si une ligne échoue encore) Lire le message dans la fenêtre d'import | La fenêtre reste ouverte et affiche le message d'erreur réel avec les numéros de ligne, au lieu d'un simple compteur |
+
 
 ## S36 — Agent d'import intelligent (colonnes non standard, Contacts/Entreprises)
 

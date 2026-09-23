@@ -19,6 +19,8 @@ import { planCompanyImport } from "../lib/companyImportPlan";
 import { importCompanies, importContacts } from "../services/entityImport";
 import { ImportColumnWizardStep } from "./ImportColumnWizardStep";
 import { useToast } from "./ui/toast";
+import { formatImportToast, summarizeImportErrors } from "../lib/importErrorSummary";
+import type { ImportRowError } from "../services/entityImport";
 
 export interface ImportEntitiesDialogProps {
   open: boolean;
@@ -228,6 +230,7 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         columnDecisions,
       );
 
+      let rowErrors: ImportRowError[] = [];
       if (entityType === "contact") {
         const [existingCompanies, existingEmails] = await Promise.all([
           listCompaniesForClient(supabase, clientId),
@@ -251,10 +254,8 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
 
         const parts = [`${result.contactsCreated} contact(s) créé(s)`];
         if (result.companiesCreated > 0) parts.push(`${result.companiesCreated} entreprise(s) créée(s)`);
-        if (contactPlan.skipped.length > 0 || result.errors.length > 0) {
-          parts.push(`${contactPlan.skipped.length + result.errors.length} ligne(s) ignorée(s)`);
-        }
-        toast(parts.join(", ") + ".", result.errors.length > 0 ? "destructive" : "success");
+        toast(formatImportToast(parts, contactPlan.skipped.length, result.errors.length), result.errors.length > 0 ? "destructive" : "success");
+        rowErrors = result.errors;
       } else {
         const existingCompanies = await listCompaniesForClient(supabase, clientId);
         const companyPlan = planCompanyImport(
@@ -265,14 +266,21 @@ export function ImportEntitiesDialog({ open, onOpenChange, entityType, onImporte
         );
         const result = await importCompanies(supabase, clientId, companyPlan, customFieldColumnMap);
 
-        const parts = [`${result.companiesCreated} entreprise(s) créée(s)`];
-        if (companyPlan.skipped.length > 0 || result.errors.length > 0) {
-          parts.push(`${companyPlan.skipped.length + result.errors.length} ligne(s) ignorée(s)`);
-        }
-        toast(parts.join(", ") + ".", result.errors.length > 0 ? "destructive" : "success");
+        toast(
+          formatImportToast([`${result.companiesCreated} entreprise(s) créée(s)`], companyPlan.skipped.length, result.errors.length),
+          result.errors.length > 0 ? "destructive" : "success",
+        );
+        rowErrors = result.errors;
       }
 
       onImported();
+      // Erreurs d'écriture en base : on garde la fenêtre ouverte avec le vrai
+      // message (S38-1 — un simple compteur avait masqué un trigger cassé).
+      const errorSummary = summarizeImportErrors(rowErrors);
+      if (errorSummary) {
+        setError(errorSummary);
+        return;
+      }
       reset();
       onOpenChange(false);
     } catch (err) {

@@ -141,7 +141,7 @@ Dernière mise à jour : 2026-09-23
 | S36-N | Reste du besoin Open Data évoqué par Delphine (indicateurs de marché/risque, notes historiques/incidents avec provenance, scoring, propriétaires d'entreprise multiples) | ⬜ non cadré — hors périmètre de S36 (limité au sous-besoin "guider l'utilisateur sur les colonnes non standard"), bloqué sur le choix du dataset Open Data par Delphine/William et la formalisation de la tâche par Loïc |
 | S37 | Modèle de fiche de prospection (fichier `Fiche_CRM_Generique_pour_Loic.docx` transmis par Delphine le 17/09, généré via Claude à partir du dataset ARIA) — bouton "Appliquer le modèle" dans Champs personnalisés, crée en un clic 7 champs standards (rôle décisionnel, niveau de chaleur, source du signal, référence traçable, date du signal, offres concernées, grille de qualification) | ✅ fait — code + tests unitaires verts, **aucune migration SQL** (réutilise `custom_field_definitions`/`custom_field_values` de S9, idempotent par `field_key`) — en attente de validation navigateur, voir `TESTING.md`. Bloc "Statut du compte" (Client DMH direct/rattaché) du gabarit explicitement exclu — recoupe l'architecture clients DMH/finaux (Phase G), bloquée sur William (S34-10/S34-17) |
 | S38-12 | CR réunion Delphine/Loïc (17/09) — retirer de `TESTING.md` (S36, cas 7) la consigne "couper le réseau" (jugée absurde : la plateforme est elle-même inaccessible sans réseau) | ✅ fait |
-| S38-1 | CR (17/09) — bug import de contacts : 0 contact créé pendant la démo (cause à reproduire ; le code d'import ne valide pas le format email, l'hypothèse "domaine test" n'est donc pas la bonne) | ⬜ à faire |
+| S38-1 | CR (17/09) — bug import "0 contact créé" : **cause trouvée, bien plus large que l'import** — régression du correctif 018 dans `run_automation_rules()` (030/035/040 ont réintroduit `new.stage_id`) : toute insertion contacts/companies/prospects/tasks échoue en production depuis le 07/09 | 🔄 code + tests verts (migration 044 + garde-fou de non-régression + affichage du vrai message d'erreur à l'import) — **migration 044 à appliquer en production (confirmation Loïc requise)** |
 | S38-2 | CR (17/09) — import : validation du format email + correction inline des valeurs en erreur (réutiliser `EMAIL_RE` de `contactForm.ts`) | ⬜ à faire |
 | S38-3 | CR (17/09) — import : politique de conflit (conserver / écraser / compléter les champs vides), choix global par import (modèle HubSpot) — aujourd'hui un doublon est simplement ignoré | ⬜ à faire |
 | S38-4 | CR (17/09) — import en page plein écran : modèle CSV téléchargeable, indicateurs de mapping (coché/non coché), distinction propriétés contact / entreprise | ⬜ à faire |
@@ -2857,4 +2857,34 @@ automatisation (S38-10) → finitions graphiques (S38-11).
 **S38-12** : cas 7 du protocole S36 de `TESTING.md` corrigé (seule la
 suppression temporaire du secret `ANTHROPIC_API_KEY` reste proposée).
 
-**Point de reprise** : S38-1 (reproduire le bug "0 contact créé").
+**S38-1 — cause racine** : en production, aucune entreprise ni aucun
+contact créé depuis le 03/09 (lecture `supabase db query --linked`),
+alors que les champs personnalisés de la démo (`effectif_estime` 09:06,
+`secteur_d_activite` 09:10, le 18/09) ont bien été créés → le wizard S36
+marche, chaque ligne échouait à l'écriture. En relisant les migrations :
+018 avait corrigé `record "new" has no field "stage_id"` (référence à
+`new.stage_id` dans la requête de sélection des règles, partagée par
+tous les triggers alors que seule `deals` a cette colonne), mais 030
+(appliquée le 07/09), 035 et 040 ont été réécrites à partir de la
+version 017 et ont réintroduit le bug. Impact : création manuelle de
+contact/entreprise, import CSV, création de tâche (dont S34-2 "tâche de
+relance") et de prospect — tous cassés depuis le 07/09. L'hypothèse du
+CR ("domaine test des emails") était fausse : le code d'import ne valide
+même pas le format email (sujet S38-2).
+
+Corrigé :
+- `supabase/migrations/044_fix_automation_stage_field_access_regression.sql` : version 040 + schéma 018 (`v_stage_changed`/`v_stage_id_text` calculés en plpgsql sous IF).
+- `apps/crm/src/lib/automationMigrations.test.ts` : garde-fou qui lit la DERNIÈRE définition de `run_automation_rules()` dans les migrations et échoue si `new/old.stage_id` apparaît hors de la branche opportunité (vérifié : échoue sans 044, passe avec).
+- `lib/importErrorSummary.ts` (+ test) branché dans `ImportEntitiesDialog` : les erreurs d'écriture ne sont plus fondues dans "N ligne(s) ignorée(s)" ; la fenêtre reste ouverte avec le vrai message regroupé par cause et les lignes concernées.
+
+Non fait (permission refusée, conforme à la règle 5 de `CLAUDE.md`) :
+insertion de test en transaction annulée pour reproduire l'erreur en
+production. Noté aussi : la clé `SUPABASE_SERVICE_ROLE_KEY` de
+`.env.local` est refusée par l'API ("Invalid API key") — probablement
+régénérée côté Supabase, à mettre à jour par Loïc.
+
+`pnpm typecheck` / `pnpm test` (racine) verts, crm 641 tests.
+
+**Point de reprise** : appliquer la migration 044 en production
+(confirmation explicite de Loïc), puis test `TESTING.md` S38-1, puis
+S38-2.
