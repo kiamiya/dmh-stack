@@ -2879,9 +2879,7 @@ Corrigé :
 
 Non fait (permission refusée, conforme à la règle 5 de `CLAUDE.md`) :
 insertion de test en transaction annulée pour reproduire l'erreur en
-production. Noté aussi : la clé `SUPABASE_SERVICE_ROLE_KEY` de
-`.env.local` est refusée par l'API ("Invalid API key") — probablement
-régénérée côté Supabase, à mettre à jour par Loïc.
+production. (Fausse alerte levée le 2026-09-23 : un script de diagnostic jetable avait renvoyé "Invalid API key", mais la clé `SUPABASE_SERVICE_ROLE_KEY` de `.env.local` est valide — vérifiée par Loïc dans le dashboard et testée via `node --env-file`, REST 200. Le défaut venait du script jetable, pas de la clé.)
 
 `pnpm typecheck` / `pnpm test` (racine) verts, crm 641 tests.
 
