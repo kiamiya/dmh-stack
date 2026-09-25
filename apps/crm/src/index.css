@@ -65,6 +65,10 @@
    * premier rendu.
    */
   :root[data-theme="dark"] {
+    /* Champs natifs (input/select/date) sans classe de fond : sans cette
+       déclaration, le navigateur les garde blancs alors que le texte hérite
+       de la couleur claire du thème → illisibles (constaté en test S38). */
+    color-scheme: dark;
     --background: 240 2% 17%;
     --foreground: 240 18% 97%;
 

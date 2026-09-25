@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-23
+Dernière mise à jour : 2026-09-25
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -152,6 +152,7 @@ Dernière mise à jour : 2026-09-23
 | S38-9 | CR (17/09) — composition des blocs de la fiche entreprise personnalisable et sauvegardée par client DMH (blocs masquables/réordonnables/déplaçables + blocs de champs propres au client) | ✅ fait — **migration 047 appliquée et vérifiée en production le 2026-09-23** — validation navigateur reportée en fin de lot |
 | S38-10 | CR (17/09) — automatisation : nouveau déclencheur "statut du prospect modifié" (ex. contact enrichi → tâche d'appel) | ✅ fait — **migration 048 appliquée en production le 2026-09-23**, test de fumée 7/7 en production (client de test, nettoyé) — validation navigateur de l'écran Automatisations reportée en fin de lot |
 | S38-11 | CR (17/09) — derniers écarts graphiques vs Claude Design (audit mené, liste non fournie dans le CR) | ✅ fait côté code (classes CSS uniquement) — validation visuelle reportée en fin de lot |
+| S38-T | Tests de fin de lot S38 exécutés par Claude en production (autorisation Loïc du 2026-09-25) | 🔄 A-E déroulés : 3 écarts corrigés (marge de la page d'import, liste des automatisations non rechargée après création, champs natifs illisibles en mode sombre) ; **1 écart non corrigé** : CORS absent sur `analyze-import-columns` (et `enrich-pappers`/`enrich-dropcontact`) → agent d'import S36 inopérant depuis le navigateur, correctif à trancher par Loïc + redéploiement ; restent 👤 C6 (calendrier réel), D3 (Dropcontact réel), E4 (jugement visuel) — voir `TESTING.md` |
 | S38-N | CR (17/09) — hors dev / bloqué : architecture comptes (clarifiée par Delphine : toute entreprise = compte, DMH = un compte comme les autres, environnements cloisonnés, marque blanche → Phase G, bloquée sur William) ; reporting interne vs dataviz externe (décision Loïc/William) ; séquences de tâches Lemlist (William) ; sous-menus de l'Aide (non prioritaire) | ⬜ en attente |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
@@ -2916,3 +2917,21 @@ production. (Fausse alerte levée le 2026-09-23 : un script de diagnostic jetabl
 **Lot S38 terminé (S38-1 à S38-11).** `TESTING.md` réécrit en un protocole unique de fin de lot (sections A import, B champs, C fiche entreprise, D automatisation, E finitions graphiques), toutes les migrations (044-048) déjà en production.
 
 **Point de reprise** : session de tests de fin de lot par Loïc (`TESTING.md`) ; en attente de validation explicite avant toute nouvelle tâche. Restent hors lot (S38-N) : architecture comptes/Phase G et reporting (William), séquences Lemlist (William), sous-menus de l'Aide (non prioritaire), documentation RGPD HubSpot de Delphine (non reçue — options calquées sur l'écran HubSpot décrit dans le CR).
+
+## 2026-09-25 — Tests de fin de lot S38 exécutés par Claude en production
+
+Loïc, indisponible, autorise explicitement les tests sur la prod (« nous n'avons aucune donnée réelle pour le moment »). CRM lancé en local (Vite, port 5199) branché sur le vrai Supabase, piloté par Playwright headless (outillage jetable dans le scratchpad, rien dans le repo), compte staff temporaire `staff-test-claude-s38@` + client temporaire `[TEST Claude] Client B S38` pour les tests de cloisonnement. Chaque résultat à l'écran recoupé en base. Détail cas par cas dans `TESTING.md`.
+
+**Résultat** : A (sauf A4, A13 non reproductible), B, C, D, E passés. Écarts corrigés (aucune migration) :
+- `pages/Import.tsx` : pas de `p-6` (titre collé au menu latéral, seule page dans ce cas).
+- `pages/Automations.tsx` : `create()` recharge la liste dès l'insertion de la règle, avant l'ajout de ses conditions/actions → une règle fraîchement créée s'affichait « Aucune action ». `reload()` après l'ajout des actions.
+- `index.css` : `color-scheme: dark` sur `:root[data-theme="dark"]` — les champs natifs sans classe de fond (filtres du Dashboard, « Nom de l'étape »…) restaient blancs avec un texte clair hérité, illisibles.
+Les 3 vérifiés dans le navigateur. Pas de test unitaire ajouté : câblage de composant / CSS, sans logique pure testable (les pages n'ont pas de tests de rendu dans ce repo). `pnpm typecheck`/`pnpm test` racine verts (crm 697), build OK.
+
+**Écart non corrigé — à trancher par Loïc** : `analyze-import-columns` ne gère pas le preflight CORS (`OPTIONS` → 405, console : « blocked by CORS policy »). L'agent d'import S36 n'a donc jamais fonctionné depuis le CRM (toujours le repli « Analyse automatique indisponible »). Même manque sur `enrich-pappers`/`enrich-dropcontact`, appelées depuis le navigateur pour l'enrichissement manuel. Correctif (motif de `integrations-status`) refusé par le garde-fou de Claude Code (ouverture cross-origin `*`) : décision de Loïc requise (`*` vs origine du CRM déployé), puis redéploiement des 3 fonctions (confirmation explicite).
+
+Observations non corrigées : compteur « à mettre à jour » en politique « Compléter » qui compte une fiche où rien ne changerait ; CRM sans mode mobile (menu latéral fixe de 224 px sur téléphone, antérieur à S38) ; libellé de statut « Enrichi (contact) » (TESTING.md disait « Contact enrichi »).
+
+**Nettoyage vérifié** : 0 contact/entreprise/prospect/tâche/règle/champ/surcharge/composition de test restant, client B et compte staff temporaire supprimés, identifiants locaux effacés.
+
+**Point de reprise** : décision de Loïc sur le correctif CORS (puis redéploiement + rejouer A4) ; vérifications humaines restantes C6, D3, E4 (`TESTING.md`). Hors lot inchangé (S38-N).

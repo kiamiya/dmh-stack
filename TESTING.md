@@ -9,102 +9,142 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Session de tests de fin de lot S38 (CR réunion Delphine/Loïc du 17/09)
+## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — reste 1 décision + 4 vérifications pour Loïc
 
-Décision de Loïc du 2026-09-23 : « fais toutes les tâches et je ferai les
-tests à la fin ». Tout le lot S38 est codé, testé unitairement (crm 697 tests,
-racine verte) et poussé. **Toutes les migrations sont déjà appliquées en
-production** (044 à 048) — rien à faire côté infra avant de tester.
+Autorisation de Loïc du 2026-09-25 : « je t'autorise à faire tes tests sur la
+prod, dans tous les cas nous n'avons aucune donnée réelle pour le moment ».
 
-Déjà validé (pas à refaire) : **S38-1** (création de fiches réparée, 6/6 en
-production) et le **moteur de S38-10** (test de fumée 7/7 en production).
-S37 est remplacé par S38-6 (le bouton "Appliquer le modèle" n'existe plus).
+**Comment** : CRM lancé en local (Vite) branché sur le vrai Supabase, piloté
+par un navigateur Chromium headless (Playwright, outillage jetable hors repo),
+connecté avec un compte staff temporaire. Chaque résultat affiché à l'écran
+a été recoupé en base quand il y avait une donnée. Données : le client
+`[TEST Claude] Client de test` et un client temporaire `[TEST Claude] Client B
+S38` (pour vérifier le cloisonnement entre clients).
 
-**Préparation** : un client DMH de test, et deux petits fichiers CSV.
+**Nettoyage fait et vérifié** (0 restant) : contacts Alice/Bob/Claire Test,
+entreprises ZZ Test S38 / ZZ Autre S38, prospects, note et appel, champ
+« Secteur test S38 », surcharge d'options de la grille de qualification,
+composition de fiche, 2 règles d'automatisation de test, tâche générée,
+client B et son entreprise, compte staff temporaire.
 
-`test-contacts.csv` :
+Légende : ✅ passé · 🔧 écart trouvé et corrigé (code poussé) · ❌ écart
+trouvé, **non corrigé** · 👤 reste à faire par Loïc
 
-```
-Prénom,Nom,Entreprise,Email,Secteur d'activité
-Alice,Test,ZZ Test S38,alice@acme.test,Industrie
-Bob,Test,ZZ Test S38,acmetest.test,BTP
-Claire,Test,ZZ Test S38,claire @acme.test,Industrie
-```
+## ❌ À trancher par Loïc : l'agent d'import (S36) ne fonctionne pas depuis le navigateur
 
-`test-entreprises.csv` :
+En A4 et A12, l'étape « colonnes non reconnues » affiche toujours « Analyse
+automatique indisponible — configure chaque colonne manuellement » : aucune
+suggestion de Claude. La console du navigateur donne la cause :
 
-```
-Nom,Ville,Effectif estimé
-ZZ Test S38,Lyon,120
-ZZ Autre S38,,45
-```
+> Access to fetch at '…/functions/v1/analyze-import-columns' from origin
+> 'http://localhost:5199' has been blocked by CORS policy: Response to
+> preflight request doesn't pass access control check
+
+L'Edge Function `analyze-import-columns` ne répond pas au « preflight »
+CORS (`OPTIONS` → 405), contrairement à `integrations-status` ou aux
+fonctions calendrier (`OPTIONS` → 204). Le navigateur bloque donc l'appel
+avant même qu'il parte : **l'agent d'import n'a jamais pu fonctionner depuis
+le CRM** (le repli manuel, lui, marche). `enrich-pappers` et
+`enrich-dropcontact` ont le même manque, alors que le CRM les appelle aussi
+depuis le navigateur (enrichissement manuel). Ça, je ne l'ai pas testé en
+réel.
+
+**Correctif proposé** (≈ 3 lignes par fonction, même motif que
+`integrations-status`) : répondre `204` à `OPTIONS` et ajouter
+`Access-Control-Allow-Origin` / `Access-Control-Allow-Headers: Authorization,
+Content-Type` aux réponses. Le garde-fou de Claude Code a refusé que je
+l'écrive moi-même, parce qu'il ouvre l'accès cross-origin (`*`) : c'est à toi
+de décider. Options : `*` comme les fonctions existantes (l'authentification
+reste assurée par le JWT : `verify_jwt` est actif sur `analyze-import-columns`),
+ou restreindre à l'origine du CRM déployé. Une fois tranché : correctif, puis
+**redéploiement des 3 fonctions** (action distante, confirmation explicite
+requise), puis je rejoue A4.
 
 ## A. Import (S38-2, S38-3, S38-4, S38-5 + agent d'import S36)
 
-| # | Test | Résultat attendu |
-|---|---|---|
-| A1 | Prospects → bascule Contacts → "Importer" | Ouverture d'une **page plein écran** (`/import/contacts`), plus une fenêtre |
-| A2 | Cliquer "Télécharger le modèle CSV" | Un fichier `modele-import-contacts.csv` avec les en-têtes Prénom, Nom, Poste, Email, URL LinkedIn, Entreprise + une ligne d'exemple ; réimporté, toutes ses colonnes sont reconnues automatiquement |
-| A3 | Choisir le client, charger `test-contacts.csv` | Deux panneaux : champs groupés "Propriétés du contact" / "Propriétés de l'entreprise" avec ✓ (associé) / ○ (non associé, rouge si obligatoire) ; tableau "Colonnes du fichier" avec un exemple de valeur et le statut ("Secteur d'activité" → "○ à configurer à l'étape suivante") |
-| A4 | Continuer | Assistant des colonnes non reconnues (S36) pour "Secteur d'activité", avec suggestion Claude ; choisir "Créer un nouveau champ" (liste déroulante) |
-| A5 | Arrivée au récapitulatif | Sélecteur **"Base juridique du traitement (RGPD)"** pré-réglé sur "Intérêt légitime — prospect" ; choix "Si un contact existe déjà" (Ignorer / Compléter / Écraser) ; encadré rouge listant les 2 emails mal formés (lignes 3 et 4) |
-| A6 | Ligne 3 : taper `bob@acme` | Bordure rouge, "Corriger" grisé |
-| A7 | Ligne 3 : `bob@acme.test` → Corriger ; ligne 4 : "Importer sans email" | L'encadré disparaît, "3 à créer" |
-| A8 | Importer | Retour automatique à Prospects ; toast "3 contact(s) créé(s), 1 entreprise(s) créée(s)." |
-| A9 | Ouvrir la fiche de Bob | Base juridique RGPD = "Intérêt légitime — prospect" (modifiable) ; champ "Secteur d'activité" = BTP dans "Champs personnalisés" |
-| A10 | Réimporter `test-contacts.csv` avec Alice modifiée (ex. ajouter une colonne Poste = "CTO" pour Alice), politique **"Compléter les champs vides"** | Récapitulatif "… fiche(s) existante(s) à mettre à jour" ; après import, le poste d'Alice est renseigné. Refaire avec un autre poste en "Compléter" → **inchangé** ; en "Écraser" → remplacé |
-| A11 | Politique "Ignorer" sur le même fichier | Les contacts existants sont comptés "ignorés", rien n'est modifié |
-| A12 | Entreprises → "Importer des entreprises" avec `test-entreprises.csv` | Même page plein écran, un seul groupe "Propriétés de l'entreprise", pas de sélecteur RGPD ; "ZZ Test S38" (déjà créée en A8) proposée en mise à jour selon la politique, "ZZ Autre S38" créée |
-| A13 | Si une ligne échoue à l'écriture | La page reste affichée avec le **vrai message d'erreur** et les numéros de ligne (plus un simple compteur) |
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| A1 | Prospects → Contacts → "Importer" | ✅ | Page plein écran `/import/contacts`, aucune fenêtre modale |
+| A2 | Modèle CSV | ✅ | `modele-import-contacts.csv` : Prénom, Nom, Poste, Email, URL LinkedIn, Entreprise + ligne d'exemple ; réimporté : 6/6 colonnes reconnues automatiquement |
+| A3 | Mapping | ✅ | Groupes « Propriétés du contact » / « Propriétés de l'entreprise », ✓ vert / ○ ; « Secteur d'activité » → « ○ à configurer à l'étape suivante » |
+| A4 | Assistant des colonnes (S36) | ❌ | Assistant affiché, création d'un nouveau champ OK, mais **aucune suggestion de Claude** (voir ci-dessus) |
+| A5 | Récapitulatif | ✅ | RGPD pré-réglé « Intérêt légitime — prospect », 3 politiques de conflit, encadré « 2 email(s) mal formé(s) » (lignes 3 et 4) |
+| A6 | `bob@acme` | ✅ | Bordure rouge, « Corriger » grisé |
+| A7 | Correction + « Importer sans email » | ✅ | Encadré disparu, « 3 à créer » |
+| A8 | Importer | ✅ | Retour à Prospects ; en base : 3 contacts (Bob `bob@acme.test`, Claire sans email), 1 entreprise, base juridique posée sur les 3 |
+| A9 | Fiche de Bob | ✅ | Base juridique « Intérêt légitime — prospect » (modifiable), champ importé = BTP, cartes « Fiche de prospection » et « Champs personnalisés » |
+| A10 | Politique de conflit | ✅ | Compléter (poste vide) → CTO ; Compléter avec CEO → **inchangé** (CTO) ; Écraser → CEO (vérifié en base à chaque étape) |
+| A11 | « Ignorer » | ✅ | « 1 ligne(s) ignorée(s) », bouton Importer grisé, rien de modifié |
+| A12 | Import d'entreprises | ✅ | Même page, seul groupe « entreprise », pas de sélecteur RGPD ; « ZZ Test S38 » mise à jour (ville Lyon), « ZZ Autre S38 » créée ; (analyse Claude KO, même cause qu'A4) |
+| A13 | Erreur d'écriture affichée | — | Non reproduit (il faudrait modifier le schéma pour forcer un échec) ; logique couverte par les tests unitaires de `importErrorSummary` |
+
+Remarque mineure : en « Compléter », une fiche où rien ne changerait est
+quand même annoncée « 1 fiche existante à mettre à jour » (le toast final dit
+bien « 0 contact créé », sans « mis à jour »). Pas corrigé, dis-moi si tu
+veux que le compteur soit plus précis.
+
+🔧 **Corrigé** : la page d'import n'avait pas de marge intérieure (titre
+collé au menu latéral), contrairement à toutes les autres pages. `p-6`
+ajouté, vérifié.
 
 ## B. Champs (S38-6, S38-7)
 
-| # | Test | Résultat attendu |
-|---|---|---|
-| B1 | Paramètres → Champs personnalisés, sans client choisi | Les 8 champs de la fiche de prospection apparaissent avec la portée **"Système"** (1 côté Contacts : Rôle décisionnel ; 7 côté Entreprises) ; plus de bouton "Appliquer le modèle" |
-| B2 | Choisir un client | Seuls les champs système + ceux de ce client s'affichent (plus ceux des autres clients) |
-| B3 | Entreprises → "Grille de qualification" → Modifier (client choisi) | Libellé non modifiable (champ système) ; options éditables : renommer "Critère 1 — à définir" en "Budget identifié", supprimer "Critère 4", ajouter "Décideur rencontré", réordonner ↑↓ ; avertissement rouge pour l'option supprimée |
-| B4 | Enregistrer, puis ouvrir une fiche entreprise de ce client | Les nouvelles options apparaissent ; une fiche qui avait "Critère 1" coché affiche désormais "Budget identifié" coché (report automatique) |
-| B5 | Ouvrir une fiche entreprise d'un **autre** client | Options par défaut inchangées ("Critère 1 — à définir"…) |
-| B6 | Modifier un champ personnalisé (non système) | Libellé et options modifiables |
-| B7 | Modifier les options d'un champ système **sans** client choisi | Édition bloquée avec un message ("Choisis d'abord un client…") |
-| B8 | Fiche contact / fiche entreprise | Deux cartes distinctes : "Fiche de prospection" (champs système) et "Champs personnalisés" (du client uniquement — avant ce lot, les champs de tous les clients s'affichaient) |
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| B1 | Sans client choisi | ✅ | Portée « Système » : 1 côté Contacts (Rôle décisionnel), 7 côté Entreprises ; plus de bouton « Appliquer le modèle » |
+| B2 | Client choisi | ✅ | Champs système d'abord, puis ceux du client uniquement |
+| B3 | Modifier « Grille de qualification » | ✅ | Libellé non modifiable ; renommage « Budget identifié », suppression « Critère 4 » (avertissement rouge), ajout « Décideur rencontré », réordonnancement |
+| B4 | Report sur les fiches | ✅ | La fiche qui avait « Critère 1 » coché affiche « Budget identifié » coché |
+| B5 | Fiche d'un autre client | ✅ | Client B : options par défaut, « Critère 1 » toujours coché |
+| B6 | Champ personnalisé | ✅ | Libellé modifiable et enregistré |
+| B7 | Champ système sans client | ✅ | « Choisis d'abord un client sur la page pour modifier ses options. », Enregistrer grisé |
+| B8 | Deux cartes | ✅ | « Fiche de prospection » + « Champs personnalisés » du client ; la fiche du client B n'affiche aucun champ du client de test |
 
 ## C. Fiche entreprise (S38-8, S38-9)
 
-| # | Test | Résultat attendu |
-|---|---|---|
-| C1 | Ouvrir une fiche entreprise sur un grand écran | 3 colonnes : gauche (En bref + actions rapides, Informations, Pappers, Fiche de prospection, Champs personnalisés), centre (Historique), droite (Contacts, Opportunités, Groupe, Tâches, Liste assignée, Rendez-vous) ; sur écran étroit, colonnes empilées |
-| C2 | Actions rapides "Note" puis "Appel" | Un compositeur s'ouvre au-dessus de l'historique (choix du contact si plusieurs) ; après enregistrement, l'événement apparaît dans l'historique avec le contact et l'auteur |
-| C3 | Entreprise sans prospect | "Note"/"Appel" grisés avec une explication au survol |
-| C4 | "Email" | Liste des contacts liés ayant un email, liens `mailto:` |
-| C5 | "Tâche" | Fenêtre de création pré-remplie avec le client et l'entreprise |
-| C6 | "Réunion" | Fenêtre de rendez-vous pré-remplie (grisé si aucun calendrier connecté) |
-| C7 | Filtres de l'historique (Tout / Échanges / Statuts / Rendez-vous) | L'historique se filtre |
-| C8 | "Personnaliser la fiche" → masquer "Données Pappers", déplacer "Contacts" en colonne gauche, monter "Historique"… → Enregistrer | La fiche se réorganise ; **toutes les fiches entreprise de ce client** suivent cette composition |
-| C9 | Ajouter un bloc personnalisé "Incidents substances toxiques" avec 1-2 champs du client | Le bloc apparaît avec ces champs, et ils ne sont plus répétés dans "Champs personnalisés" |
-| C10 | Ouvrir une fiche entreprise d'un autre client | Affichage par défaut (ou sa propre composition) — aucune fuite entre clients |
-| C11 | Masquer "Historique", puis cliquer "Note" | Le compositeur s'affiche sous les actions rapides |
-| C12 | "Revenir à l'affichage par défaut" | Disposition d'origine rétablie pour ce client |
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| C1 | 3 colonnes | ✅ | Écran large : gauche / centre (Historique) / droite, conformes ; écran étroit : colonnes empilées, pas de défilement horizontal |
+| C2 | Note puis Appel | ✅ | Choix du contact (3 prospects), les 2 événements apparaissent dans l'historique avec contact et auteur |
+| C3 | Entreprise sans prospect | ✅ | Note/Appel grisés, explication au survol |
+| C4 | Email | ✅ | Liens `mailto:` des 2 contacts qui ont un email |
+| C5 | Tâche | ✅ | Fenêtre pré-remplie : client + entreprise |
+| C6 | Réunion | ✅ / 👤 | Grisé, « Connecte un calendrier (Paramètres › Calendrier)… » ; 👤 **à tester avec ton calendrier connecté** |
+| C7 | Filtres de l'historique | ✅ | Échanges (note + appel), Statuts (3 statuts initiaux), Rendez-vous (vide), Tout |
+| C8 | Personnaliser | ✅ | Pappers masqué, Contacts en colonne gauche → appliqué, **aussi sur l'autre fiche du même client** |
+| C9 | Bloc personnalisé | ✅ | « Incidents substances toxiques » avec 2 champs du client, qui ne sont plus répétés dans « Champs personnalisés » |
+| C10 | Autre client | ✅ | Client B : affichage par défaut |
+| C11 | Historique masqué + Note | ✅ | Le compositeur s'affiche sous « En bref » |
+| C12 | Revenir au défaut | ✅ | Disposition d'origine rétablie |
+
+Remarque (antérieure à S38, non corrigée) : sur un téléphone, le menu
+latéral reste affiché en entier (224 px) et laisse environ 120 px au
+contenu. Le CRM n'a pas de mode mobile. À traiter à part si c'est un besoin.
 
 ## D. Automatisation (S38-10)
 
-| # | Test | Résultat attendu |
-|---|---|---|
-| D1 | Automatisations → client → entité "Prospect" → déclencheur "Au changement de statut" | Sélecteur de statut cible disponible (option grisée pour les autres entités) |
-| D2 | Créer : statut cible "Contact enrichi", action "Créer une tâche" type **Appel**, échéance 1 jour | Règle listée : « Quand le statut passe à "Contact enrichi" » → « Créer tâche (Appel) : "…" » |
-| D3 | Faire passer un prospect de ce client en "Contact enrichi" (enrichissement Dropcontact réel, ou changement manuel de statut) | Une tâche d'appel apparaît dans Tâches (origine Automatisation), rattachée au contact **et** à l'entreprise |
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| D1 | Déclencheur « Au changement de statut » | ✅ | Grisé hors entité Prospect, sélecteur de statut cible disponible (le statut s'appelle « Enrichi (contact) », pas « Contact enrichi ») |
+| D2 | Création de la règle | 🔧 | Résumé correct (« Quand le statut passe à "Enrichi (contact)" »), mais l'action s'affichait « Aucune action » juste après la création (correct après rechargement). **Corrigé** : la liste est rechargée après l'ajout des actions, vérifié |
+| D3 | Prospect → « Enrichi (contact) » (changement manuel) | ✅ / 👤 | Tâche « Appel », origine Automatisation, échéance J+1, rattachée au contact **et** à l'entreprise (écran Tâches + base) ; 👤 **à confirmer avec un vrai enrichissement Dropcontact** |
 
 ## E. Finitions graphiques (S38-11)
 
-| # | Test | Résultat attendu |
-|---|---|---|
-| E1 | Kanban Prospects et Opportunités | Cartes au trait, sans ombre ni fond de carte |
-| E2 | Boutons de bascule (Liste/Kanban, Contacts/Entreprises, Statique/Dynamique, dossiers de Segments, Liste/Calendrier des tâches) | Coins carrés, comme le reste du design |
-| E3 | Mode sombre : alerte "stagnant" (Kanban, fiche), pastilles d'état des Intégrations, badge de notifications, bouton de suppression d'un contact, tendance des KPI du Dashboard | Couleurs du thème (plus de rouge/jaune/vert codés en dur), lisibles dans les deux modes |
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| E1 | Kanban Prospects / Opportunités | ✅ | Cartes au trait : aucune ombre, coins carrés (styles calculés relevés dans le navigateur), clair et sombre |
+| E2 | Boutons de bascule | ✅ | Aucun bouton arrondi relevé sur Prospects, Opportunités, Tâches, Segments, Intégrations, Dashboard (clair et sombre) |
+| E3 | Mode sombre | 🔧 | Alerte « Dernière activité » (warning), pastilles « Connecté », tendance KPI : couleurs du thème, lisibles. **Écart trouvé et corrigé** : les champs natifs sans fond explicite (filtres du Dashboard, « Nom de l'étape » des Opportunités…) restaient blancs avec un texte clair, donc illisibles. Ajout de `color-scheme: dark` au thème sombre, vérifié |
+| E4 | Jugement visuel vs maquette Relais | 👤 | À faire par toi (je n'ai pas la maquette sous les yeux) |
 
-## Nettoyage après test
+## Ce qu'il te reste
 
-Supprimer les contacts Alice/Bob/Claire Test, les entreprises "ZZ Test S38" /
-"ZZ Autre S38", le champ "Secteur d'activité" créé en A4, la règle
-d'automatisation D2 et la tâche générée en D3.
+1. **Décider du correctif CORS** (section ❌ ci-dessus), puis autoriser le
+   redéploiement des 3 Edge Functions.
+2. 👤 C6 : une réunion avec ton calendrier connecté.
+3. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
+   d'appel (il faut d'abord recréer la règle dans Automatisations : je l'ai
+   supprimée au nettoyage).
+4. 👤 E4 : un coup d'œil au rendu face à la maquette Relais, et la question
+   restée ouverte des variantes de couleur du composant `Badge`.

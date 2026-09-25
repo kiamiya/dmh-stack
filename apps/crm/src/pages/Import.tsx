@@ -347,7 +347,7 @@ export function ImportPage() {
   for (const c of unmappedColumns) sampleValuesByColumn[c] = sampleColumnValues(rows, c);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-6">
       <PageHeader
         kicker="Import CSV"
         title={entityType === "contact" ? "Importer des contacts" : "Importer des entreprises"}

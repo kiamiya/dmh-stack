@@ -175,7 +175,7 @@ function ChainArrow() {
 export function AutomationsPage() {
   const clients = useClients();
   const [clientId, setClientId] = useState("");
-  const { rules, loading, create, toggle, remove } = useAutomationRules(clientId);
+  const { rules, loading, create, toggle, remove, reload } = useAutomationRules(clientId);
   const { stages } = usePipelineStages(clientId);
   const staff = useStaffMembers();
   const { toast } = useToast();
@@ -263,6 +263,9 @@ export function AutomationsPage() {
       } else {
         await addAction(supabase, actionInsertFor(action, "always", 1, clientId, rule.id));
       }
+      // `create` recharge la liste dès l'insertion de la règle, avant l'ajout de ses conditions/actions :
+      // sans ce rechargement, la règle s'affichait "Aucune action" jusqu'au prochain chargement de la page.
+      await reload();
 
       toast(`Règle "${name.trim()}" créée.`, "success");
       reset();
