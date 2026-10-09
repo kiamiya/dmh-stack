@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isValidPageSlug, slugify } from "@dmh/booking";
 import type { BookingPage, MeetingType } from "@dmh/types";
 import { Badge } from "../ui/badge";
@@ -33,27 +33,38 @@ export function BookingSettings() {
   const [page, setPage] = useState<BookingPage | null>(null);
   const [types, setTypes] = useState<MeetingType[]>([]);
   const [loading, setLoading] = useState(false);
+  // Client dont la configuration est chargée : tant que ce n'est pas le client
+  // courant, le formulaire n'est pas affiché (sinon une saisie faite pendant le
+  // chargement serait écrasée par son résultat).
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  // Client pour lequel le formulaire de la page a été initialisé : un rechargement
+  // (types de RDV, double effet du mode strict…) ne doit jamais écraser une saisie en cours.
+  const formInitializedFor = useRef<string | null>(null);
   const [pageForm, setPageForm] = useState({ title: "", slug: "", description: "", hostStaffId: "" });
   const [savingPage, setSavingPage] = useState(false);
   const [editing, setEditing] = useState<{ type: MeetingType | null } | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (resetForm = false) => {
     if (!clientId) return;
     setLoading(true);
     try {
       const p = await getBookingPage(supabase, clientId);
       setPage(p);
       setTypes(p ? await listMeetingTypes(supabase, p.id) : []);
-      setPageForm({
-        title: p?.title ?? "",
-        slug: p?.slug ?? "",
-        description: p?.description ?? "",
-        hostStaffId: p?.host_staff_id ?? "",
-      });
+      if (resetForm || formInitializedFor.current !== clientId) {
+        formInitializedFor.current = clientId;
+        setPageForm({
+          title: p?.title ?? "",
+          slug: p?.slug ?? "",
+          description: p?.description ?? "",
+          hostStaffId: p?.host_staff_id ?? "",
+        });
+      }
     } catch (err) {
       toast(`Chargement impossible : ${(err as Error).message}`, "destructive");
     } finally {
       setLoading(false);
+      setLoadedFor(clientId);
     }
   }, [clientId, toast]);
 
@@ -63,6 +74,10 @@ export function BookingSettings() {
 
   if (!clientId) {
     return <p className="text-sm text-muted-foreground">Choisis un client dans l'en-tête pour configurer sa page de réservation.</p>;
+  }
+
+  if (loadedFor !== clientId) {
+    return <p className="text-sm text-muted-foreground">Chargement…</p>;
   }
 
   async function handleSavePage() {
@@ -86,7 +101,7 @@ export function BookingSettings() {
         hostStaffId: pageForm.hostStaffId,
       });
       toast("Page de réservation enregistrée.", "success");
-      await load();
+      await load(true);
     } catch (err) {
       toast((err as Error).message, "destructive");
     } finally {

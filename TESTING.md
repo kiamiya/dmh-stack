@@ -9,28 +9,39 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ⬜ Lot S39 (CR du 09/10 — rendez-vous + formulaires) codé, rien n'est encore en production
+## Statut : 🔄 Lot S39 en production (2026-10-09) — testé par Claude, reste les vérifications 👤 avec ta boîte Outlook
 
-Tout le code est poussé, les tests unitaires et le typecheck sont verts. Rien
-n'est testable de bout en bout tant que les étapes distantes ci-dessous ne
-sont pas faites.
+**Fait** (accord de Loïc du 09/10) : migrations 049/050/051 appliquées, 10
+Edge Functions déployées (4 nouvelles + 6 redéployées), cron des rappels actif.
 
-## Étape 0 — Pré-requis (actions distantes, ton accord requis)
+**Tests déroulés par Claude** : CRM en local branché sur la prod, Chromium
+headless, compte staff temporaire comme **hôte sans calendrier connecté**
+(pour ne rien créer dans ton vrai agenda ni envoyer d'e-mail depuis ta
+boîte). Chaque résultat recoupé en base. **Nettoyage vérifié** (0 restant) ;
+donnée de test de juillet intacte.
 
-1. Appliquer les migrations `049_booking_module.sql`,
-   `050_booking_reminders_cron.sql`, `051_forms.sql`.
-2. Déployer les Edge Functions `booking-public`, `form-public`
-   (publiques), `booking-decide`, `booking-reminders`, et redéployer
-   `calendar-freebusy`, `calendar-book-meeting`, `calendar-create-event`,
-   `calendar-my-events`, `calendar-update-event`,
-   `microsoft-calendar-oauth-callback` (code partagé modifié).
-3. 👤 **Reconnecter ton calendrier Microsoft** (Paramètres › Mon calendrier)
-   pour accorder le droit d'envoi d'e-mails (`Mail.Send`). Sans ça, tout
-   fonctionne sauf l'envoi des e-mails (un avertissement s'affiche dans le CRM).
+Résultats : ✅ R1-R10 et F1-F7 (détail dans `PROGRESS.md`, journal du
+09/10). 🔧 **1 écart trouvé et corrigé** : sur l'onglet Rendez-vous, une
+saisie faite pendant le chargement (ou au second passage des effets React en
+développement) était effacée → le formulaire n'est plus affiché avant la fin
+du chargement et n'est initialisé qu'une fois par client.
 
-Je peux dérouler moi-même les parties R et F ci-dessous (CRM en local branché
-sur la prod, données de test supprimées ensuite), comme le 25/09 — avec ton
-accord. Les points marqués 👤 demandent ta boîte Outlook / ton agenda.
+Sans calendrier connecté, chaque décision affiche bien « L'hôte n'a pas
+connecté de calendrier Microsoft : aucun e-mail n'a été envoyé. » — c'est le
+comportement attendu ; la partie Outlook/Teams/e-mails reste à vérifier par
+toi :
+
+### 👤 Ce qu'il te reste
+
+0. Reconnecter ton calendrier Microsoft (Paramètres › Mon calendrier) pour
+   accorder `Mail.Send`.
+1. Créer ta page de réservation (hôte = toi) et un type de RDV, puis
+   dérouler **R5, R7, R8, R9, R10, R11** ci-dessous depuis une adresse
+   e-mail de test : événement provisoire dans Outlook, lien **Teams**,
+   e-mails en français, invitation **.ics** qui s'ajoute (puis se met à jour
+   après une reprogrammation) dans l'agenda du prospect, rappel.
+2. Me dire si le contenu des e-mails te convient (à caler sur le RDV de test
+   Brevo).
 
 ## R. Prise de rendez-vous
 
