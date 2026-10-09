@@ -2949,4 +2949,4 @@ Loïc confirme que rien n'impose de mettre le CRM en ligne pour ces correctifs (
 
 **Rejeu navigateur en production** (autorisation de Loïc du jour) : A4, A12 (suggestions de Claude affichées), A10 (compteur), « Enrichir » entreprise (Pappers écrit) et contact (Dropcontact soumis), refus 401/403 — tous ✅, détail dans `TESTING.md`. Données de test supprimées (0 restant), donnée de juillet intacte. Deux 404 ponctuels en console pendant le premier passage, non reproduits ensuite.
 
-**Point de reprise** : vérifications humaines C6, D3, E4 (`TESTING.md`). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif). Hors lot inchangé (S38-N).
+**Point de reprise** : vérifications humaines C6, D3, E4 (`TESTING.md`), à faire **en production avec Delphine** (décision Loïc du 2026-10-09). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif). Hors lot inchangé (S38-N).

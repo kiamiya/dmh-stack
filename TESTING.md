@@ -133,6 +133,9 @@ contenu. Le CRM n'a pas de mode mobile. À traiter à part si c'est un besoin.
 
 ## Ce qu'il te reste
 
+> Décision de Loïc (2026-10-09) : ces 3 vérifications se feront **en
+> production avec Delphine**.
+
 1. 👤 C6 : une réunion avec ton calendrier connecté.
 2. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
    d'appel (il faut d'abord recréer la règle dans Automatisations : je l'ai
