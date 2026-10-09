@@ -9,7 +9,7 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — correctif CORS déployé (2026-10-09), reste le rejeu de A4/A10/A12 + 3 vérifications pour Loïc
+## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — correctifs du 2026-10-09 déployés et rejoués par Claude — reste 3 vérifications pour Loïc
 
 Autorisation de Loïc du 2026-09-25 : « je t'autorise à faire tes tests sur la
 prod, dans tous les cas nous n'avons aucune donnée réelle pour le moment ».
@@ -30,22 +30,25 @@ client B et son entreprise, compte staff temporaire.
 Légende : ✅ passé · 🔧 écart trouvé et corrigé (code poussé) · ❌ écart
 trouvé, **non corrigé** · 👤 reste à faire par Loïc
 
-## 🔧 Agent d'import (S36) bloqué depuis le navigateur — corrigé et déployé, rejeu en attente
+## Rejeu du 2026-10-09 (autorisation de Loïc du jour)
 
-En A4 et A12, l'étape « colonnes non reconnues » affichait toujours « Analyse
-automatique indisponible » : `analyze-import-columns` ne répondait pas au
-preflight CORS (`OPTIONS` → 405), le navigateur bloquait l'appel. Même manque
-sur `enrich-pappers` / `enrich-dropcontact` (bouton « Enrichir »).
+Même protocole que le 25/09 : CRM en local branché sur la prod, Chromium
+headless, compte staff temporaire + utilisateur non-staff temporaire,
+entreprise/contact/prospect de test. **Tout supprimé et vérifié (0 restant)** ;
+la donnée de test de juillet (PM MECANIQUE INDUSTRIE) est intacte.
 
-**Décision de Loïc (2026-10-09)** : origine `*`, comme les autres fonctions
-(l'authentification reste portée par le JWT). **Correctif** : module partagé
-`packages/config/src/cors.ts` (testé) — `OPTIONS` → 204, en-têtes CORS sur
-toutes les réponses, en-têtes autorisés `authorization, x-client-info,
-apikey, content-type` (ceux qu'envoie `supabase.functions.invoke`).
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| R1 | A4 — assistant des colonnes (contacts) | ✅ | « Suggestion : La colonne correspond exactement au champ personnalisé existant 'Secteur d'activité'… (confiance 95%) » ; aucune erreur CORS en console |
+| R2 | A12 — assistant des colonnes (entreprises) | ✅ | « Suggestion : Aucun champ existant ne couvre le secteur d'activité… (confiance 75%) » |
+| R3 | A10 — compteur (Bob existant, poste CTO ; fichier : CEO) | ✅ | Compléter : « 1 à créer · 1 fiche(s) existante(s) déjà à jour » ; Écraser : « … 1 fiche(s) existante(s) à mettre à jour » ; Ignorer : « … 1 ligne(s) ignorée(s) » |
+| R4 | « Enrichir » sur la fiche entreprise (staff) | ✅ | Toast « Entreprise enrichie (Pappers). » ; en base : nom, NAF « Mécanique industrielle », ville Le Creusot |
+| R5 | « Enrichir » sur la fiche contact (staff) | ✅ | Toast « Enrichissement en cours (Dropcontact)… » ; `dropcontact_request_id` posé en base |
+| R6 | Connexion obligatoire | ✅ | Sans en-tête → 401 ; clé anon → 401 ; utilisateur connecté non-staff → 403 « Réservé à l'équipe DMH » ; clé service_role (celle du Vault, utilisée par les automatisations) → acceptée |
 
-**Déployé le 2026-10-09** (accord de Loïc) : preflight `OPTIONS` → 204 avec
-les bons en-têtes sur les 3 fonctions (vérifié). **Reste** : rejouer A4/A12
-(suggestions de Claude visibles) et A10 (compteur), puis un clic « Enrichir ».
+Correctifs concernés : CORS des 3 Edge Functions (origine `*`, décision
+Loïc), compteur « Compléter », connexion obligatoire sur `enrich-pappers` /
+`enrich-dropcontact` (staff connecté ou clé service_role).
 
 ## A. Import (S38-2, S38-3, S38-4, S38-5 + agent d'import S36)
 
@@ -54,7 +57,7 @@ les bons en-têtes sur les 3 fonctions (vérifié). **Reste** : rejouer A4/A12
 | A1 | Prospects → Contacts → "Importer" | ✅ | Page plein écran `/import/contacts`, aucune fenêtre modale |
 | A2 | Modèle CSV | ✅ | `modele-import-contacts.csv` : Prénom, Nom, Poste, Email, URL LinkedIn, Entreprise + ligne d'exemple ; réimporté : 6/6 colonnes reconnues automatiquement |
 | A3 | Mapping | ✅ | Groupes « Propriétés du contact » / « Propriétés de l'entreprise », ✓ vert / ○ ; « Secteur d'activité » → « ○ à configurer à l'étape suivante » |
-| A4 | Assistant des colonnes (S36) | ❌ | Assistant affiché, création d'un nouveau champ OK, mais **aucune suggestion de Claude** (voir ci-dessus) |
+| A4 | Assistant des colonnes (S36) | ✅ (rejoué R1) | Assistant affiché, création d'un nouveau champ OK, mais **aucune suggestion de Claude** (voir ci-dessus) |
 | A5 | Récapitulatif | ✅ | RGPD pré-réglé « Intérêt légitime — prospect », 3 politiques de conflit, encadré « 2 email(s) mal formé(s) » (lignes 3 et 4) |
 | A6 | `bob@acme` | ✅ | Bordure rouge, « Corriger » grisé |
 | A7 | Correction + « Importer sans email » | ✅ | Encadré disparu, « 3 à créer » |
@@ -130,12 +133,9 @@ contenu. Le CRM n'a pas de mode mobile. À traiter à part si c'est un besoin.
 
 ## Ce qu'il te reste
 
-1. Rejouer A4/A12/A10 + « Enrichir » : soit je le fais (compte staff
-   temporaire + fiches de test en production, nettoyés ensuite — ton accord
-   requis), soit tu le fais toi-même dans le CRM en local.
-2. 👤 C6 : une réunion avec ton calendrier connecté.
-3. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
+1. 👤 C6 : une réunion avec ton calendrier connecté.
+2. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
    d'appel (il faut d'abord recréer la règle dans Automatisations : je l'ai
    supprimée au nettoyage).
-4. 👤 E4 : un coup d'œil au rendu face à la maquette Relais, et la question
+3. 👤 E4 : un coup d'œil au rendu face à la maquette Relais, et la question
    restée ouverte des variantes de couleur du composant `Badge`.
