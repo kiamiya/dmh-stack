@@ -20,6 +20,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadPappersFunctionEnv } from "../../../packages/config/src/env.ts";
 import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
+import { authorizeEnrichmentCaller } from "../../../packages/config/src/edgeAuth.ts";
 import { fetchCompanyFromPappers } from "../../../packages/pappers/src/client.ts";
 import { mapPappersCompany } from "../../../packages/pappers/src/mapper.ts";
 
@@ -60,6 +61,25 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Connexion obligatoire (2026-10-09) : clé service_role (automatisations)
+  // ou membre du staff connecté (CRM) — voir packages/config/src/edgeAuth.ts.
+  const auth = await authorizeEnrichmentCaller(req.headers.get("Authorization"), {
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    resolveUserId: async (jwt) => (await supabase.auth.getUser(jwt)).data.user?.id ?? null,
+    isServiceKey: async (token) => {
+      const admin = createClient(env.SUPABASE_URL, token, { auth: { persistSession: false } });
+      const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+      return !error;
+    },
+    isStaff: async (userId) => {
+      const { data } = await supabase.from("staff_members").select("id").eq("id", userId).maybeSingle();
+      return data !== null;
+    },
+  });
+  if (!auth.ok) {
+    return jsonResponse({ error: auth.error }, auth.status);
+  }
 
   const { data: prospect, error: prospectError } = await supabase
     .from("prospects")
