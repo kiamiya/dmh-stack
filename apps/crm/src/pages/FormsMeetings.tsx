@@ -3,12 +3,12 @@ import { PageHeader } from "../components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { parseFormsMeetingsTab } from "../lib/formsMeetingsTab";
 import { BookingSettings } from "../components/booking/BookingSettings";
+import { FormsSettings } from "../components/forms/FormsSettings";
 
 /**
  * « Formulaires et rendez-vous » (menu Marketing, CR du 09/10/2026) :
  * module de prise de rendez-vous et formulaires intégrables, sur le modèle
- * de Brevo. Le contenu des deux onglets est livré par les tâches S39-3 et
- * S39-10.
+ * de Brevo (S39-3 à S39-12).
  */
 export function FormsMeetingsPage() {
   const [searchParams] = useSearchParams();
@@ -26,7 +26,7 @@ export function FormsMeetingsPage() {
           <BookingSettings />
         </TabsContent>
         <TabsContent value="forms" className="pt-4">
-          <p className="text-sm text-muted-foreground">Formulaires intégrables : bientôt disponible.</p>
+          <FormsSettings />
         </TabsContent>
       </Tabs>
     </div>

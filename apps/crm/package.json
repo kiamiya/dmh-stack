@@ -13,6 +13,7 @@
     "@dmh/booking": "workspace:*",
     "@dmh/calendar": "workspace:*",
     "@dmh/config": "workspace:*",
+    "@dmh/forms": "workspace:*",
     "@dmh/import-agent": "workspace:*",
     "@dmh/types": "workspace:*",
     "@dnd-kit/core": "^6.3.1",

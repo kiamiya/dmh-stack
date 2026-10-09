@@ -348,6 +348,34 @@ export interface MeetingType {
   updated_at: string;
 }
 
+/** Formulaire intégrable d'un client DMH (`/f/<slug>`) — S39-10, migration 051. `fields` validé par `@dmh/forms` (`normalizeFormFields`). */
+export interface Form {
+  id: string;
+  client_id: string;
+  slug: string;
+  name: string;
+  title: string;
+  description: string | null;
+  fields: unknown;
+  submit_label: string;
+  success_message: string;
+  redirect_url: string | null;
+  consent_text: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Réponse reçue sur un formulaire — S39-12, migration 051. */
+export interface FormSubmission {
+  id: string;
+  form_id: string;
+  client_id: string;
+  data: unknown;
+  contact_id: string | null;
+  created_at: string;
+}
+
 /** Rattachement d'un utilisateur Supabase Auth à un client (dashboard, S5) — voir migration 007_add_client_users.sql. */
 export interface ClientUser {
   id: string;
