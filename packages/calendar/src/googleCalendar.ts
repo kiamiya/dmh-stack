@@ -86,6 +86,9 @@ export interface GoogleCalendarEvent {
   summary?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+  /** "transparent" = l'événement ne bloque pas le créneau (affiché « disponible »). */
+  transparency?: string;
+  status?: string;
 }
 
 /**
@@ -106,7 +109,7 @@ export interface EventSummary {
 /** Pure : convertit la réponse brute Google Calendar en intervalles occupés génériques — ignore les événements "journée entière" (pas de `dateTime`, seulement `date`). */
 export function mapGoogleEventsToBusyIntervals(events: GoogleCalendarEvent[]): Array<{ start: string; end: string }> {
   return events
-    .filter((e) => e.start?.dateTime && e.end?.dateTime)
+    .filter((e) => e.start?.dateTime && e.end?.dateTime && e.transparency !== "transparent" && e.status !== "cancelled")
     .map((e) => ({ start: e.start!.dateTime!, end: e.end!.dateTime! }));
 }
 
@@ -126,10 +129,19 @@ export async function fetchGoogleBusyEvents(
   url.searchParams.set("timeMin", params.timeMin);
   url.searchParams.set("timeMax", params.timeMax);
   url.searchParams.set("singleEvents", "true");
-  const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${params.accessToken}` } });
-  await assertOk(res, "Google events fetch");
-  const data = await res.json();
-  return data.items ?? [];
+  url.searchParams.set("maxResults", "2500");
+  // Pagination Google (`nextPageToken`) : sans elle, les disponibilités
+  // ignoreraient les événements au-delà de la 1re page.
+  const items: GoogleCalendarEvent[] = [];
+  for (let page = 0; page < 20; page++) {
+    const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${params.accessToken}` } });
+    await assertOk(res, "Google events fetch");
+    const data = await res.json();
+    items.push(...(data.items ?? []));
+    if (!data.nextPageToken) break;
+    url.searchParams.set("pageToken", data.nextPageToken);
+  }
+  return items;
 }
 
 export async function createGoogleEvent(

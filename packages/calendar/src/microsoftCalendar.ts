@@ -91,6 +91,9 @@ export interface MicrosoftCalendarEvent {
   subject?: string;
   start?: { dateTime?: string };
   end?: { dateTime?: string };
+  /** "free" | "tentative" | "busy" | "oof" | "workingElsewhere" | "unknown" — un événement "free" ne bloque pas un créneau. */
+  showAs?: string;
+  isCancelled?: boolean;
 }
 
 function normalizeUtc(dateTime: string): string {
@@ -107,7 +110,7 @@ export function mapMicrosoftEventsToBusyIntervals(
   events: MicrosoftCalendarEvent[],
 ): Array<{ start: string; end: string }> {
   return events
-    .filter((e) => e.start?.dateTime && e.end?.dateTime)
+    .filter((e) => e.start?.dateTime && e.end?.dateTime && e.showAs !== "free" && e.isCancelled !== true)
     .map((e) => ({
       start: normalizeUtc(e.start!.dateTime!),
       end: normalizeUtc(e.end!.dateTime!),
@@ -136,12 +139,21 @@ export async function fetchMicrosoftBusyEvents(
   const url = new URL("https://graph.microsoft.com/v1.0/me/calendarview");
   url.searchParams.set("startDateTime", params.startIso);
   url.searchParams.set("endDateTime", params.endIso);
-  const res = await fetchImpl(url, {
-    headers: { Authorization: `Bearer ${params.accessToken}`, Prefer: 'outlook.timezone="UTC"' },
-  });
-  await assertOk(res, "Microsoft events fetch");
-  const data = await res.json();
-  return data.value ?? [];
+  url.searchParams.set("$top", "500");
+  // Graph pagine (10 événements par défaut) : on suit `@odata.nextLink`,
+  // sinon les disponibilités ignoreraient tout ce qui dépasse la 1re page.
+  const events: MicrosoftCalendarEvent[] = [];
+  let next: string | null = url.toString();
+  for (let page = 0; next && page < 20; page++) {
+    const res: Response = await fetchImpl(next, {
+      headers: { Authorization: `Bearer ${params.accessToken}`, Prefer: 'outlook.timezone="UTC"' },
+    });
+    await assertOk(res, "Microsoft events fetch");
+    const data: { value?: MicrosoftCalendarEvent[]; "@odata.nextLink"?: string } = await res.json();
+    events.push(...(data.value ?? []));
+    next = data["@odata.nextLink"] ?? null;
+  }
+  return events;
 }
 
 export async function createMicrosoftEvent(

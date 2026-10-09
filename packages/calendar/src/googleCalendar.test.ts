@@ -111,3 +111,28 @@ describe("exchangeGoogleCode", () => {
     ).rejects.toThrow(/Google token exchange failed/);
   });
 });
+
+describe("busy : événements transparents, annulés et pagination (S39-4)", () => {
+  it("ignore les événements « disponible » et annulés", () => {
+    expect(
+      mapGoogleEventsToBusyIntervals([
+        { start: { dateTime: "2026-10-12T08:00:00Z" }, end: { dateTime: "2026-10-12T09:00:00Z" }, transparency: "transparent" },
+        { start: { dateTime: "2026-10-12T09:00:00Z" }, end: { dateTime: "2026-10-12T10:00:00Z" }, status: "cancelled" },
+        { start: { dateTime: "2026-10-12T10:00:00Z" }, end: { dateTime: "2026-10-12T11:00:00Z" } },
+      ]),
+    ).toEqual([{ start: "2026-10-12T10:00:00Z", end: "2026-10-12T11:00:00Z" }]);
+  });
+
+  it("suit nextPageToken", async () => {
+    const pages = [{ items: [{ id: "a" }], nextPageToken: "p2" }, { items: [{ id: "b" }] }];
+    const urls: string[] = [];
+    const fetchImpl = (async (url: URL) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify(pages.shift()), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { fetchGoogleBusyEvents } = await import("./googleCalendar.js");
+    const items = await fetchGoogleBusyEvents({ accessToken: "t", timeMin: "a", timeMax: "b" }, { fetchImpl });
+    expect(items.map((e) => e.id)).toEqual(["a", "b"]);
+    expect(urls[1]).toContain("pageToken=p2");
+  });
+});

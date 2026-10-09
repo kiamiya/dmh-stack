@@ -115,3 +115,32 @@ describe("exchangeMicrosoftCode", () => {
     ).rejects.toThrow(/Microsoft token exchange failed/);
   });
 });
+
+describe("busy : événements libres, annulés et pagination (S39-4)", () => {
+  it("ignore les événements « disponible » et annulés", () => {
+    expect(
+      mapMicrosoftEventsToBusyIntervals([
+        { start: { dateTime: "2026-10-12T08:00:00" }, end: { dateTime: "2026-10-12T09:00:00" }, showAs: "free" },
+        { start: { dateTime: "2026-10-12T09:00:00" }, end: { dateTime: "2026-10-12T10:00:00" }, isCancelled: true },
+        { start: { dateTime: "2026-10-12T10:00:00" }, end: { dateTime: "2026-10-12T11:00:00" }, showAs: "tentative" },
+      ]),
+    ).toEqual([{ start: "2026-10-12T10:00:00Z", end: "2026-10-12T11:00:00Z" }]);
+  });
+
+  it("suit @odata.nextLink", async () => {
+    const pages = [
+      { value: [{ id: "a" }], "@odata.nextLink": "https://graph.microsoft.com/next" },
+      { value: [{ id: "b" }] },
+    ];
+    const urls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify(pages.shift()), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { fetchMicrosoftBusyEvents } = await import("./microsoftCalendar.js");
+    const events = await fetchMicrosoftBusyEvents({ accessToken: "t", startIso: "2026-10-12T00:00:00Z", endIso: "2026-10-13T00:00:00Z" }, { fetchImpl });
+    expect(events.map((e) => e.id)).toEqual(["a", "b"]);
+    expect(urls[0]).toContain("%24top=500");
+    expect(urls[1]).toBe("https://graph.microsoft.com/next");
+  });
+});
