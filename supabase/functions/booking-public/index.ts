@@ -20,7 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { loadCalendarFunctionEnv } from "../../../packages/config/src/env.ts";
-import { BOOKING_CORS_HEADERS, bookingJson, loadActiveTypes, loadPublicPage, publicTypeView, slotsForType } from "../_shared/booking.ts";
+import { BOOKING_CORS_HEADERS, bookingJson, linkGuestToCrm, loadActiveTypes, loadPublicPage, publicTypeView, slotsForType } from "../_shared/booking.ts";
 import { normalizeQuestions } from "../../../packages/booking/src/config.ts";
 import { isOfferedSlot } from "../../../packages/booking/src/slots.ts";
 import { validateBookingRequest } from "../../../packages/booking/src/request.ts";
@@ -164,10 +164,21 @@ Deno.serve(async (req) => {
         externalEventId = event.id;
       }
 
+      // S39-9 : rattachement au contact / à l'entreprise du client. Un échec n'empêche pas
+      // d'enregistrer la demande (elle reste visible dans « Demandes à valider »).
+      let crmLink: { contactId: string; companyId: string } | null = null;
+      try {
+        crmLink = await linkGuestToCrm(supabase, page.client_id, request);
+      } catch (err) {
+        console.error("booking-public: rattachement CRM impossible", (err as Error).message);
+      }
+
       const { data: inserted, error: insertError } = await supabase.from("meetings").insert({
         client_id: page.client_id,
         staff_id: page.host_staff_id,
         meeting_type_id: type.id,
+        contact_id: crmLink?.contactId ?? null,
+        company_id: crmLink?.companyId ?? null,
         status: "pending",
         title,
         starts_at: slot.start,

@@ -65,3 +65,19 @@ describe("buildCompanyTimeline", () => {
     expect(filterCompanyTimeline(events, "all")).toHaveLength(5);
   });
 });
+
+describe("buildCompanyTimeline — RDV en attente (S39-9)", () => {
+  it("signale une demande prise en ligne non acceptée", () => {
+    const events = buildCompanyTimeline({
+      interactions: [],
+      statusHistory: [],
+      meetings: [
+        { id: "m1", title: "Découverte", starts_at: "2026-10-12T07:00:00Z", status: "pending" },
+        { id: "m2", title: "Suivi", starts_at: "2026-10-13T07:00:00Z", status: "confirmed" },
+      ],
+      contactNameByProspectId: new Map(),
+      staffNameById: new Map(),
+    });
+    expect(events.map((e) => e.title).sort()).toEqual(["Rendez-vous : Suivi", "Rendez-vous à valider : Découverte"]);
+  });
+});

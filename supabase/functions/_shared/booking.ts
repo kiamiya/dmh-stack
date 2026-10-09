@@ -10,6 +10,7 @@ import { fetchGoogleBusyEvents, mapGoogleEventsToBusyIntervals } from "../../../
 import { fetchMicrosoftBusyEvents, mapMicrosoftEventsToBusyIntervals } from "../../../packages/calendar/src/microsoftCalendar.ts";
 import { normalizeQuestions, normalizeWeeklyAvailability } from "../../../packages/booking/src/config.ts";
 import { computeBookingSlots } from "../../../packages/booking/src/slots.ts";
+import { escapeLikePattern, findCompanyByName } from "../../../packages/booking/src/crmLink.ts";
 import type { BookingSlot, BusyInterval } from "../../../packages/booking/src/slots.ts";
 import { resolveConnectionsByStaffId } from "./calendarConnection.ts";
 import type { ResolvedConnection } from "./calendarConnection.ts";
@@ -159,6 +160,66 @@ export async function loadBookedMeeting(
     type = (t as MeetingType | null) ?? null;
   }
   return { meeting, type };
+}
+
+/**
+ * S39-9 — rattache le prospect qui prend RDV aux fiches du client : contact
+ * retrouvé par e-mail (avec son entreprise principale), sinon entreprise
+ * retrouvée par nom ou créée, puis contact créé (source « manuel », base
+ * juridique « intérêt légitime — prospect », comme l'import B2B). Les
+ * coordonnées d'un contact existant ne sont jamais écrasées ; seul un
+ * téléphone manquant est complété.
+ */
+export async function linkGuestToCrm(
+  supabase: SupabaseClient,
+  clientId: string,
+  guest: { firstName: string; lastName: string; email: string; phone: string | null; company: string },
+): Promise<{ contactId: string; companyId: string }> {
+  const { data: existing, error: contactError } = await supabase
+    .from("contacts")
+    .select("id, company_id, phone")
+    .eq("client_id", clientId)
+    // ilike pour ignorer la casse ; `_` et `%` échappés (sinon « a_b@x.fr » retrouverait « aXb@x.fr »).
+    .ilike("email", escapeLikePattern(guest.email))
+    .limit(1)
+    .maybeSingle();
+  if (contactError) throw new Error(contactError.message);
+  if (existing) {
+    if (!existing.phone && guest.phone) {
+      await supabase.from("contacts").update({ phone: guest.phone }).eq("id", existing.id);
+    }
+    return { contactId: existing.id as string, companyId: existing.company_id as string };
+  }
+
+  const { data: companies, error: companiesError } = await supabase.from("companies").select("id, name").eq("client_id", clientId);
+  if (companiesError) throw new Error(companiesError.message);
+  let companyId = findCompanyByName((companies ?? []) as Array<{ id: string; name: string }>, guest.company)?.id ?? null;
+  if (!companyId) {
+    const { data: created, error } = await supabase.from("companies").insert({ client_id: clientId, name: guest.company }).select("id").single();
+    if (error) throw new Error(error.message);
+    companyId = created.id as string;
+  }
+
+  const { data: contact, error: insertError } = await supabase
+    .from("contacts")
+    .insert({
+      client_id: clientId,
+      company_id: companyId,
+      first_name: guest.firstName,
+      last_name: guest.lastName,
+      email: guest.email,
+      phone: guest.phone,
+      legal_basis: "legitimate_interest_prospect",
+      data_source: "manual",
+    })
+    .select("id")
+    .single();
+  if (insertError) throw new Error(insertError.message);
+  const { error: relationError } = await supabase
+    .from("contact_companies")
+    .insert({ client_id: clientId, contact_id: contact.id, company_id: companyId, is_primary: true });
+  if (relationError) throw new Error(relationError.message);
+  return { contactId: contact.id as string, companyId };
 }
 
 /** Membre du staff connecté, ou clé service_role (voir packages/config/src/edgeAuth.ts). */

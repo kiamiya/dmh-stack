@@ -42,6 +42,8 @@ export interface TimelineMeeting {
   id: string;
   title: string;
   starts_at: string;
+  /** S39 : une demande prise en ligne non encore acceptée est signalée « à valider ». */
+  status?: "pending" | "confirmed";
 }
 
 export interface CompanyTimelineInput {
@@ -87,7 +89,7 @@ export function buildCompanyTimeline(input: CompanyTimelineInput): CompanyTimeli
       id: `meeting-${m.id}`,
       at: m.starts_at,
       kind: "meeting",
-      title: `Rendez-vous : ${m.title}`,
+      title: `${m.status === "pending" ? "Rendez-vous à valider" : "Rendez-vous"} : ${m.title}`,
       detail: null,
       contactName: null,
       authorName: null,
