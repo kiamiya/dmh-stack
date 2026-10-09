@@ -16,7 +16,7 @@ import { loadCalendarFunctionEnv } from "../../../packages/config/src/env.ts";
 import { validateSubmission } from "../../../packages/forms/src/submission.ts";
 import type { RawValue } from "../../../packages/forms/src/submission.ts";
 import { BOOKING_CORS_HEADERS, bookingJson } from "../_shared/booking.ts";
-import { ipFingerprint, loadActiveForm, loadCustomSpecs } from "../_shared/forms.ts";
+import { ipFingerprint, loadActiveForm, loadCustomSpecs, syncSubmissionToContact } from "../_shared/forms.ts";
 
 const MAX_SUBMISSIONS_PER_IP_PER_HOUR = 10;
 
@@ -92,9 +92,17 @@ Deno.serve(async (req) => {
         if (v !== undefined) data[f.id] = v;
       }
 
+      // S39-12 : fiche contact créée ou complétée. Un échec n'empêche pas de conserver la réponse.
+      let contactId: string | null = null;
+      try {
+        contactId = await syncSubmissionToContact(supabase, form.client_id, value);
+      } catch (err) {
+        console.error("form-public: report sur la fiche contact impossible", (err as Error).message);
+      }
+
       const { error: insertError } = await supabase
         .from("form_submissions")
-        .insert({ form_id: form.id, client_id: form.client_id, data, ip_hash: ipHash });
+        .insert({ form_id: form.id, client_id: form.client_id, data, ip_hash: ipHash, contact_id: contactId });
       if (insertError) throw new Error(insertError.message);
       return bookingJson(done);
     }
