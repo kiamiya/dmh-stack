@@ -32,8 +32,10 @@ export function PendingBookingRequests({ clientId }: { clientId: string }) {
     if (decision === "decline" && !window.confirm(`Refuser la demande de ${r.guest_name} ? Le créneau sera libéré.`)) return;
     setBusyId(r.id);
     try {
-      await decideBookingRequest(supabase, r.id, decision);
+      const result = await decideBookingRequest(supabase, r.id, decision);
       toast(decision === "accept" ? "Rendez-vous confirmé." : "Demande refusée.", "success");
+      // Décision enregistrée mais e-mail non parti (ex. calendrier Microsoft à reconnecter) : on le signale.
+      if (result.emailWarning) toast(result.emailWarning, "destructive");
       load();
     } catch (err) {
       toast(`Échec : ${(err as Error).message}`, "destructive");

@@ -139,6 +139,7 @@ export interface BookedMeeting {
   contact_id: string | null;
   company_id: string | null;
   reminders_sent: number[];
+  ics_sequence: number;
 }
 
 /** Charge un RDV par id (CRM) ou par jeton de gestion (prospect), avec son type (null s'il a été supprimé). */

@@ -6,7 +6,9 @@
 //   accept  : l'événement provisoire devient définitif (Outlook : « occupé »
 //             + réunion Teams si le type le prévoit), RDV `confirmed`.
 //   decline : l'événement provisoire est supprimé, RDV `declined`.
-// Les e-mails au prospect sont ajoutés par S39-7.
+// E-mails au prospect (S39-7) depuis la boîte Outlook de l'hôte : confirmation
+// + .ics, ou refus avec lien pour choisir un autre créneau. Un e-mail non
+// envoyé ne bloque pas la décision : `emailWarning` est renvoyé au CRM.
 //
 // Réservé au staff connecté (ou à la clé service_role), voir
 // packages/config/src/edgeAuth.ts. Glue Deno, logique testable dans
@@ -21,6 +23,9 @@ import { deleteMicrosoftEvent, updateMicrosoftEvent } from "../../../packages/ca
 import { deleteGoogleEvent, updateGoogleEvent } from "../../../packages/calendar/src/googleCalendar.ts";
 import { resolveConnectionByStaffIdAndProvider } from "../_shared/calendarConnection.ts";
 import { BOOKING_CORS_HEADERS, bookingJson, loadBookedMeeting, staffOrServiceDeps } from "../_shared/booking.ts";
+import { emailContextFor, firstWarning, loadHost, meetingIcsAttachment, sendFromHost } from "../_shared/bookingMail.ts";
+import { guestConfirmedEmail, guestDeclinedEmail } from "../../../packages/booking/src/emails.ts";
+import { remindersCoveredAt } from "../../../packages/booking/src/reminders.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: BOOKING_CORS_HEADERS });
@@ -68,7 +73,15 @@ Deno.serve(async (req) => {
         .update({ status: "declined", decided_at: new Date().toISOString(), decided_by: decidedBy, external_event_id: null })
         .eq("id", meeting.id);
       if (error) throw new Error(error.message);
-      return bookingJson({ ok: true, status: "declined" });
+      const host = await loadHost(supabase, meeting.staff_id);
+      let emailWarning: string | null = null;
+      if (host && meeting.guest_email) {
+        const ctx = await emailContextFor(supabase, meeting, type, host);
+        emailWarning = firstWarning([
+          await sendFromHost(supabase, env, meeting.staff_id, { email: meeting.guest_email, name: meeting.guest_name ?? undefined }, guestDeclinedEmail(ctx)),
+        ]);
+      }
+      return bookingJson({ ok: true, status: "declined", emailWarning });
     }
 
     const lines = recapLines(requestFromMeeting(meeting), normalizeQuestions(type?.questions ?? []));
@@ -95,12 +108,40 @@ Deno.serve(async (req) => {
       }
     }
 
+    const now = new Date();
+    const covered = remindersCoveredAt(meeting.starts_at, type?.reminder_hours ?? [], now);
     const { error } = await supabase
       .from("meetings")
-      .update({ status: "confirmed", decided_at: new Date().toISOString(), decided_by: decidedBy, online_meeting_url: onlineMeetingUrl })
+      .update({
+        status: "confirmed",
+        decided_at: now.toISOString(),
+        decided_by: decidedBy,
+        online_meeting_url: onlineMeetingUrl,
+        reminders_sent: [...new Set([...(meeting.reminders_sent ?? []), ...covered])],
+      })
       .eq("id", meeting.id);
     if (error) throw new Error(error.message);
-    return bookingJson({ ok: true, status: "confirmed", onlineMeetingUrl });
+
+    const host = await loadHost(supabase, meeting.staff_id);
+    let emailWarning: string | null = null;
+    if (host && meeting.guest_email) {
+      const confirmed = { ...meeting, status: "confirmed" as const, online_meeting_url: onlineMeetingUrl };
+      const ctx = await emailContextFor(supabase, confirmed, type, host);
+      emailWarning = firstWarning([
+        await sendFromHost(
+          supabase,
+          env,
+          meeting.staff_id,
+          { email: meeting.guest_email, name: meeting.guest_name ?? undefined },
+          guestConfirmedEmail(ctx),
+          [meetingIcsAttachment(confirmed, ctx, host, "REQUEST")],
+        ),
+      ]);
+    }
+    if (type?.video_provider === "teams" && connection?.provider === "microsoft" && !onlineMeetingUrl) {
+      emailWarning = (emailWarning ? emailWarning + " " : "") + "Aucun lien Teams n'a pu être créé (compte Microsoft 365 professionnel requis).";
+    }
+    return bookingJson({ ok: true, status: "confirmed", onlineMeetingUrl, emailWarning });
   } catch (err) {
     return bookingJson({ error: (err as Error).message }, 500);
   }

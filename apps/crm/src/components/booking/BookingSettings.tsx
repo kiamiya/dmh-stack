@@ -160,7 +160,8 @@ export function BookingSettings() {
           </div>
           <p className="text-xs text-muted-foreground">
             Les disponibilités tiennent compte de l'agenda connecté de l'hôte (Paramètres › Mon calendrier) ; les e-mails
-            partent de sa boîte Outlook.
+            (confirmation avec invitation .ics, refus, rappels) partent de sa boîte Outlook. Un calendrier Microsoft connecté
+            avant le 09/10/2026 doit être reconnecté une fois pour autoriser l'envoi d'e-mails.
           </p>
           <Button type="button" onClick={handleSavePage} disabled={savingPage || loading}>
             {savingPage ? "…" : page ? "Enregistrer la page" : "Créer la page de réservation"}

@@ -71,7 +71,10 @@ alter table meetings
   add column online_meeting_url text,
   add column decided_at timestamptz,
   add column decided_by uuid references staff_members(id) on delete set null,
-  add column reminders_sent int[] not null default '{}';
+  add column reminders_sent int[] not null default '{}',
+  -- SEQUENCE du fichier .ics envoyé au prospect : +1 à chaque
+  -- reprogrammation/annulation pour que son agenda mette l'événement à jour.
+  add column ics_sequence int not null default 0;
 
 comment on column meetings.status is
   'pending = demande en ligne à valider par l''hôte ; confirmed = accepté (ou RDV créé dans le CRM) ; declined = refusé ; cancelled = annulé.';

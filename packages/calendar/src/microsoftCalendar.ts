@@ -3,7 +3,15 @@ export interface MicrosoftClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-const SCOPE = "offline_access Calendars.ReadWrite User.Read";
+// S39-7 : `Mail.Send` pour envoyer les e-mails de RDV depuis la boîte de
+// l'hôte (décision Loïc du 09/10). Une connexion antérieure ne l'a pas :
+// l'hôte doit reconnecter son calendrier une fois.
+export const MICROSOFT_SCOPE = "offline_access Calendars.ReadWrite User.Read Mail.Send";
+const SCOPE = MICROSOFT_SCOPE;
+// Au renouvellement, `.default` renvoie tous les droits DÉJÀ accordés : une
+// connexion antérieure (sans Mail.Send) continue donc de fonctionner, au
+// lieu d'échouer parce qu'on redemanderait un droit jamais consenti.
+export const MICROSOFT_REFRESH_SCOPE = "offline_access https://graph.microsoft.com/.default";
 
 /** Pure : construit l'URL de consentement Microsoft OAuth (aucun secret). */
 export function buildMicrosoftAuthorizationUrl(params: {
@@ -66,7 +74,7 @@ export async function refreshMicrosoftAccessToken(
       client_id: params.clientId,
       client_secret: params.clientSecret,
       grant_type: "refresh_token",
-      scope: SCOPE,
+      scope: MICROSOFT_REFRESH_SCOPE,
     }),
   });
   await assertOk(res, "Microsoft token refresh");
@@ -234,4 +242,50 @@ export async function deleteMicrosoftEvent(
   });
   if (res.status === 404) return;
   await assertOk(res, "Microsoft event deletion");
+}
+
+export interface MailAttachment {
+  name: string;
+  contentType: string;
+  /** Contenu encodé en base64. */
+  contentBase64: string;
+}
+
+/** Erreur d'envoi d'e-mail ; `missingPermission` = la connexion n'a pas le droit Mail.Send (reconnexion nécessaire). */
+export class MicrosoftMailError extends Error {
+  constructor(
+    message: string,
+    readonly missingPermission: boolean,
+  ) {
+    super(message);
+  }
+}
+
+/** Envoie un e-mail HTML depuis la boîte de l'utilisateur connecté (Graph `sendMail`, S39-7). */
+export async function sendMicrosoftMail(
+  params: { accessToken: string; to: Array<{ email: string; name?: string }>; subject: string; html: string; attachments?: MailAttachment[] },
+  options: MicrosoftClientOptions = {},
+): Promise<void> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const res = await fetchImpl("https://graph.microsoft.com/v1.0/me/sendMail", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${params.accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: {
+        subject: params.subject,
+        body: { contentType: "HTML", content: params.html },
+        toRecipients: params.to.map((r) => ({ emailAddress: { address: r.email, name: r.name ?? r.email } })),
+        attachments: (params.attachments ?? []).map((a) => ({
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: a.name,
+          contentType: a.contentType,
+          contentBytes: a.contentBase64,
+        })),
+      },
+      saveToSentItems: true,
+    }),
+  });
+  if (res.ok) return;
+  const text = await res.text().catch(() => "");
+  throw new MicrosoftMailError(`Microsoft sendMail failed (${res.status}): ${text}`, res.status === 403 || res.status === 401);
 }

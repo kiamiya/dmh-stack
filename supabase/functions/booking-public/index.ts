@@ -25,6 +25,9 @@ import { validateBookingRequest } from "../../../packages/booking/src/request.ts
 import { recapHtml, recapLines, recapText } from "../../../packages/booking/src/recap.ts";
 import { createMicrosoftEvent } from "../../../packages/calendar/src/microsoftCalendar.ts";
 import { createGoogleEvent } from "../../../packages/calendar/src/googleCalendar.ts";
+import { hostNewRequestEmail } from "../../../packages/booking/src/emails.ts";
+import { emailContextFor, loadHost, sendFromHost } from "../_shared/bookingMail.ts";
+import type { BookedMeeting } from "../_shared/booking.ts";
 
 /** Au-delà, une même adresse ne peut plus déposer de demande pour ce client sur 24 h (anti-abus). */
 const MAX_PENDING_PER_EMAIL_PER_DAY = 3;
@@ -155,7 +158,7 @@ Deno.serve(async (req) => {
         externalEventId = event.id;
       }
 
-      const { error: insertError } = await supabase.from("meetings").insert({
+      const { data: inserted, error: insertError } = await supabase.from("meetings").insert({
         client_id: page.client_id,
         staff_id: page.host_staff_id,
         meeting_type_id: type.id,
@@ -173,8 +176,19 @@ Deno.serve(async (req) => {
         answers: request.answers,
         manage_token: randomToken(),
         public_base_url: publicBaseUrl(req),
-      });
+      }).select("*").single();
       if (insertError) throw new Error(insertError.message);
+
+      // E-mail (S39-7) : alerte à l'hôte uniquement, jamais bloquant. Pas d'accusé de
+      // réception au prospect : la page publique le confirme déjà, et un e-mail envoyé
+      // depuis la boîte de l'hôte vers une adresse saisie par n'importe quel visiteur,
+      // avec son message libre, servirait de relais à du contenu non sollicité. Le
+      // prospect n'est écrit qu'après validation par l'hôte.
+      const hostInfo = await loadHost(supabase, page.host_staff_id);
+      if (hostInfo) {
+        const ctx = await emailContextFor(supabase, inserted as BookedMeeting, type, hostInfo);
+        await sendFromHost(supabase, env, page.host_staff_id, { email: hostInfo.email, name: hostInfo.name }, hostNewRequestEmail(ctx));
+      }
 
       return bookingJson({ ok: true, redirectUrl: type.redirect_url });
     }

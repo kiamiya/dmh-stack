@@ -37,7 +37,7 @@ export async function decideBookingRequest(
   client: SupabaseClient,
   meetingId: string,
   decision: "accept" | "decline",
-): Promise<{ status: string; onlineMeetingUrl?: string | null }> {
+): Promise<{ status: string; onlineMeetingUrl?: string | null; emailWarning?: string | null }> {
   const { data, error } = await client.functions.invoke("booking-decide", { body: { meetingId, decision } });
   if (error) {
     // supabase-js range le corps de la réponse d'erreur dans `context` : on remonte le vrai message.
@@ -45,5 +45,5 @@ export async function decideBookingRequest(
     const detail = context && typeof context.json === "function" ? await context.json().catch(() => null) : null;
     throw new Error(detail?.error ?? error.message);
   }
-  return data as { status: string; onlineMeetingUrl?: string | null };
+  return data as { status: string; onlineMeetingUrl?: string | null; emailWarning?: string | null };
 }
