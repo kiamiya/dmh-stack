@@ -14,5 +14,7 @@ export default defineConfig({
   // Expose ces variables telles quelles (sans exiger le préfixe VITE_ par
   // défaut de Vite), pour rester cohérent avec les noms utilisés partout
   // ailleurs dans le repo (.env.example, packages/config).
-  envPrefix: ["SUPABASE_", "BASE_DOMAIN"],
+  // Liste exacte des variables lues dans le navigateur : un préfixe large
+  // « SUPABASE_ » exposerait aussi SUPABASE_SERVICE_ROLE_KEY (S39-13).
+  envPrefix: ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_DEMO_MODE", "BASE_DOMAIN"],
 });

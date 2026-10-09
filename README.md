@@ -123,9 +123,45 @@ les Edge Functions s'invoquent aujourd'hui manuellement (`POST { prospect_id }`)
 - **Supabase** : projet réel en ligne, migrations appliquées via
   `pnpm exec supabase db push` (confirmation explicite avant chaque push
   sur ce projet partagé).
-- **Vercel** : pas encore fait — dépend d'un vrai client pilote (sous-domaine
-  dédié par client, brief §1.3.3). `apps/crm`/`apps/dashboard` tournent en
-  local (`pnpm dev`) pour l'instant.
+- **Vercel** : pas encore fait. `apps/crm` est prêt à être mis en ligne
+  (S39-13, procédure ci-dessous) ; `apps/dashboard` dépend toujours d'un vrai
+  client pilote (sous-domaine dédié par client, brief §1.3.3).
+
+### Mise en ligne du CRM (S39-13)
+
+Chaque étape distante se fait sur confirmation explicite de Loïc.
+
+1. **Supabase — base** : appliquer les migrations `049_booking_module.sql`,
+   `050_booking_reminders_cron.sql`, `051_forms.sql`
+   (`pnpm exec supabase db push`).
+2. **Supabase — Edge Functions** :
+   - nouvelles, publiques : `booking-public`, `form-public`
+     (`supabase functions deploy <nom> --no-verify-jwt`) ;
+   - nouvelles, réservées au staff ou au cron : `booking-decide`,
+     `booking-reminders` (déploiement par défaut, JWT vérifié) ;
+   - à redéployer (code partagé modifié — pagination des agendas, droit
+     `Mail.Send`) : `calendar-freebusy`, `calendar-book-meeting`,
+     `calendar-create-event` (`--no-verify-jwt`, comme avant),
+     `calendar-my-events`, `calendar-update-event`,
+     `microsoft-calendar-oauth-callback` (mêmes options qu'au déploiement
+     initial, voir `supabase functions list`).
+3. **Vercel — projet** : dossier racine `apps/crm`, framework Vite
+   (`apps/crm/vercel.json` : réécriture vers `index.html`, en-têtes de
+   sécurité, CRM non intégrable dans un cadre sauf les formulaires `/f/*`).
+   Variables d'environnement **uniquement** : `SUPABASE_URL`,
+   `SUPABASE_ANON_KEY`, `BASE_DOMAIN`, `GOOGLE_CALENDAR_CLIENT_ID`,
+   `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID`. **Jamais**
+   `SUPABASE_SERVICE_ROLE_KEY` ni une autre clé secrète : seules les variables
+   de `apps/crm/src/lib/browserEnv.ts` sont exposées au navigateur (testé).
+4. **Domaine** : brancher le sous-domaine choisi (ex. `crm.dmhassocies.com`)
+   dans Vercel. Les connexions Google/Microsoft redirigent vers une Edge
+   Function Supabase puis vers l'origine du CRM : rien à changer dans les
+   consoles Google Cloud / Microsoft Entra.
+5. **Après mise en ligne** : chaque hôte de RDV reconnecte son calendrier
+   Microsoft **depuis l'adresse en ligne** (Paramètres › Mon calendrier)
+   pour accorder le droit `Mail.Send` (e-mails de RDV). Si le tenant
+   Microsoft bloque le consentement utilisateur, un administrateur doit
+   l'accorder dans Entra.
 - **Comptes tiers** : Smartlead et Lemlist ont de vraies clés API mais pas
   encore de campagne/client pilote actif — les intégrations sont validées
   par simulation de payloads réels, pas encore par un vrai flux de bout
