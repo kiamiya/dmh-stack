@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidSlug, normalizeQuestions, normalizeWeeklyAvailability, parseTimeOfDay, slugify } from "./config.js";
+import { isValidPageSlug, isValidSlug, normalizeQuestions, normalizeWeeklyAvailability, parseTimeOfDay, slugify } from "./config.js";
 
 describe("parseTimeOfDay", () => {
   it("convertit HH:MM en minutes, refuse le reste", () => {
@@ -70,5 +70,13 @@ describe("slugify / isValidSlug", () => {
     expect(isValidSlug("Demo")).toBe(false);
     expect(isValidSlug("demo--x")).toBe(false);
     expect(isValidSlug("-demo")).toBe(false);
+  });
+});
+
+describe("isValidPageSlug", () => {
+  it("refuse le slug réservé « gerer »", () => {
+    expect(isValidPageSlug("acme")).toBe(true);
+    expect(isValidPageSlug("gerer")).toBe(false);
+    expect(isValidPageSlug("gerer-acme")).toBe(true);
   });
 });

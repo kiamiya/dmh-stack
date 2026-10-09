@@ -108,3 +108,10 @@ export function slugify(value: string): string {
 export function isValidSlug(value: string): boolean {
   return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value);
 }
+
+/** Slugs de page interdits : `/rdv/gerer/<jeton>` est la page « reprogrammer / annuler » du prospect (S39-8). */
+export const RESERVED_PAGE_SLUGS = ["gerer"];
+
+export function isValidPageSlug(value: string): boolean {
+  return isValidSlug(value) && !RESERVED_PAGE_SLUGS.includes(value);
+}

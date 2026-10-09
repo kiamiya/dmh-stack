@@ -21,7 +21,8 @@
 create table booking_pages (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null unique references dmh_clients(id) on delete cascade,
-  slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  -- « gerer » est réservé : /rdv/gerer/<jeton> = page « reprogrammer / annuler » du prospect (S39-8).
+  slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and slug <> 'gerer'),
   title text not null,
   description text,
   host_staff_id uuid not null references staff_members(id),

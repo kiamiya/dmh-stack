@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { slugify } from "@dmh/booking";
+import { isValidPageSlug, slugify } from "@dmh/booking";
 import type { BookingPage, MeetingType } from "@dmh/types";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -72,8 +72,8 @@ export function BookingSettings() {
       toast("Choisis l'hôte des rendez-vous.", "destructive");
       return;
     }
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
-      toast("Le lien ne peut contenir que des minuscules, chiffres et tirets.", "destructive");
+    if (!isValidPageSlug(slug)) {
+      toast(slug === "gerer" ? "« gerer » est réservé, choisis un autre lien." : "Le lien ne peut contenir que des minuscules, chiffres et tirets.", "destructive");
       return;
     }
     setSavingPage(true);

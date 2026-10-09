@@ -13,6 +13,8 @@
 //     créneau re-vérifié, événement PROVISOIRE posé dans l'agenda de l'hôte,
 //     RDV `pending` en base ; l'hôte accepte ou refuse dans le CRM.
 //     `website` est un champ piège invisible (anti-spam) : rempli = ignoré.
+//   manage-get / manage-cancel / manage-reschedule { token[, slotStart] }
+//                                  → lien « reprogrammer / annuler » du prospect (S39-8, manage.ts)
 // La logique testable vit dans packages/booking (vitest) ; ce fichier n'est
 // que la glue Deno, couverte par le test fonctionnel (TESTING.md).
 
@@ -28,6 +30,7 @@ import { createGoogleEvent } from "../../../packages/calendar/src/googleCalendar
 import { hostNewRequestEmail } from "../../../packages/booking/src/emails.ts";
 import { emailContextFor, loadHost, sendFromHost } from "../_shared/bookingMail.ts";
 import type { BookedMeeting } from "../_shared/booking.ts";
+import { handleManage } from "./manage.ts";
 
 /** Au-delà, une même adresse ne peut plus déposer de demande pour ce client sur 24 h (anti-abus). */
 const MAX_PENDING_PER_EMAIL_PER_DAY = 3;
@@ -57,6 +60,7 @@ interface RequestBody {
   notes?: string;
   answers?: Record<string, string | boolean>;
   website?: string;
+  token?: string;
 }
 
 Deno.serve(async (req) => {
@@ -79,6 +83,8 @@ Deno.serve(async (req) => {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   try {
+    if (body.action?.startsWith("manage-")) return await handleManage(supabase, env, body);
+
     if (!body.page) return bookingJson({ error: "page requis" }, 400);
     const page = await loadPublicPage(supabase, body.page);
     if (!page) return bookingJson({ error: "Page de réservation introuvable" }, 404);

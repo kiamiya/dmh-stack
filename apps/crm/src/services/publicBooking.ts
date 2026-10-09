@@ -70,3 +70,23 @@ export function submitPublicBooking(
 ) {
   return call<{ ok: true; redirectUrl: string | null }>(functionsBaseUrl, { action: "request", page, type, ...request }, fetchImpl);
 }
+
+/** S39-8 — lien « reprogrammer / annuler » du prospect. */
+export interface ManagedMeeting {
+  meeting: { status: "pending" | "confirmed" | "declined" | "cancelled"; startsAt: string; endsAt: string; guestName: string | null; onlineMeetingUrl: string | null };
+  type: PublicMeetingType | null;
+  rights: { canCancel: boolean; canReschedule: boolean; reason: string | null };
+  slots: Array<{ start: string; end: string }>;
+}
+
+export function fetchManagedMeeting(functionsBaseUrl: string, token: string, fetchImpl: typeof fetch = fetch) {
+  return call<ManagedMeeting>(functionsBaseUrl, { action: "manage-get", token }, fetchImpl);
+}
+
+export function cancelManagedMeeting(functionsBaseUrl: string, token: string, fetchImpl: typeof fetch = fetch) {
+  return call<{ ok: true; status: "cancelled" }>(functionsBaseUrl, { action: "manage-cancel", token }, fetchImpl);
+}
+
+export function rescheduleManagedMeeting(functionsBaseUrl: string, token: string, slotStart: string, fetchImpl: typeof fetch = fetch) {
+  return call<{ ok: true; status: "pending" }>(functionsBaseUrl, { action: "manage-reschedule", token, slotStart }, fetchImpl);
+}
