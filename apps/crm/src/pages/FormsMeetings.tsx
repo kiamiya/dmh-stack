@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { parseFormsMeetingsTab } from "../lib/formsMeetingsTab";
+import { BookingSettings } from "../components/booking/BookingSettings";
 
 /**
  * « Formulaires et rendez-vous » (menu Marketing, CR du 09/10/2026) :
@@ -22,7 +23,7 @@ export function FormsMeetingsPage() {
           <TabsTrigger value="forms">Formulaires</TabsTrigger>
         </TabsList>
         <TabsContent value="meetings" className="pt-4">
-          <p className="text-sm text-muted-foreground">Pages de réservation et types de rendez-vous : bientôt disponible.</p>
+          <BookingSettings />
         </TabsContent>
         <TabsContent value="forms" className="pt-4">
           <p className="text-sm text-muted-foreground">Formulaires intégrables : bientôt disponible.</p>

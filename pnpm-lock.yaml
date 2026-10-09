@@ -48,6 +48,9 @@ importers:
 
   apps/crm:
     dependencies:
+      '@dmh/booking':
+        specifier: workspace:*
+        version: link:../../packages/booking
       '@dmh/calendar':
         specifier: workspace:*
         version: link:../../packages/calendar

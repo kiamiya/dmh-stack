@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dmh/booking": "workspace:*",
     "@dmh/calendar": "workspace:*",
     "@dmh/config": "workspace:*",
     "@dmh/import-agent": "workspace:*",
