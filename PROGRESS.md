@@ -2943,4 +2943,6 @@ Loïc confirme que rien n'impose de mettre le CRM en ligne pour ces correctifs (
 - **Compteur « Compléter »** : `lib/importUpdatePreview.ts` (`contactConflictPatch`/`companyConflictPatch` désormais partagés avec `services/entityImport.ts`, `previewContactUpdates`/`previewCompanyUpdates`, 6 tests) ; le récapitulatif affiche « à mettre à jour » / « déjà à jour », bouton Importer grisé si rien ne change.
 - `pnpm typecheck` / `pnpm test` racine verts (crm 703, config 37).
 
-**Point de reprise** : redéploiement des 3 Edge Functions (confirmation explicite de Loïc requise), puis rejouer A4/A12/A10 + « Enrichir » ; vérifications humaines C6, D3, E4 (`TESTING.md`). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif).
+**Edge Functions redéployées** (2026-10-09, confirmation explicite de Loïc) : `analyze-import-columns` (vérification JWT conservée), `enrich-pappers` et `enrich-dropcontact` (`--no-verify-jwt`, comme avant), toutes `"Deployed Functions."`. Vérifié : preflight `OPTIONS` → **204** avec `Access-Control-Allow-Origin: *` et les 4 en-têtes autorisés sur les 3 fonctions (contre 405 avant).
+
+**Point de reprise** : rejouer A4/A12/A10 + « Enrichir » dans le navigateur (nécessite un compte staff temporaire et des fiches de test en production : autorisation de Loïc à redemander, celle du 2026-09-25 couvrait la série de tests précédente) ; vérifications humaines C6, D3, E4 (`TESTING.md`). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif).

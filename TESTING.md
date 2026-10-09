@@ -9,7 +9,7 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — correctif CORS écrit (2026-10-09), reste le redéploiement + 3 vérifications pour Loïc
+## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — correctif CORS déployé (2026-10-09), reste le rejeu de A4/A10/A12 + 3 vérifications pour Loïc
 
 Autorisation de Loïc du 2026-09-25 : « je t'autorise à faire tes tests sur la
 prod, dans tous les cas nous n'avons aucune donnée réelle pour le moment ».
@@ -30,7 +30,7 @@ client B et son entreprise, compte staff temporaire.
 Légende : ✅ passé · 🔧 écart trouvé et corrigé (code poussé) · ❌ écart
 trouvé, **non corrigé** · 👤 reste à faire par Loïc
 
-## 🔧 Agent d'import (S36) bloqué depuis le navigateur — corrigé côté code, redéploiement en attente
+## 🔧 Agent d'import (S36) bloqué depuis le navigateur — corrigé et déployé, rejeu en attente
 
 En A4 et A12, l'étape « colonnes non reconnues » affichait toujours « Analyse
 automatique indisponible » : `analyze-import-columns` ne répondait pas au
@@ -43,8 +43,9 @@ sur `enrich-pappers` / `enrich-dropcontact` (bouton « Enrichir »).
 toutes les réponses, en-têtes autorisés `authorization, x-client-info,
 apikey, content-type` (ceux qu'envoie `supabase.functions.invoke`).
 
-**Reste** : redéployer les 3 fonctions (action distante, confirmation
-explicite requise), puis je rejoue A4/A12 et un clic « Enrichir ».
+**Déployé le 2026-10-09** (accord de Loïc) : preflight `OPTIONS` → 204 avec
+les bons en-têtes sur les 3 fonctions (vérifié). **Reste** : rejouer A4/A12
+(suggestions de Claude visibles) et A10 (compteur), puis un clic « Enrichir ».
 
 ## A. Import (S38-2, S38-3, S38-4, S38-5 + agent d'import S36)
 
@@ -129,9 +130,9 @@ contenu. Le CRM n'a pas de mode mobile. À traiter à part si c'est un besoin.
 
 ## Ce qu'il te reste
 
-1. **Autoriser le redéploiement** de `analyze-import-columns`,
-   `enrich-pappers`, `enrich-dropcontact` (correctif CORS ci-dessus) ; je
-   rejoue ensuite A4/A12/A10 et l'enrichissement manuel.
+1. Rejouer A4/A12/A10 + « Enrichir » : soit je le fais (compte staff
+   temporaire + fiches de test en production, nettoyés ensuite — ton accord
+   requis), soit tu le fais toi-même dans le CRM en local.
 2. 👤 C6 : une réunion avec ton calendrier connecté.
 3. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
    d'appel (il faut d'abord recréer la règle dans Automatisations : je l'ai
