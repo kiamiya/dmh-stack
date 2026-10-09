@@ -312,6 +312,42 @@ export interface StaffMember {
   created_at: string;
 }
 
+/** Page de réservation publique d'un client DMH (`/rdv/<slug>`) — S39-2, migration 049. */
+export interface BookingPage {
+  id: string;
+  client_id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  host_staff_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Type de RDV d'une page de réservation — S39-2, migration 049. JSON validé par `@dmh/booking` (`normalizeWeeklyAvailability`, `normalizeQuestions`). */
+export interface MeetingType {
+  id: string;
+  booking_page_id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  duration_minutes: number;
+  buffer_minutes: number;
+  min_notice_hours: number;
+  max_days_ahead: number;
+  video_provider: "teams" | "none";
+  location: string | null;
+  timezone: string;
+  weekly_availability: unknown;
+  questions: unknown;
+  reminder_hours: number[];
+  redirect_url: string | null;
+  active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Rattachement d'un utilisateur Supabase Auth à un client (dashboard, S5) — voir migration 007_add_client_users.sql. */
 export interface ClientUser {
   id: string;
