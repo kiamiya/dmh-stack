@@ -4,7 +4,8 @@ import { createCompany, updateCompany } from "./companies";
 import { createContact, updateContact } from "./contacts";
 import { createProspect } from "./prospects";
 import { listValuesForEntity, upsertValue } from "./customFields";
-import { buildConflictPatch, shouldWriteCustomFieldValue } from "../lib/importConflict";
+import { shouldWriteCustomFieldValue } from "../lib/importConflict";
+import { companyConflictPatch, contactConflictPatch } from "../lib/importUpdatePreview";
 import type { ImportConflictPolicy } from "../lib/importConflict";
 import type { ContactImportPlan } from "../lib/contactImportPlan";
 import type { CompanyImportPlan } from "../lib/companyImportPlan";
@@ -253,21 +254,7 @@ export async function updateExistingContacts(
     try {
       const existing = item.data.email ? existingByEmail.get(item.data.email.toLowerCase()) : undefined;
       if (!existing) throw new Error("Contact existant introuvable pour cet email");
-      const patch = buildConflictPatch(
-        {
-          first_name: existing.first_name,
-          last_name: existing.last_name,
-          job_title: existing.job_title,
-          linkedin_url: existing.linkedin_url,
-        },
-        {
-          first_name: item.data.firstName,
-          last_name: item.data.lastName,
-          job_title: item.data.jobTitle,
-          linkedin_url: item.data.linkedinUrl,
-        },
-        policy,
-      );
+      const patch = contactConflictPatch(existing, item, policy);
       // Base juridique RGPD (S38-5) : posée seulement si le contact n'en a pas
       // encore — une base juridique déjà retenue n'est jamais écrasée par un import.
       const setLegalBasis = legalBasis !== null && existing.legal_basis === null;
@@ -306,11 +293,7 @@ export async function updateExistingCompanies(
     try {
       const existing = existingByName.get(item.data.name.toLowerCase());
       if (!existing) throw new Error("Entreprise existante introuvable pour ce nom");
-      const patch = buildConflictPatch(
-        { city: existing.city, website: existing.website },
-        { city: item.data.city, website: item.data.website },
-        policy,
-      );
+      const patch = companyConflictPatch(existing, item, policy);
       if (Object.keys(patch).length > 0) {
         await updateCompany(client, existing.id, { city: patch.city, website: patch.website });
       }

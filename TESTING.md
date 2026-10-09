@@ -9,7 +9,7 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — reste 1 décision + 4 vérifications pour Loïc
+## Statut : 🔄 Lot S38 testé par Claude en production (2026-09-25) — correctif CORS écrit (2026-10-09), reste le redéploiement + 3 vérifications pour Loïc
 
 Autorisation de Loïc du 2026-09-25 : « je t'autorise à faire tes tests sur la
 prod, dans tous les cas nous n'avons aucune donnée réelle pour le moment ».
@@ -30,35 +30,21 @@ client B et son entreprise, compte staff temporaire.
 Légende : ✅ passé · 🔧 écart trouvé et corrigé (code poussé) · ❌ écart
 trouvé, **non corrigé** · 👤 reste à faire par Loïc
 
-## ❌ À trancher par Loïc : l'agent d'import (S36) ne fonctionne pas depuis le navigateur
+## 🔧 Agent d'import (S36) bloqué depuis le navigateur — corrigé côté code, redéploiement en attente
 
-En A4 et A12, l'étape « colonnes non reconnues » affiche toujours « Analyse
-automatique indisponible — configure chaque colonne manuellement » : aucune
-suggestion de Claude. La console du navigateur donne la cause :
+En A4 et A12, l'étape « colonnes non reconnues » affichait toujours « Analyse
+automatique indisponible » : `analyze-import-columns` ne répondait pas au
+preflight CORS (`OPTIONS` → 405), le navigateur bloquait l'appel. Même manque
+sur `enrich-pappers` / `enrich-dropcontact` (bouton « Enrichir »).
 
-> Access to fetch at '…/functions/v1/analyze-import-columns' from origin
-> 'http://localhost:5199' has been blocked by CORS policy: Response to
-> preflight request doesn't pass access control check
+**Décision de Loïc (2026-10-09)** : origine `*`, comme les autres fonctions
+(l'authentification reste portée par le JWT). **Correctif** : module partagé
+`packages/config/src/cors.ts` (testé) — `OPTIONS` → 204, en-têtes CORS sur
+toutes les réponses, en-têtes autorisés `authorization, x-client-info,
+apikey, content-type` (ceux qu'envoie `supabase.functions.invoke`).
 
-L'Edge Function `analyze-import-columns` ne répond pas au « preflight »
-CORS (`OPTIONS` → 405), contrairement à `integrations-status` ou aux
-fonctions calendrier (`OPTIONS` → 204). Le navigateur bloque donc l'appel
-avant même qu'il parte : **l'agent d'import n'a jamais pu fonctionner depuis
-le CRM** (le repli manuel, lui, marche). `enrich-pappers` et
-`enrich-dropcontact` ont le même manque, alors que le CRM les appelle aussi
-depuis le navigateur (enrichissement manuel). Ça, je ne l'ai pas testé en
-réel.
-
-**Correctif proposé** (≈ 3 lignes par fonction, même motif que
-`integrations-status`) : répondre `204` à `OPTIONS` et ajouter
-`Access-Control-Allow-Origin` / `Access-Control-Allow-Headers: Authorization,
-Content-Type` aux réponses. Le garde-fou de Claude Code a refusé que je
-l'écrive moi-même, parce qu'il ouvre l'accès cross-origin (`*`) : c'est à toi
-de décider. Options : `*` comme les fonctions existantes (l'authentification
-reste assurée par le JWT : `verify_jwt` est actif sur `analyze-import-columns`),
-ou restreindre à l'origine du CRM déployé. Une fois tranché : correctif, puis
-**redéploiement des 3 fonctions** (action distante, confirmation explicite
-requise), puis je rejoue A4.
+**Reste** : redéployer les 3 fonctions (action distante, confirmation
+explicite requise), puis je rejoue A4/A12 et un clic « Enrichir ».
 
 ## A. Import (S38-2, S38-3, S38-4, S38-5 + agent d'import S36)
 
@@ -78,10 +64,13 @@ requise), puis je rejoue A4.
 | A12 | Import d'entreprises | ✅ | Même page, seul groupe « entreprise », pas de sélecteur RGPD ; « ZZ Test S38 » mise à jour (ville Lyon), « ZZ Autre S38 » créée ; (analyse Claude KO, même cause qu'A4) |
 | A13 | Erreur d'écriture affichée | — | Non reproduit (il faudrait modifier le schéma pour forcer un échec) ; logique couverte par les tests unitaires de `importErrorSummary` |
 
-Remarque mineure : en « Compléter », une fiche où rien ne changerait est
-quand même annoncée « 1 fiche existante à mettre à jour » (le toast final dit
-bien « 0 contact créé », sans « mis à jour »). Pas corrigé, dis-moi si tu
-veux que le compteur soit plus précis.
+🔧 **Corrigé (2026-10-09)** : en « Compléter », une fiche où rien ne
+changerait était annoncée « 1 fiche existante à mettre à jour ». Le
+récapitulatif distingue désormais « à mettre à jour » et « déjà à jour »
+(même règle que l'écriture ; une valeur de champ personnalisé compte comme
+mise à jour, faute de charger les valeurs actuelles à ce stade). Le bouton
+Importer est grisé si rien ne serait créé ni modifié. À revoir lors du
+rejeu de A10.
 
 🔧 **Corrigé** : la page d'import n'avait pas de marge intérieure (titre
 collé au menu latéral), contrairement à toutes les autres pages. `p-6`
@@ -140,8 +129,9 @@ contenu. Le CRM n'a pas de mode mobile. À traiter à part si c'est un besoin.
 
 ## Ce qu'il te reste
 
-1. **Décider du correctif CORS** (section ❌ ci-dessus), puis autoriser le
-   redéploiement des 3 Edge Functions.
+1. **Autoriser le redéploiement** de `analyze-import-columns`,
+   `enrich-pappers`, `enrich-dropcontact` (correctif CORS ci-dessus) ; je
+   rejoue ensuite A4/A12/A10 et l'enrichissement manuel.
 2. 👤 C6 : une réunion avec ton calendrier connecté.
 3. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche
    d'appel (il faut d'abord recréer la règle dans Automatisations : je l'ai

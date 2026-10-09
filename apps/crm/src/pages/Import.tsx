@@ -16,7 +16,10 @@ import { autoDetectColumn } from "../lib/importColumnMapping";
 import { sampleColumnValues } from "../lib/importColumnDecision";
 import type { ImportColumnDecision } from "../lib/importColumnDecision";
 import { planContactImport } from "../lib/contactImportPlan";
+import type { ContactImportPlanItem } from "../lib/contactImportPlan";
 import { planCompanyImport } from "../lib/companyImportPlan";
+import type { CompanyImportPlanItem } from "../lib/companyImportPlan";
+import { previewCompanyUpdates, previewContactUpdates } from "../lib/importUpdatePreview";
 import {
   importCompanies,
   importContacts,
@@ -164,6 +167,24 @@ export function ImportPage() {
       conflictPolicy,
     );
   }, [rows, mapping, missingRequiredMapping, entityType, columnDecisions, existingContacts, existingCompanies, conflictPolicy]);
+
+  // Fiches existantes réellement modifiées vs déjà à jour (même règle que l'écriture).
+  const updatePreview = useMemo(() => {
+    if (!plan) return null;
+    if (entityType === "contact") {
+      return previewContactUpdates(
+        plan.toUpdate as ContactImportPlanItem[],
+        new Map(existingContacts.map((c) => [c.email.toLowerCase(), c])),
+        conflictPolicy,
+        legalBasis,
+      );
+    }
+    return previewCompanyUpdates(
+      plan.toUpdate as CompanyImportPlanItem[],
+      new Map(existingCompanies.map((c) => [c.name.toLowerCase(), c])),
+      conflictPolicy,
+    );
+  }, [plan, entityType, existingContacts, existingCompanies, conflictPolicy, legalBasis]);
 
   // S38-2 : lignes écartées pour email mal formé (corrigeables sur place) vs autres motifs.
   const skippedRows: Array<{ csvLine: number; reason: string; invalidEmail?: { rowIndex: number; value: string } }> =
@@ -564,7 +585,8 @@ export function ImportPage() {
             {plan && (
               <p className="text-sm text-foreground">
                 {plan.toCreate.length} à créer
-                {plan.toUpdate.length > 0 && <> · {plan.toUpdate.length} fiche(s) existante(s) à mettre à jour</>}
+                {updatePreview && updatePreview.toChange > 0 && <> · {updatePreview.toChange} fiche(s) existante(s) à mettre à jour</>}
+                {updatePreview && updatePreview.unchanged > 0 && <> · {updatePreview.unchanged} fiche(s) existante(s) déjà à jour</>}
                 {plan.skipped.length > 0 && <> · {plan.skipped.length} ligne(s) ignorée(s)</>}
               </p>
             )}
@@ -631,7 +653,7 @@ export function ImportPage() {
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || !plan || plan.toCreate.length + plan.toUpdate.length === 0}
+              disabled={submitting || !plan || plan.toCreate.length + (updatePreview?.toChange ?? 0) === 0}
             >
               {submitting ? "…" : "Importer"}
             </Button>

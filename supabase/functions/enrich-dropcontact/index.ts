@@ -22,6 +22,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { loadDropcontactFunctionEnv } from "../../../packages/config/src/env.ts";
+import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
 import {
   submitDropcontactBatch,
   pollDropcontactBatch,
@@ -32,7 +33,7 @@ import type { DropcontactResultEntry } from "../../../packages/dropcontact/src/m
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...BROWSER_CORS_HEADERS },
   });
 }
 
@@ -48,6 +49,9 @@ function domainFromWebsite(website: string | null): string | undefined {
 }
 
 Deno.serve(async (req) => {
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }

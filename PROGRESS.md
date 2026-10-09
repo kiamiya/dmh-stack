@@ -5,7 +5,7 @@
 > pour que le travail reste traçable même si la fenêtre de commande se ferme.
 > Voir aussi `TESTING.md` pour la démarche de test fonctionnel en cours.
 
-Dernière mise à jour : 2026-09-25
+Dernière mise à jour : 2026-10-09
 
 ## Fondations transverses (process, pas liées à une semaine précise)
 
@@ -2935,3 +2935,12 @@ Observations non corrigées : compteur « à mettre à jour » en politique « C
 **Nettoyage vérifié** : 0 contact/entreprise/prospect/tâche/règle/champ/surcharge/composition de test restant, client B et compte staff temporaire supprimés, identifiants locaux effacés.
 
 **Point de reprise** : décision de Loïc sur le correctif CORS (puis redéploiement + rejouer A4) ; vérifications humaines restantes C6, D3, E4 (`TESTING.md`). Hors lot inchangé (S38-N).
+
+## 2026-10-09 — Correctifs issus des tests S38 : CORS des Edge Functions + compteur « Compléter »
+
+Loïc confirme que rien n'impose de mettre le CRM en ligne pour ces correctifs (Supabase est déjà en production, seul le front tourne en local) et tranche le CORS : origine `*`.
+- **CORS** : `packages/config/src/cors.ts` (`BROWSER_CORS_HEADERS`, `corsPreflightResponse`, 3 tests) branché sur `analyze-import-columns`, `enrich-pappers`, `enrich-dropcontact` : `OPTIONS` → 204 + en-têtes sur toutes les réponses. En-têtes autorisés élargis à `apikey`/`x-client-info` (envoyés par `supabase.functions.invoke`, absents du motif `integrations-status` qui utilise un `fetch` direct). `deno check` OK sur les 3 (pour `analyze-import-columns`, seulement avec `--sloppy-imports` : `import type … "./prompt.js"` dans `packages/import-agent/src/client.ts`, antérieur et sans effet à l'exécution).
+- **Compteur « Compléter »** : `lib/importUpdatePreview.ts` (`contactConflictPatch`/`companyConflictPatch` désormais partagés avec `services/entityImport.ts`, `previewContactUpdates`/`previewCompanyUpdates`, 6 tests) ; le récapitulatif affiche « à mettre à jour » / « déjà à jour », bouton Importer grisé si rien ne change.
+- `pnpm typecheck` / `pnpm test` racine verts (crm 703, config 37).
+
+**Point de reprise** : redéploiement des 3 Edge Functions (confirmation explicite de Loïc requise), puis rejouer A4/A12/A10 + « Enrichir » ; vérifications humaines C6, D3, E4 (`TESTING.md`). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif).

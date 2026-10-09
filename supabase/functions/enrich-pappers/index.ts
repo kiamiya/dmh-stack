@@ -19,17 +19,21 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { loadPappersFunctionEnv } from "../../../packages/config/src/env.ts";
+import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
 import { fetchCompanyFromPappers } from "../../../packages/pappers/src/client.ts";
 import { mapPappersCompany } from "../../../packages/pappers/src/mapper.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...BROWSER_CORS_HEADERS },
   });
 }
 
 Deno.serve(async (req) => {
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }

@@ -20,6 +20,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { loadAnalyzeImportColumnsFunctionEnv } from "../../../packages/config/src/env.ts";
+import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
 import { buildImportColumnAnalysisPrompt } from "../../../packages/import-agent/src/prompt.ts";
 import { analyzeImportColumns, DEFAULT_MODEL } from "../../../packages/import-agent/src/client.ts";
 import type { AnthropicMessagesClient } from "../../../packages/import-agent/src/client.ts";
@@ -32,7 +33,7 @@ import type {
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...BROWSER_CORS_HEADERS },
   });
 }
 
@@ -44,6 +45,9 @@ interface RequestBody {
 }
 
 Deno.serve(async (req) => {
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
