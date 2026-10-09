@@ -12,17 +12,23 @@ export interface MeetingRow {
   ends_at: string;
   external_calendar_provider: "google" | "microsoft" | null;
   external_event_id: string | null;
+  /** S39 : "pending" = demande en ligne à valider (affichée « À valider »). Refusés et annulés ne sont jamais listés. */
+  status: "pending" | "confirmed";
   contacts: { first_name: string; last_name: string } | null;
   companies: { name: string } | null;
   deals: { company_name: string } | null;
 }
 
 const MEETING_SELECT =
-  "id, client_id, staff_id, contact_id, company_id, deal_id, title, starts_at, ends_at, external_calendar_provider, external_event_id, contacts(first_name, last_name), companies(name), deals(company_name)";
+  "id, client_id, staff_id, contact_id, company_id, deal_id, title, starts_at, ends_at, external_calendar_provider, external_event_id, status, contacts(first_name, last_name), companies(name), deals(company_name)";
 
 /** Toutes les réunions visibles par l'appelant (RLS staff_full_access/client_isolation/client_user_access) — filtrées côté client par contact/entreprise/opportunité, comme deals/tasks ailleurs dans l'app. */
 export async function listMeetings(client: SupabaseClient): Promise<MeetingRow[]> {
-  const { data, error } = await client.from("meetings").select(MEETING_SELECT).order("starts_at", { ascending: true });
+  const { data, error } = await client
+    .from("meetings")
+    .select(MEETING_SELECT)
+    .in("status", ["pending", "confirmed"])
+    .order("starts_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as MeetingRow[];
 }

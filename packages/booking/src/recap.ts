@@ -19,7 +19,7 @@ export function escapeHtml(value: string): string {
 /** Pure : lignes « libellé : valeur » de la demande, dans l'ordre d'affichage. */
 export function recapLines(request: ValidBookingRequest, questions: BookingQuestion[]): Array<[string, string]> {
   const lines: Array<[string, string]> = [
-    ["Nom", `${request.firstName} ${request.lastName}`],
+    ["Nom", `${request.firstName} ${request.lastName}`.trim()],
     ["Société", request.company],
     ["E-mail", request.email],
   ];
@@ -46,4 +46,38 @@ export function recapHtml(lines: Array<[string, string]>): string {
 /** Pure : récapitulatif en texte brut (agenda Google). */
 export function recapText(lines: Array<[string, string]>): string {
   return lines.map(([label, value]) => `${label} : ${value}`).join("\n");
+}
+
+/** Colonnes d'un RDV en base nécessaires au récapitulatif. */
+export interface MeetingRecapSource {
+  guest_name: string | null;
+  guest_email: string | null;
+  guest_phone: string | null;
+  guest_company: string | null;
+  guest_notes: string | null;
+  answers: unknown;
+}
+
+/** Pure : reconstitue la demande à partir du RDV enregistré (nom complet dans `firstName`). */
+export function requestFromMeeting(m: MeetingRecapSource): ValidBookingRequest {
+  const answers: Record<string, string | boolean> = {};
+  if (m.answers && typeof m.answers === "object" && !Array.isArray(m.answers)) {
+    for (const [k, v] of Object.entries(m.answers as Record<string, unknown>)) {
+      if (typeof v === "string" || typeof v === "boolean") answers[k] = v;
+    }
+  }
+  return {
+    firstName: m.guest_name ?? "",
+    lastName: "",
+    email: m.guest_email ?? "",
+    phone: m.guest_phone,
+    company: m.guest_company ?? "",
+    notes: m.guest_notes,
+    answers,
+  };
+}
+
+/** Pure : lien « reprogrammer / annuler » envoyé au prospect (S39-8). */
+export function manageMeetingUrl(publicBaseUrl: string, manageToken: string): string {
+  return `${publicBaseUrl.replace(/\/+$/, "")}/rdv/gerer/${encodeURIComponent(manageToken)}`;
 }

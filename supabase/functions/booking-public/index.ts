@@ -29,6 +29,13 @@ import { createGoogleEvent } from "../../../packages/calendar/src/googleCalendar
 /** Au-delà, une même adresse ne peut plus déposer de demande pour ce client sur 24 h (anti-abus). */
 const MAX_PENDING_PER_EMAIL_PER_DAY = 3;
 
+/** Origine de la page publique (liens des e-mails) : https, ou http://localhost en développement. */
+function publicBaseUrl(req: Request): string | null {
+  const origin = req.headers.get("Origin");
+  if (!origin) return null;
+  return /^https:\/\/[^/]+$/.test(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin) ? origin : null;
+}
+
 function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -165,6 +172,7 @@ Deno.serve(async (req) => {
         guest_notes: request.notes,
         answers: request.answers,
         manage_token: randomToken(),
+        public_base_url: publicBaseUrl(req),
       });
       if (insertError) throw new Error(insertError.message);
 

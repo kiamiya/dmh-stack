@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { useToast } from "../ui/toast";
 import { MeetingTypeDialog } from "./MeetingTypeDialog";
+import { PendingBookingRequests } from "./PendingBookingRequests";
 import { supabase } from "../../lib/supabase";
 import { useSelectedClient } from "../../lib/selectedClient";
 import { useClients } from "../../hooks/useClients";
@@ -120,6 +121,7 @@ export function BookingSettings() {
 
   return (
     <div className="space-y-4">
+      {page && <PendingBookingRequests clientId={clientId} />}
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

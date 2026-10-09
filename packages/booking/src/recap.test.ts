@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, recapHtml, recapLines, recapText } from "./recap.js";
+import { escapeHtml, manageMeetingUrl, recapHtml, recapLines, recapText, requestFromMeeting } from "./recap.js";
 import type { BookingQuestion } from "./config.js";
 
 const questions: BookingQuestion[] = [
@@ -44,5 +44,24 @@ describe("recap", () => {
 
   it("escapeHtml", () => {
     expect(escapeHtml(`<a href="x">'&'</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
+  });
+});
+
+describe("requestFromMeeting / manageMeetingUrl", () => {
+  it("reconstitue la demande depuis la base, réponses non textuelles ignorées", () => {
+    const r = requestFromMeeting({
+      guest_name: "Alice Martin",
+      guest_email: "alice@acme.fr",
+      guest_phone: null,
+      guest_company: "ACME",
+      guest_notes: null,
+      answers: { size: "1-10", rgpd: true, bad: 3 },
+    });
+    expect(r).toEqual({ firstName: "Alice Martin", lastName: "", email: "alice@acme.fr", phone: null, company: "ACME", notes: null, answers: { size: "1-10", rgpd: true } });
+    expect(recapLines(r, [])[0]).toEqual(["Nom", "Alice Martin"]);
+  });
+
+  it("lien de gestion", () => {
+    expect(manageMeetingUrl("https://crm.dmh.fr/", "a/b")).toBe("https://crm.dmh.fr/rdv/gerer/a%2Fb");
   });
 });

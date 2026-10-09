@@ -65,6 +65,9 @@ alter table meetings
   -- Jeton du lien « reprogrammer / annuler » envoyé au prospect (généré par
   -- l'Edge Function, jamais exposé dans le CRM).
   add column manage_token text unique,
+  -- Adresse publique du CRM au moment de la demande (liens des e-mails :
+  -- gérer/annuler le RDV) — capturée depuis l'origine de la page publique.
+  add column public_base_url text,
   add column online_meeting_url text,
   add column decided_at timestamptz,
   add column decided_by uuid references staff_members(id) on delete set null,

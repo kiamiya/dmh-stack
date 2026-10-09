@@ -2,6 +2,7 @@
 // chargement d'une page/type publics et calcul des intervalles occupés de
 // l'hôte. Vit dans _shared/ (importé, jamais déployé seul).
 
+import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingPage, MeetingType } from "../../../packages/types/src/index.ts";
 import type { CalendarFunctionEnv } from "../../../packages/config/src/env.ts";
@@ -112,4 +113,66 @@ export async function slotsForType(
     now,
   );
   return { slots, connections };
+}
+
+/** RDV pris en ligne (colonnes utiles aux Edge Functions du module). */
+export interface BookedMeeting {
+  id: string;
+  client_id: string;
+  staff_id: string;
+  meeting_type_id: string | null;
+  status: "pending" | "confirmed" | "declined" | "cancelled";
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  external_calendar_provider: "google" | "microsoft" | null;
+  external_event_id: string | null;
+  guest_name: string | null;
+  guest_email: string | null;
+  guest_phone: string | null;
+  guest_company: string | null;
+  guest_notes: string | null;
+  answers: unknown;
+  manage_token: string | null;
+  public_base_url: string | null;
+  online_meeting_url: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  reminders_sent: number[];
+}
+
+/** Charge un RDV par id (CRM) ou par jeton de gestion (prospect), avec son type (null s'il a été supprimé). */
+export async function loadBookedMeeting(
+  supabase: SupabaseClient,
+  filter: { id?: string; manageToken?: string },
+): Promise<{ meeting: BookedMeeting; type: MeetingType | null } | null> {
+  const base = supabase.from("meetings").select("*");
+  const { data, error } = await (filter.id ? base.eq("id", filter.id) : base.eq("manage_token", filter.manageToken ?? "")).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const meeting = data as BookedMeeting;
+  let type: MeetingType | null = null;
+  if (meeting.meeting_type_id) {
+    const { data: t, error: typeError } = await supabase.from("meeting_types").select("*").eq("id", meeting.meeting_type_id).maybeSingle();
+    if (typeError) throw new Error(typeError.message);
+    type = (t as MeetingType | null) ?? null;
+  }
+  return { meeting, type };
+}
+
+/** Membre du staff connecté, ou clé service_role (voir packages/config/src/edgeAuth.ts). */
+export function staffOrServiceDeps(supabase: SupabaseClient, env: { SUPABASE_URL: string; SUPABASE_SERVICE_ROLE_KEY: string }) {
+  return {
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    isServiceKey: async (token: string) => {
+      const admin = createClient(env.SUPABASE_URL, token, { auth: { persistSession: false } });
+      const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+      return !error;
+    },
+    resolveUserId: async (jwt: string) => (await supabase.auth.getUser(jwt)).data.user?.id ?? null,
+    isStaff: async (userId: string) => {
+      const { data } = await supabase.from("staff_members").select("id").eq("id", userId).maybeSingle();
+      return data !== null;
+    },
+  };
 }

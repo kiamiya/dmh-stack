@@ -8,6 +8,7 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     select: () => query,
     order: () => query,
     eq: () => query,
+    in: () => query,
     insert: () => query,
     upsert: () => query,
     single: () => Promise.resolve(result),
@@ -24,6 +25,18 @@ describe("listMeetings", () => {
     const rows = [{ id: "meeting-1", title: "RDV" }];
     const client = makeStubClient({ data: rows, error: null });
     await expect(listMeetings(client)).resolves.toEqual(rows);
+  });
+
+  it("exclut les RDV refusés et annulés (S39)", async () => {
+    const filters: Array<[string, unknown]> = [];
+    const query: Record<string, unknown> = {};
+    Object.assign(query, {
+      select: () => query,
+      in: (col: string, values: unknown) => (filters.push([col, values]), query),
+      order: () => Promise.resolve({ data: [], error: null }),
+    });
+    await listMeetings({ from: () => query } as unknown as SupabaseClient);
+    expect(filters).toEqual([["status", ["pending", "confirmed"]]]);
   });
 
   it("retourne un tableau vide si data est null", async () => {

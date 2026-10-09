@@ -58,3 +58,9 @@ export async function authorizeEnrichmentCaller(
   if (!(await deps.isStaff(userId))) return { ok: false, status: 403, error: "Réservé à l'équipe DMH" };
   return { ok: true, caller: { kind: "staff", userId } };
 }
+
+/**
+ * Même contrôle pour les autres Edge Functions réservées à l'équipe DMH
+ * (ex. `booking-decide`, S39-6) : clé service_role ou membre du staff.
+ */
+export const authorizeStaffOrService = authorizeEnrichmentCaller;
