@@ -145,7 +145,7 @@ export async function fetchGoogleBusyEvents(
 }
 
 export async function createGoogleEvent(
-  params: { accessToken: string; summary: string; startIso: string; endIso: string; guestEmail?: string },
+  params: { accessToken: string; summary: string; startIso: string; endIso: string; guestEmail?: string; description?: string },
   options: GoogleClientOptions = {},
 ): Promise<{ id: string }> {
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -157,6 +157,7 @@ export async function createGoogleEvent(
       start: { dateTime: params.startIso },
       end: { dateTime: params.endIso },
       attendees: params.guestEmail ? [{ email: params.guestEmail }] : undefined,
+      description: params.description,
     }),
   });
   await assertOk(res, "Google event creation");
@@ -165,12 +166,13 @@ export async function createGoogleEvent(
 
 /** Met à jour un événement existant (PATCH — ne touche que les champs fournis). */
 export async function updateGoogleEvent(
-  params: { accessToken: string; eventId: string; summary?: string; startIso?: string; endIso?: string },
+  params: { accessToken: string; eventId: string; summary?: string; startIso?: string; endIso?: string; description?: string },
   options: GoogleClientOptions = {},
 ): Promise<{ id: string }> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const body: Record<string, unknown> = {};
   if (params.summary !== undefined) body.summary = params.summary;
+  if (params.description !== undefined) body.description = params.description;
   if (params.startIso !== undefined) body.start = { dateTime: params.startIso };
   if (params.endIso !== undefined) body.end = { dateTime: params.endIso };
 
@@ -184,4 +186,18 @@ export async function updateGoogleEvent(
   );
   await assertOk(res, "Google event update");
   return res.json();
+}
+
+/** Supprime un événement (créneau provisoire refusé ou RDV annulé) — déjà supprimé (404/410) n'est pas une erreur. */
+export async function deleteGoogleEvent(
+  params: { accessToken: string; eventId: string },
+  options: GoogleClientOptions = {},
+): Promise<void> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const res = await fetchImpl(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(params.eventId)}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${params.accessToken}` } },
+  );
+  if (res.status === 404 || res.status === 410) return;
+  await assertOk(res, "Google event deletion");
 }

@@ -156,10 +156,34 @@ export async function fetchMicrosoftBusyEvents(
   return events;
 }
 
+export interface MicrosoftEventExtras {
+  /** "tentative" pour un créneau provisoire (S39-6), "busy" une fois confirmé. */
+  showAs?: "free" | "tentative" | "busy";
+  bodyHtml?: string;
+  /** Crée une réunion Teams (compte Microsoft 365 professionnel). */
+  isOnlineMeeting?: boolean;
+}
+
+export interface MicrosoftEventResult {
+  id: string;
+  onlineMeeting?: { joinUrl?: string } | null;
+}
+
+function extrasToBody(extras: MicrosoftEventExtras): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (extras.showAs) body.showAs = extras.showAs;
+  if (extras.bodyHtml !== undefined) body.body = { contentType: "HTML", content: extras.bodyHtml };
+  if (extras.isOnlineMeeting !== undefined) {
+    body.isOnlineMeeting = extras.isOnlineMeeting;
+    if (extras.isOnlineMeeting) body.onlineMeetingProvider = "teamsForBusiness";
+  }
+  return body;
+}
+
 export async function createMicrosoftEvent(
-  params: { accessToken: string; subject: string; startIso: string; endIso: string; guestEmail?: string; guestName?: string },
+  params: { accessToken: string; subject: string; startIso: string; endIso: string; guestEmail?: string; guestName?: string } & MicrosoftEventExtras,
   options: MicrosoftClientOptions = {},
-): Promise<{ id: string }> {
+): Promise<MicrosoftEventResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const res = await fetchImpl("https://graph.microsoft.com/v1.0/me/events", {
     method: "POST",
@@ -171,6 +195,7 @@ export async function createMicrosoftEvent(
       attendees: params.guestEmail
         ? [{ emailAddress: { address: params.guestEmail, name: params.guestName ?? params.guestEmail }, type: "required" }]
         : [],
+      ...extrasToBody(params),
     }),
   });
   await assertOk(res, "Microsoft event creation");
@@ -179,11 +204,11 @@ export async function createMicrosoftEvent(
 
 /** Met à jour un événement existant (PATCH — ne touche que les champs fournis). */
 export async function updateMicrosoftEvent(
-  params: { accessToken: string; eventId: string; subject?: string; startIso?: string; endIso?: string },
+  params: { accessToken: string; eventId: string; subject?: string; startIso?: string; endIso?: string } & MicrosoftEventExtras,
   options: MicrosoftClientOptions = {},
-): Promise<{ id: string }> {
+): Promise<MicrosoftEventResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const body: Record<string, unknown> = {};
+  const body: Record<string, unknown> = extrasToBody(params);
   if (params.subject !== undefined) body.subject = params.subject;
   if (params.startIso !== undefined) body.start = { dateTime: params.startIso, timeZone: "UTC" };
   if (params.endIso !== undefined) body.end = { dateTime: params.endIso, timeZone: "UTC" };
@@ -195,4 +220,18 @@ export async function updateMicrosoftEvent(
   });
   await assertOk(res, "Microsoft event update");
   return res.json();
+}
+
+/** Supprime un événement (créneau provisoire refusé ou RDV annulé) — un événement déjà supprimé (404) n'est pas une erreur. */
+export async function deleteMicrosoftEvent(
+  params: { accessToken: string; eventId: string },
+  options: MicrosoftClientOptions = {},
+): Promise<void> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const res = await fetchImpl(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(params.eventId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${params.accessToken}` },
+  });
+  if (res.status === 404) return;
+  await assertOk(res, "Microsoft event deletion");
 }

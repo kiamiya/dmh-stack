@@ -21,6 +21,7 @@ import { IntegrationsPage } from "./pages/Integrations";
 import { EnrichmentMappingPage } from "./pages/EnrichmentMapping";
 import { CampaignsPage } from "./pages/Campaigns";
 import { FormsMeetingsPage } from "./pages/FormsMeetings";
+import { PublicMeetingPage } from "./pages/PublicMeeting";
 import { ListsPage } from "./pages/Lists";
 import { HelpPage } from "./pages/Help";
 import { PublicBookingPage } from "./pages/PublicBooking";
@@ -117,6 +118,8 @@ export default function App() {
       <Routes location={backgroundLocation ?? location}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/book/:token" element={<PublicBookingPage />} />
+        <Route path="/rdv/:page" element={<PublicMeetingPage />} />
+        <Route path="/rdv/:page/:type" element={<PublicMeetingPage />} />
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<ProspectsListPage />} />
           <Route path="/prospects/:id" element={<ProspectDetailPage />} />
