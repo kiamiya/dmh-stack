@@ -23,6 +23,7 @@ import { CampaignsPage } from "./pages/Campaigns";
 import { FormsMeetingsPage } from "./pages/FormsMeetings";
 import { PublicMeetingPage } from "./pages/PublicMeeting";
 import { PublicManageMeetingPage } from "./pages/PublicManageMeeting";
+import { PublicFormPage } from "./pages/PublicForm";
 import { ListsPage } from "./pages/Lists";
 import { HelpPage } from "./pages/Help";
 import { PublicBookingPage } from "./pages/PublicBooking";
@@ -120,6 +121,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/book/:token" element={<PublicBookingPage />} />
         <Route path="/rdv/gerer/:token" element={<PublicManageMeetingPage />} />
+        <Route path="/f/:slug" element={<PublicFormPage />} />
         <Route path="/rdv/:page" element={<PublicMeetingPage />} />
         <Route path="/rdv/:page/:type" element={<PublicMeetingPage />} />
         <Route element={<ProtectedLayout />}>
