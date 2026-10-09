@@ -20,6 +20,7 @@ import { CalendarSettingsPage } from "./pages/CalendarSettings";
 import { IntegrationsPage } from "./pages/Integrations";
 import { EnrichmentMappingPage } from "./pages/EnrichmentMapping";
 import { CampaignsPage } from "./pages/Campaigns";
+import { FormsMeetingsPage } from "./pages/FormsMeetings";
 import { ListsPage } from "./pages/Lists";
 import { HelpPage } from "./pages/Help";
 import { PublicBookingPage } from "./pages/PublicBooking";
@@ -137,6 +138,7 @@ export default function App() {
           <Route path="/enrichment-mapping" element={<EnrichmentMappingPage />} />
           <Route path="/settings/help" element={<HelpPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/forms-meetings" element={<FormsMeetingsPage />} />
           <Route path="/import/:entity" element={<ImportPage />} />
         </Route>
       </Routes>

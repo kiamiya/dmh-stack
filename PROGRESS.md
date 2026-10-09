@@ -154,6 +154,21 @@ Dernière mise à jour : 2026-10-09
 | S38-11 | CR (17/09) — derniers écarts graphiques vs Claude Design (audit mené, liste non fournie dans le CR) | ✅ fait côté code (classes CSS uniquement) — validation visuelle reportée en fin de lot |
 | S38-T | Tests de fin de lot S38 exécutés par Claude en production (autorisations Loïc du 2026-09-25 et du 2026-10-09) | 🔄 A-E passés ; 3 écarts corrigés le 25/09 ; CORS des Edge Functions + compteur « Compléter » corrigés, déployés et rejoués le 2026-10-09 ; connexion obligatoire ajoutée sur l'enrichissement — reste 👤 C6, D3, E4 (voir `TESTING.md`) |
 | S38-N | CR (17/09) — hors dev / bloqué : architecture comptes (clarifiée par Delphine : toute entreprise = compte, DMH = un compte comme les autres, environnements cloisonnés, marque blanche → Phase G, bloquée sur William) ; reporting interne vs dataviz externe (décision Loïc/William) ; séquences de tâches Lemlist (William) ; sous-menus de l'Aide (non prioritaire) | ⬜ en attente |
+| S39-0 | CR réunion Loïc/Delphine (09/10) — vérifications demandées : dépilage de tâches façon HubSpot et scoring | ✅ fait — dépilage déjà livré (S34-13, bouton « Dépiler (n) » sur Tâches, validation navigateur en attente) ; scoring Claude 1-10 livré (S7) ≠ scoring dynamique décrit par Delphine (baisse sans réponse, hausse à l'engagement, seuil 70) → attend sa documentation, release 2 |
+| S39-1 | CR (09/10) — menu Marketing : entrée « Formulaires et rendez-vous » | ✅ fait côté code — page `/forms-meetings` (onglets Rendez-vous / Formulaires, `?tab=forms`), contenu livré par S39-3 et S39-10 |
+| S39-2 | CR (09/10) — RDV : modèle de données (page de réservation par client, types de RDV : durée, pause entre RDV, délai minimum, visio Teams, lien personnalisé, redirection, questions de préqualification ; plages de disponibilité hebdomadaires) | ⬜ à faire |
+| S39-3 | CR (09/10) — RDV : écrans de configuration dans le CRM (pages, types, disponibilités, questions) | ⬜ à faire |
+| S39-4 | CR (09/10) — RDV : calcul des créneaux = plages manuelles − agenda connecté, avec pauses et délai minimum | ⬜ à faire |
+| S39-5 | CR (09/10) — RDV : page publique de réservation par client (formulaire nom/prénom/email/téléphone/notes/questions, redirection remerciement) | ⬜ à faire |
+| S39-6 | CR (09/10) — RDV : acceptation manuelle (invitation acceptée par l'hôte, pas de validation automatique), lien Teams | ⬜ à faire — **décision Loïc (09/10)** : demande en attente (créneau bloqué « provisoire » dans l'agenda de l'hôte), acceptation/refus dans le CRM ; à l'acceptation, invitation Teams + .ics + e-mail de confirmation |
+| S39-7 | CR (09/10) — RDV : e-mails transactionnels en français (confirmation + .ics, lien de reprogrammation, récapitulatif) + rappels | ⬜ à faire — **décision Loïc (09/10)** : envoi via la boîte Outlook de l'hôte (Graph `Mail.Send`, reconnexion du calendrier nécessaire, aucune nouvelle clé) ; contenu repris d'un RDV de test Brevo (action Loïc) |
+| S39-8 | CR (09/10) — RDV : page de reprogrammation / annulation | ⬜ à faire |
+| S39-9 | CR (09/10) — RDV : consignation dans le CRM (contact créé ou rapproché, RDV dans l'historique / actions passées) | ⬜ à faire |
+| S39-10 | CR (09/10) — Formulaires : modèle de données + éditeur (champs prédéfinis contrôlés, champs personnalisés), par client | ⬜ à faire |
+| S39-11 | CR (09/10) — Formulaires : page publique + intégration (iframe / extrait HTML), validation téléphone (pays + format) et email, anti-spam | ⬜ à faire |
+| S39-12 | CR (09/10) — Formulaires : soumission → contact créé/mis à jour + champs personnalisés + historique | ⬜ à faire |
+| S39-13 | CR (09/10) — préparation de la mise en ligne Vercel (config SPA, variables, URI de redirection OAuth, checklist) — déploiement lui-même sur confirmation | ⬜ à faire |
+| S39-N | CR (09/10) — hors dev ou reporté : éditeur d'e-mails **écarté** ; campagnes (agrégateur HubSpot : UTM, Ads, LinkedIn) → **release 2** ; reporting client/interne → attend la définition de Delphine ; enrichissement non structuré (organigrammes, rapports de marché), Open Data, cascade Dropcontact/Hunter, agents IA → à cadrer (Delphine/William) ; personnalisation visuelle de la page de réservation (logo, couleurs, favicon) → non prioritaire ; Google Meet → plus tard | ⬜ non planifié |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -2950,3 +2965,14 @@ Loïc confirme que rien n'impose de mettre le CRM en ligne pour ces correctifs (
 **Rejeu navigateur en production** (autorisation de Loïc du jour) : A4, A12 (suggestions de Claude affichées), A10 (compteur), « Enrichir » entreprise (Pappers écrit) et contact (Dropcontact soumis), refus 401/403 — tous ✅, détail dans `TESTING.md`. Données de test supprimées (0 restant), donnée de juillet intacte. Deux 404 ponctuels en console pendant le premier passage, non reproduits ensuite.
 
 **Point de reprise** : vérifications humaines C6, D3, E4 (`TESTING.md`), à faire **en production avec Delphine** (décision Loïc du 2026-10-09). Mode mobile du CRM : non traité (fonctionnalité à part, pas un correctif). Hors lot inchangé (S38-N).
+
+## 2026-10-09 (suite) — S39 : CR de la réunion Loïc/Delphine du 09/10 (« réu crm.docx »)
+
+Découpage en S39-0 à S39-13 + S39-N (tableau ci-dessus). Décisions de Loïc avant de commencer :
+- **E-mails de RDV** envoyés via la boîte Outlook de l'hôte (Microsoft Graph `Mail.Send`, scope à ajouter : l'hôte devra reconnecter son calendrier une fois) — aucun nouveau fournisseur, donc pas de blocage règle 4.
+- **Acceptation** : la réservation crée une demande « en attente » (créneau bloqué « provisoire » dans l'agenda de l'hôte) ; l'hôte accepte ou refuse dans le CRM ; à l'acceptation, lien Teams + .ics + e-mail de confirmation au prospect.
+
+Choix de conception : pages publiques servies par le CRM (`/rdv/<client>`, `/rdv/<client>/<type>`, `/f/<formulaire>` intégrable en iframe) ; Edge Functions `booking-public` (page, créneaux, demande, gestion par le prospect), `booking-decide` (staff), `booking-reminders` (rappels), `form-public` ; logique pure dans `packages/booking` et `packages/forms`.
+
+- **S39-0** : vérifications demandées — dépilage façon HubSpot déjà livré (S34-13) ; scoring : score Claude 1-10 livré (S7), le scoring dynamique décrit par Delphine reste à documenter par elle (release 2).
+- **S39-1** : entrée de menu Marketing « Formulaires et rendez-vous » → `/forms-meetings` (onglets). `pnpm --filter @dmh/crm typecheck`/`test` verts (704).
