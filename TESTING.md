@@ -9,40 +9,32 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : ⏳ S40 — pipeline d'enrichissement automatique par défaut — code prêt, en attente de ton feu vert pour la production
+## Statut : ✅ S40 — pipeline d'enrichissement automatique par défaut — en production (2026-10-15), testé de bout en bout par Claude
 
-**Fait** (2026-10-15) : migration `052_default_enrichment_pipeline.sql`,
-authentification ajoutée à `generate-messages` et `score-prospect`, écran
-Automatisations et page Aide adaptés. Tests unitaires et typecheck verts.
-**Rien n'est encore en production.**
+**Fait** (ton accord du 15/10) : `generate-messages` et `score-prospect`
+redéployées avec connexion obligatoire, puis migration 052 appliquée.
 
-### Ce qui part en production (après ta confirmation)
+| # | Test | Statut | Constaté |
+|---|---|---|---|
+| P1 | Base après migration | ✅ | 3 règles « Pipeline · 1/2/3 » pour le client, cron `poll-dropcontact` actif ; les 2 fonctions répondent **401** sans clé |
+| P2 | Écran Automatisations | 👤 | Couvert par les tests unitaires (tri, badge, pas de suppression) — **à regarder par toi** : client de test › Automatisations |
+| P3 | Prospect créé (PME réelle, SIREN 481838852) | ✅ | Pappers → `enriched_pappers`, score IA = 5, Dropcontact soumis — en 3 s |
+| P4 | Relève Dropcontact par le cron | ✅ | 09:20:00 : résultat relevé (`not_found`, PME sans site web) → `enriched_contact` |
+| P5 | Génération des messages | ✅ | **`ready` à 09:20:32**, 1 message créé — chaîne complète en 4 min 30, sans intervention |
+| P6 | Règle 1 désactivée | ✅ | Nouveau prospect resté « À enrichir », aucun appel ; règle réactivée |
+| P7 | Nouveau client | ✅ | Ses 3 règles créées automatiquement ; client supprimé ensuite |
+| P8 | Nettoyage | ✅ | 0 donnée de test restante, donnée de juillet intacte |
 
-1. Redéploiement de `generate-messages` et `score-prospect` (`--no-verify-jwt`
-   conservé, le contrôle est dans la fonction) — **en premier**, pour que le
-   moteur n'appelle jamais une fonction encore ouverte.
-2. `supabase db push` : migration 052 (les 3 règles sont aussitôt créées pour
-   le client existant, le cron `poll-dropcontact` démarre).
-
-### Test de bout en bout (je le déroule, client de test de juillet)
-
-Coût : quelques crédits réels (1 Pappers, 1 Dropcontact, 2 appels Claude).
-
-| # | Test | Attendu |
-|---|---|---|
-| P1 | Base, après la migration | 3 règles « Pipeline · 1/2/3 » pour le client, `system_key` renseigné ; cron `poll-dropcontact` actif ; `generate-messages` sans clé → 401 |
-| P2 | Automatisations, client de test | Les 3 règles en tête, badge « Par défaut », case active/inactive, **pas** de bouton Supprimer ; résumé « Enrichir via Dropcontact + Scorer (IA) » |
-| P3 | Créer un contact + prospect sur une vraie PME (SIREN connu) | En moins d'une minute : `to_enrich` → `enriched_pappers` (données Pappers sur l'entreprise) et score IA renseigné |
-| P4 | Attendre 5 à 10 min | Dropcontact relevé par le cron → `enriched_contact` (email trouvé ou non) |
-| P5 | Juste après | Message dans `messages_generated`, prospect `ready` (« Prêt ») |
-| P6 | Désactiver la règle 1, créer un autre prospect | Il reste « À enrichir » ; réactiver la règle |
-| P7 | Créer un client temporaire en base | Ses 3 règles apparaissent toutes seules ; client supprimé ensuite (cascade) |
-| P8 | Nettoyage | Prospects, contacts et messages de test supprimés, donnée de juillet intacte |
+**Observation** : les appels du moteur attendent la réponse 5 s maximum
+(réglage par défaut de `pg_net`). Le score et les messages (appels Claude)
+prennent plus longtemps : ils sont bien écrits, mais leur réponse n'est pas
+conservée en base pour le diagnostic. Je peux porter ce délai à 60 s (une
+petite migration) si tu le souhaites.
 
 ### 👤 Ce que je te demande
 
-- Ton **accord explicite** pour les 2 actions en production ci-dessus.
-- Après mon test, un coup d'œil à l'écran Automatisations (P2) si tu veux.
+- Un coup d'œil à l'écran Automatisations (P2).
+- Me dire si je passe le délai d'attente à 60 s.
 
 ---
 
