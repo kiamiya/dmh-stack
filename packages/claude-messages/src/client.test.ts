@@ -55,6 +55,22 @@ describe("generateMessages", () => {
     );
   });
 
+  it("laisse assez de marge à la réflexion adaptative de Sonnet 5 (régression du 2026-10-15)", async () => {
+    const client = fakeClient({
+      content: [{ type: "text", text: JSON.stringify(validOutput) }],
+      stop_reason: "end_turn",
+    });
+
+    await generateMessages(prompt, { client });
+
+    const params = vi.mocked(client.messages.create).mock.calls[0][0] as {
+      max_tokens: number;
+      output_config: { effort?: string };
+    };
+    expect(params.max_tokens).toBeGreaterThanOrEqual(16000);
+    expect(params.output_config.effort).toBe("medium");
+  });
+
   it("utilise le modèle explicite si fourni", async () => {
     const client = fakeClient({
       content: [{ type: "text", text: JSON.stringify(validOutput) }],

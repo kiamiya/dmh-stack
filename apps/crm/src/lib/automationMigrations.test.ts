@@ -110,3 +110,29 @@ describe("pipeline d'enrichissement par défaut (052)", () => {
     }
   });
 });
+
+/** S40 (suite, migration 053) : pg_net coupe l'attente à 5 s par défaut — trop court pour les appels Claude du pipeline. */
+describe("délai d'attente des appels du pipeline (053)", () => {
+  function latestFunctionBody(signature: string): { file: string; body: string } {
+    let latest: { file: string; body: string } | null = null;
+    for (const file of Object.keys(migrations).sort()) {
+      const sql = migrations[file].replace(/\r\n/g, "\n");
+      const start = sql.indexOf(`create or replace function ${signature}`);
+      if (start === -1) continue;
+      const bodyStart = sql.indexOf("$$", start);
+      latest = { file, body: sql.slice(bodyStart + 2, sql.indexOf("$$", bodyStart + 2)) };
+    }
+    if (!latest) throw new Error(`${signature} introuvable dans les migrations`);
+    return latest;
+  }
+
+  it("le moteur attend jusqu'à 60 s la réponse des Edge Functions du pipeline", () => {
+    const { file, body } = latestRunAutomationRulesBody();
+    expect(body, file).toContain("timeout_milliseconds => 60000");
+  });
+
+  it("la relève Dropcontact aussi", () => {
+    const { file, body } = latestFunctionBody("public.poll_dropcontact_enrichments()");
+    expect(body, file).toContain("timeout_milliseconds => 60000");
+  });
+});

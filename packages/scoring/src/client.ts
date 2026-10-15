@@ -54,14 +54,18 @@ export async function scoreCompany(
 ): Promise<ScoringResult> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
-    // Bug réel trouvé sur generate-messages (stop_reason: max_tokens avec
-    // une marge trop juste) — même précaution ici par cohérence, même si
-    // score+justification est plus court.
-    max_tokens: 1024,
+    // Sonnet 5 réfléchit avant de répondre (réflexion adaptative active par
+    // défaut) et ce raisonnement compte dans `max_tokens` : avec un plafond
+    // serré, il peut ne rester aucun texte (stop_reason: max_tokens) — vu
+    // sur generate-messages le 2026-10-15. 16000 = valeur recommandée pour
+    // une requête non streamée ; seuls les tokens produits sont facturés.
+    max_tokens: 16000,
     system: prompt.system,
     messages: [{ role: "user", content: prompt.user }],
     output_config: {
       format: { type: "json_schema", schema: SCORE_SCHEMA },
+      // Note 1-10 + justification courte : peu de réflexion nécessaire.
+      effort: "low",
     },
   });
 

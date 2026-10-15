@@ -63,15 +63,20 @@ export async function generateMessages(
 ): Promise<GeneratedMessages> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
-    // 1024 s'est révélé insuffisant en test réel (stop_reason: max_tokens,
-    // réponse tronquée et donc inexploitable) — 4 champs courts mais la
-    // marge doit rester confortable plutôt que de risquer un échec complet
-    // sur une variation de longueur du modèle.
-    max_tokens: 2048,
+    // Sonnet 5 réfléchit avant de répondre (réflexion adaptative active par
+    // défaut) et ce raisonnement compte dans `max_tokens`. 2048 a suffi au
+    // test du 2026-10-15 puis échoué au suivant (stop_reason: max_tokens,
+    // aucun bloc texte : tout consommé par la réflexion). 16000 = valeur
+    // recommandée pour une requête non streamée ; seuls les tokens
+    // réellement produits sont facturés.
+    max_tokens: 16000,
     system: prompt.system,
     messages: [{ role: "user", content: prompt.user }],
     output_config: {
       format: { type: "json_schema", schema: GENERATED_MESSAGES_SCHEMA },
+      // Rédaction courte et cadrée par le prompt : réflexion modérée, pour
+      // rester proche du coût visé par le brief (§1.3.1).
+      effort: "medium",
     },
   });
 
