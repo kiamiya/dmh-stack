@@ -25,16 +25,16 @@ redéployées avec connexion obligatoire, puis migration 052 appliquée.
 | P7 | Nouveau client | ✅ | Ses 3 règles créées automatiquement ; client supprimé ensuite |
 | P8 | Nettoyage | ✅ | 0 donnée de test restante, donnée de juillet intacte |
 
-**Observation** : les appels du moteur attendent la réponse 5 s maximum
-(réglage par défaut de `pg_net`). Le score et les messages (appels Claude)
-prennent plus longtemps : ils sont bien écrits, mais leur réponse n'est pas
-conservée en base pour le diagnostic. Je peux porter ce délai à 60 s (une
-petite migration) si tu le souhaites.
+**Suite (15/10)** : délai porté à 60 s (migration 053). Il a révélé une
+vraie panne : la génération des messages échouait de façon aléatoire (la
+réflexion de Claude Sonnet 5 consommait toute la marge de 2 048 tokens).
+Corrigé (marge 16 000, niveau de réflexion explicite), redéployé, rejoué :
+prospect « Prêt ». Consommation réelle mesurée : **≈ 2 500 tokens Claude par
+prospect (≈ 0,01 $)**, détail dans `PROGRESS.md`.
 
 ### 👤 Ce que je te demande
 
 - Un coup d'œil à l'écran Automatisations (P2).
-- Me dire si je passe le délai d'attente à 60 s.
 
 ---
 

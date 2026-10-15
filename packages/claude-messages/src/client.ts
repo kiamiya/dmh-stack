@@ -41,8 +41,15 @@ export interface AnthropicMessagesClient {
     create(params: Record<string, unknown>): Promise<{
       content: Array<{ type: string; text?: string }>;
       stop_reason: string;
+      usage?: ClaudeUsage;
     }>;
   };
+}
+
+/** Consommation d'un appel (tokens facturés) — la réflexion du modèle est comptée dans `output_tokens`. */
+export interface ClaudeUsage {
+  input_tokens: number;
+  output_tokens: number;
 }
 
 export class MessageGenerationError extends Error {
@@ -59,7 +66,7 @@ export class MessageGenerationError extends Error {
  */
 export async function generateMessages(
   prompt: { system: string; user: string },
-  options: { client: AnthropicMessagesClient; model?: string },
+  options: { client: AnthropicMessagesClient; model?: string; onUsage?: (usage: ClaudeUsage) => void },
 ): Promise<GeneratedMessages> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
@@ -79,6 +86,9 @@ export async function generateMessages(
       effort: "medium",
     },
   });
+
+  // Avant toute vérification : un appel en échec est facturé lui aussi.
+  if (response.usage) options.onUsage?.(response.usage);
 
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock?.text) {

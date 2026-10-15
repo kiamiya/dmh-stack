@@ -24,7 +24,7 @@ import { extractScoringSignals } from "../../../packages/scoring/src/signals.ts"
 import { buildScoringPrompt } from "../../../packages/scoring/src/prompt.ts";
 import { scoreCompany } from "../../../packages/scoring/src/client.ts";
 import { DEFAULT_MODEL } from "../../../packages/claude-messages/src/client.ts";
-import type { AnthropicMessagesClient } from "../../../packages/claude-messages/src/client.ts";
+import type { AnthropicMessagesClient, ClaudeUsage } from "../../../packages/claude-messages/src/client.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -118,6 +118,8 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Tokens consommés, renvoyés dans la réponse (conservée par pg_net, 053) — aussi en cas d'échec.
+  let usage: ClaudeUsage | null = null;
   try {
     const signals = extractScoringSignals(company.pappers_data, new Date());
     const prompt = buildScoringPrompt({
@@ -132,6 +134,9 @@ Deno.serve(async (req) => {
     const result = await scoreCompany(prompt, {
       client: anthropic as unknown as AnthropicMessagesClient,
       model: DEFAULT_MODEL,
+      onUsage: (u) => {
+        usage = u;
+      },
     });
 
     const { error: updateError } = await supabase
@@ -144,10 +149,10 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse(
-      { ok: true, company_id: prospect.company_id, score: result.score },
+      { ok: true, company_id: prospect.company_id, score: result.score, usage },
       200,
     );
   } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 502);
+    return jsonResponse({ error: error instanceof Error ? error.message : String(error), usage }, 502);
   }
 });

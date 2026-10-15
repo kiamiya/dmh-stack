@@ -1,4 +1,4 @@
-import type { AnthropicMessagesClient } from "@dmh/claude-messages";
+import type { AnthropicMessagesClient, ClaudeUsage } from "@dmh/claude-messages";
 import { DEFAULT_MODEL } from "@dmh/claude-messages";
 
 /**
@@ -50,7 +50,7 @@ export class ScoringError extends Error {
  */
 export async function scoreCompany(
   prompt: ScoringPrompt,
-  options: { client: AnthropicMessagesClient; model?: string },
+  options: { client: AnthropicMessagesClient; model?: string; onUsage?: (usage: ClaudeUsage) => void },
 ): Promise<ScoringResult> {
   const response = await options.client.messages.create({
     model: options.model ?? DEFAULT_MODEL,
@@ -68,6 +68,9 @@ export async function scoreCompany(
       effort: "low",
     },
   });
+
+  // Avant toute vérification : un appel en échec est facturé lui aussi.
+  if (response.usage) options.onUsage?.(response.usage);
 
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock?.text) {

@@ -19,7 +19,7 @@ import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/c
 import { authorizeEnrichmentCaller } from "../../../packages/config/src/edgeAuth.ts";
 import { buildMessagePrompt } from "../../../packages/claude-messages/src/prompt.ts";
 import { generateMessages, DEFAULT_MODEL } from "../../../packages/claude-messages/src/client.ts";
-import type { AnthropicMessagesClient } from "../../../packages/claude-messages/src/client.ts";
+import type { AnthropicMessagesClient, ClaudeUsage } from "../../../packages/claude-messages/src/client.ts";
 import { calculateMonthsInRole } from "../../../packages/pappers/src/mapper.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
@@ -149,6 +149,8 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Tokens consommés, renvoyés dans la réponse (conservée par pg_net, 053) — aussi en cas d'échec.
+  let usage: ClaudeUsage | null = null;
   try {
     const prompt = buildMessagePrompt({
       companyName: company.name,
@@ -169,6 +171,9 @@ Deno.serve(async (req) => {
     const messages = await generateMessages(prompt, {
       client: anthropic as unknown as AnthropicMessagesClient,
       model: DEFAULT_MODEL,
+      onUsage: (u) => {
+        usage = u;
+      },
     });
 
     const { error: insertError } = await supabase.from("messages_generated").insert({
@@ -196,8 +201,8 @@ Deno.serve(async (req) => {
       throw new Error(`Échec mise à jour prospects.status: ${updateProspectError.message}`);
     }
 
-    return jsonResponse({ ok: true, prospect_id: prospect.id }, 200);
+    return jsonResponse({ ok: true, prospect_id: prospect.id, usage }, 200);
   } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 502);
+    return jsonResponse({ error: error instanceof Error ? error.message : String(error), usage }, 502);
   }
 });

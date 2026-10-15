@@ -11,6 +11,7 @@ const validOutput: ScoringResult = { score: 8, justification: "Dirigeant récent
 function fakeClient(response: {
   content: Array<{ type: string; text?: string }>;
   stop_reason: string;
+  usage?: { input_tokens: number; output_tokens: number };
 }): AnthropicMessagesClient {
   return {
     messages: {
@@ -65,6 +66,15 @@ describe("scoreCompany", () => {
     };
     expect(params.max_tokens).toBeGreaterThanOrEqual(16000);
     expect(params.output_config.effort).toBe("low");
+  });
+
+  it("remonte la consommation de tokens, même quand la réponse est inexploitable", async () => {
+    const usage = { input_tokens: 900, output_tokens: 16000 };
+    const client = fakeClient({ content: [], stop_reason: "max_tokens", usage });
+    const onUsage = vi.fn();
+
+    await expect(scoreCompany(prompt, { client, onUsage })).rejects.toThrow("max_tokens");
+    expect(onUsage).toHaveBeenCalledWith(usage);
   });
 
   it("utilise le modèle explicite si fourni", async () => {

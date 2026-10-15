@@ -15,6 +15,7 @@ const validOutput: GeneratedMessages = {
 function fakeClient(response: {
   content: Array<{ type: string; text?: string }>;
   stop_reason: string;
+  usage?: { input_tokens: number; output_tokens: number };
 }): AnthropicMessagesClient {
   return {
     messages: {
@@ -69,6 +70,15 @@ describe("generateMessages", () => {
     };
     expect(params.max_tokens).toBeGreaterThanOrEqual(16000);
     expect(params.output_config.effort).toBe("medium");
+  });
+
+  it("remonte la consommation de tokens, même quand la réponse est inexploitable", async () => {
+    const usage = { input_tokens: 900, output_tokens: 16000 };
+    const client = fakeClient({ content: [], stop_reason: "max_tokens", usage });
+    const onUsage = vi.fn();
+
+    await expect(generateMessages(prompt, { client, onUsage })).rejects.toThrow("max_tokens");
+    expect(onUsage).toHaveBeenCalledWith(usage);
   });
 
   it("utilise le modèle explicite si fourni", async () => {
