@@ -17,7 +17,7 @@ export interface AutomationRuleWithChain extends AutomationRule {
 }
 
 const RULE_SELECT =
-  "id, client_id, name, enabled, entity_type, trigger_type, trigger_config, created_at, automation_conditions(field, operator, value), automation_actions(branch, position, action_type, action_config)";
+  "id, client_id, name, enabled, entity_type, trigger_type, trigger_config, system_key, created_at, automation_conditions(field, operator, value), automation_actions(branch, position, action_type, action_config)";
 
 export async function listRules(client: SupabaseClient, clientId: string): Promise<AutomationRuleWithChain[]> {
   const { data, error } = await client
@@ -58,9 +58,13 @@ export async function updateRuleEnabled(client: SupabaseClient, id: string, enab
   if (error) throw new Error(error.message);
 }
 
+/** Les règles du pipeline par défaut (migration 052, `system_key` non nul) ne sont jamais supprimées — seulement désactivées. */
 export async function deleteRule(client: SupabaseClient, id: string): Promise<void> {
-  const { error } = await client.from("automation_rules").delete().eq("id", id);
+  const { data, error } = await client.from("automation_rules").delete().eq("id", id).is("system_key", null).select("id");
   if (error) throw new Error(error.message);
+  if (Array.isArray(data) && data.length === 0) {
+    throw new Error("Cette règle fait partie du pipeline d'enrichissement par défaut : elle peut être désactivée, pas supprimée.");
+  }
 }
 
 export async function listConditions(client: SupabaseClient, ruleId: string): Promise<AutomationCondition[]> {

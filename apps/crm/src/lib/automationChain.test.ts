@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { splitActionsByBranch, summarizeAction, summarizeConditions, summarizeTrigger } from "./automationChain";
+import {
+  ENRICHMENT_PROVIDER_OPTIONS,
+  isSystemRule,
+  sortRulesSystemFirst,
+  splitActionsByBranch,
+  summarizeAction,
+  summarizeConditions,
+  summarizeTrigger,
+} from "./automationChain";
 
 describe("summarizeTrigger", () => {
   it("traduit le déclencheur en français", () => {
@@ -49,6 +57,26 @@ describe("summarizeAction", () => {
     expect(result).toBe("Enrichir via Pappers");
   });
 
+  it("enchaîne plusieurs enrichissements d'une même branche (règle système Dropcontact + score)", () => {
+    const result = summarizeAction([
+      { action_type: "trigger_enrichment", action_config: { provider: "dropcontact" } },
+      { action_type: "trigger_enrichment", action_config: { provider: "score" } },
+    ]);
+    expect(result).toBe("Enrichir via Dropcontact + Scorer (IA)");
+  });
+
+  it("décrit la génération des messages", () => {
+    expect(summarizeAction([{ action_type: "trigger_enrichment", action_config: { provider: "messages" } }])).toBe(
+      "Générer les messages",
+    );
+  });
+
+  it("garde un libellé lisible pour un fournisseur inconnu", () => {
+    expect(summarizeAction([{ action_type: "trigger_enrichment", action_config: { provider: "hunter" } }])).toBe(
+      "Enrichir via hunter",
+    );
+  });
+
   it("priorise create_task si les deux types coexistent", () => {
     const result = summarizeAction([
       { action_type: "trigger_enrichment", action_config: { provider: "dropcontact" } },
@@ -78,5 +106,28 @@ describe("splitActionsByBranch", () => {
 
   it("retourne trois tableaux vides sans action", () => {
     expect(splitActionsByBranch([])).toEqual({ always: [], ifTrue: [], ifFalse: [] });
+  });
+});
+
+describe("ENRICHMENT_PROVIDER_OPTIONS", () => {
+  it("propose les 4 fournisseurs acceptés par la migration 052, dans l'ordre du pipeline", () => {
+    expect(ENRICHMENT_PROVIDER_OPTIONS.map((p) => p.value)).toEqual(["pappers", "dropcontact", "score", "messages"]);
+  });
+});
+
+describe("isSystemRule / sortRulesSystemFirst", () => {
+  const custom = { name: "Relance", system_key: null };
+  const step3 = { name: "Pipeline · 3. Génération des messages", system_key: "generate_messages" };
+  const step1 = { name: "Pipeline · 1. Enrichissement Pappers", system_key: "enrich_pappers" };
+
+  it("reconnaît une règle du pipeline par défaut", () => {
+    expect(isSystemRule(step1)).toBe(true);
+    expect(isSystemRule(custom)).toBe(false);
+    expect(isSystemRule({})).toBe(false);
+  });
+
+  it("place les règles système en tête, dans l'ordre du pipeline, puis les autres dans l'ordre reçu", () => {
+    const other = { name: "Autre", system_key: null };
+    expect(sortRulesSystemFirst([custom, step3, other, step1])).toEqual([step1, step3, custom, other]);
   });
 });

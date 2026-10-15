@@ -1,9 +1,9 @@
 // Edge Function Supabase (Deno) — S7 du brief : scoring IA des prospects
 // (brief §1.3.5), déclenché après l'étape d'enrichissement Pappers.
 //
-// Déclenchement : appel HTTP POST { prospect_id } (câblage automatique
-// non fait, même limite que les autres fonctions du pipeline, cf.
-// PROGRESS.md). Contrairement à enrich-dropcontact/generate-messages, ne
+// Déclenchement : appel HTTP POST { prospect_id } — automatiquement par la
+// règle système d'enrichissement Dropcontact (action « Scorer », passage au
+// statut 'enriched_pappers', migration 052, S40). Contrairement à enrich-dropcontact/generate-messages, ne
 // dépend PAS du statut exact du prospect — seulement de la présence de
 // `companies.pappers_data`, donc rejouable à tout moment une fois passé
 // par Pappers (le scoring est un enrichissement parallèle, pas une étape
@@ -18,6 +18,8 @@
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { loadGenerateMessagesFunctionEnv } from "../../../packages/config/src/env.ts";
+import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
+import { authorizeEnrichmentCaller } from "../../../packages/config/src/edgeAuth.ts";
 import { extractScoringSignals } from "../../../packages/scoring/src/signals.ts";
 import { buildScoringPrompt } from "../../../packages/scoring/src/prompt.ts";
 import { scoreCompany } from "../../../packages/scoring/src/client.ts";
@@ -27,11 +29,14 @@ import type { AnthropicMessagesClient } from "../../../packages/claude-messages/
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...BROWSER_CORS_HEADERS },
   });
 }
 
 Deno.serve(async (req) => {
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
@@ -56,6 +61,26 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Connexion obligatoire (S40, 2026-10-15) : clé service_role (pipeline
+  // automatique, migration 052) ou membre du staff connecté — même contrôle
+  // que enrich-pappers/enrich-dropcontact, voir packages/config/src/edgeAuth.ts.
+  const auth = await authorizeEnrichmentCaller(req.headers.get("Authorization"), {
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    resolveUserId: async (jwt) => (await supabase.auth.getUser(jwt)).data.user?.id ?? null,
+    isServiceKey: async (token) => {
+      const admin = createClient(env.SUPABASE_URL, token, { auth: { persistSession: false } });
+      const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+      return !error;
+    },
+    isStaff: async (userId) => {
+      const { data } = await supabase.from("staff_members").select("id").eq("id", userId).maybeSingle();
+      return data !== null;
+    },
+  });
+  if (!auth.ok) {
+    return jsonResponse({ error: auth.error }, auth.status);
+  }
 
   const { data: prospect, error: prospectError } = await supabase
     .from("prospects")

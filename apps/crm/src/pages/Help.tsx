@@ -101,12 +101,12 @@ export function HelpPage() {
               (une cellule vide du fichier n'efface jamais une valeur existante).
             </p>
             <p>
-              Un contact importé crée aussi un prospect "À enrichir", qui déclenche l'enrichissement automatique
-              Pappers/Dropcontact <strong className="text-foreground">si une règle d'automatisation "Enrichir" est
-              active</strong> pour ce client (même mécanisme qu'une création manuelle ou qu'un export Pharow, voir
-              "Automatiser" plus haut) — sans cette règle, le contact est bien créé mais reste "À enrichir" (voir le
-              callout en bas de page pour rafraîchir manuellement). Une entreprise importée seule (sans contact) ne
-              crée pas de prospect et ne déclenche donc rien automatiquement.
+              Un contact importé crée aussi un prospect "À enrichir", qui part{" "}
+              <strong className="text-foreground">automatiquement</strong> dans le pipeline d'enrichissement (Pappers
+              → Dropcontact + score IA → messages), comme une création manuelle ou un export Pharow — voir
+              "Automatiser" plus haut. Ce pipeline est actif par défaut pour chaque client ; il ne s'arrête que si
+              ses règles « Par défaut » ont été désactivées dans Automatisations. Une entreprise importée seule (sans
+              contact) ne crée pas de prospect et ne déclenche donc rien automatiquement.
             </p>
             <p>
               L'import de masse via un <strong className="text-foreground">export Pharow</strong> (traité par un
@@ -146,10 +146,10 @@ export function HelpPage() {
               réellement le statut du prospect en base ; un clic simple (sans glisser) ouvre la fiche détail.
             </p>
             <p>
-              Les 3 premiers statuts (jusqu'à "Enrichi (contact)") peuvent avancer automatiquement, mais seulement{" "}
-              <strong className="text-foreground">si une règle d'automatisation "Enrichir" est configurée et active
-              pour le client concerné</strong> (voir "Automatiser" plus haut) — sans cela, rien ne les fait avancer
-              tout seul, il faut passer par le bouton "Enrichir" manuel (voir le callout en bas de page). Les statuts
+              Les 4 premiers statuts (jusqu'à "Prêt") avancent{" "}
+              <strong className="text-foreground">automatiquement</strong> grâce au pipeline d'enrichissement par
+              défaut de chaque client (voir "Automatiser" plus haut) : Pappers, puis Dropcontact (résultat récupéré
+              dans les 5 à 10 minutes) et score IA, puis génération des messages. Les statuts
               suivants avancent soit manuellement (changement de statut dans le CRM), soit via les webhooks
               Smartlead/la synchro Lemlist quand un client répond ou ouvre un email/message LinkedIn.
             </p>
@@ -229,13 +229,21 @@ export function HelpPage() {
             </p>
             <p>
               Deux actions existent : <strong className="text-foreground">créer une tâche</strong> (titre, échéance,
-              responsable optionnels), et <strong className="text-foreground">enrichir</strong> (déclenche
-              Pappers/Dropcontact sur un nouveau prospect — voir plus bas, nécessite une clé technique remplie par un
+              responsable optionnels), et <strong className="text-foreground">enrichir</strong> (prospects uniquement :
+              Pappers, Dropcontact, score IA ou génération des messages — nécessite une clé technique remplie par un
               administrateur, sinon l'action ne fait rien silencieusement).
             </p>
             <p>
               En cochant "Brancher l'action selon les conditions", deux actions distinctes peuvent être définies —
               une si les conditions sont vraies, une autre sinon — plutôt qu'une action unique.
+            </p>
+            <p>
+              <strong className="text-foreground">Pipeline d'enrichissement par défaut</strong> : chaque client
+              (existant ou nouveau) reçoit automatiquement 3 règles marquées « Par défaut » — prospect créé → Pappers
+              ; entreprise enrichie → Dropcontact + score IA ; contact enrichi → génération des messages (statut
+              "Prêt"). Aucune règle à créer. Elles peuvent être désactivées (le pipeline s'arrête à cette étape) mais
+              pas supprimées. La génération des messages nécessite que la description de l'offre du client soit
+              renseignée ; sinon le prospect reste "Enrichi (contact)".
             </p>
           </CardContent>
         </Card>
@@ -333,14 +341,11 @@ export function HelpPage() {
               existe).
             </p>
             <p>
-              <strong className="text-foreground">Mais contrairement à Pappers/Dropcontact, rien ne les déclenche
-              aujourd'hui</strong> — ni automatiquement (elles ne font pas partie des actions disponibles dans les
-              règles d'automatisation, limitées à "créer une tâche" et "enrichir" Pappers/Dropcontact), ni depuis un
-              bouton du CRM (il n'existe pas de bouton "Générer les messages" ou "Recalculer le score" sur une fiche).
-              Elles ne s'exécutent que si un développeur les appelle directement (script/API) pour un prospect donné.
-              En pratique, un prospect enrichi (Pappers + Dropcontact) reste donc bloqué sans score ni message tant
-              que ça n'a pas été fait manuellement côté technique — ce n'est pas un bug, c'est un chaînon jamais
-              câblé depuis la Phase 1.
+              Les deux font partie du <strong className="text-foreground">pipeline d'enrichissement par
+              défaut</strong> : le score est calculé dès que l'entreprise est enrichie par Pappers, les messages dès
+              que le contact est enrichi par Dropcontact (à condition que la description de l'offre du client soit
+              renseignée). Il n'existe pas encore de bouton "Générer les messages" ou "Recalculer le score" sur une
+              fiche pour les relancer à la main.
             </p>
           </CardContent>
         </Card>
@@ -389,10 +394,9 @@ export function HelpPage() {
               "Enrichir" met bien à jour les données réelles (SIREN, effectif, email…), mais ne fait{" "}
               <strong className="text-foreground">jamais avancer le statut du prospect</strong> affiché dans le
               pipeline/Kanban — un prospect peut donc afficher "À enrichir" alors que son entreprise a déjà été
-              rafraîchie via ce bouton. Seul le pipeline automatique (règle d'automatisation "Enrichir" active pour
-              le client) fait avancer ce statut. Si un prospect reste bloqué "À enrichir" sans qu'aucune règle
-              d'automatisation ne soit configurée pour son client, c'est la raison la plus probable — pas un bug
-              silencieux.
+              rafraîchie via ce bouton. Seul le pipeline automatique (règles « Par défaut » de Automatisations) fait
+              avancer ce statut. Si un prospect reste bloqué "À enrichir", vérifier que ces règles sont actives pour
+              son client, puis que l'entreprise est trouvable par Pappers (SIREN ou raison sociale exacte).
             </p>
           </CardContent>
         </Card>

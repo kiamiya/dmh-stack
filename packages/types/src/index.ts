@@ -394,6 +394,10 @@ export type AutomationTriggerType = "record_created" | "stage_changed" | "status
 export type AutomationConditionOperator = "eq" | "neq" | "gt" | "lt" | "contains" | "is_set" | "is_not_set";
 export type AutomationActionType = "create_task" | "trigger_enrichment";
 export type AutomationActionBranch = "always" | "if_true" | "if_false";
+/** Fournisseurs de l'action `trigger_enrichment` (030 : pappers/dropcontact ; 052 : score IA et génération des messages). */
+export type AutomationEnrichmentProvider = "pappers" | "dropcontact" | "score" | "messages";
+/** Règles du pipeline d'enrichissement créées par défaut pour chaque client (migration 052, S40). */
+export type AutomationSystemKey = "enrich_pappers" | "enrich_dropcontact" | "generate_messages";
 
 export interface AutomationRule {
   id: string;
@@ -403,6 +407,8 @@ export interface AutomationRule {
   entity_type: AutomationEntityType;
   trigger_type: AutomationTriggerType;
   trigger_config: Record<string, unknown>;
+  /** Non nul = règle du pipeline par défaut (migration 052) : désactivable, non supprimable depuis le CRM. */
+  system_key: AutomationSystemKey | null;
   created_at: string;
 }
 

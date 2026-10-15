@@ -9,7 +9,44 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
-## Statut : 🔄 Lot S39 en production (2026-10-09) — testé par Claude, reste les vérifications 👤 avec ta boîte Outlook
+## Statut : ⏳ S40 — pipeline d'enrichissement automatique par défaut — code prêt, en attente de ton feu vert pour la production
+
+**Fait** (2026-10-15) : migration `052_default_enrichment_pipeline.sql`,
+authentification ajoutée à `generate-messages` et `score-prospect`, écran
+Automatisations et page Aide adaptés. Tests unitaires et typecheck verts.
+**Rien n'est encore en production.**
+
+### Ce qui part en production (après ta confirmation)
+
+1. Redéploiement de `generate-messages` et `score-prospect` (`--no-verify-jwt`
+   conservé, le contrôle est dans la fonction) — **en premier**, pour que le
+   moteur n'appelle jamais une fonction encore ouverte.
+2. `supabase db push` : migration 052 (les 3 règles sont aussitôt créées pour
+   le client existant, le cron `poll-dropcontact` démarre).
+
+### Test de bout en bout (je le déroule, client de test de juillet)
+
+Coût : quelques crédits réels (1 Pappers, 1 Dropcontact, 2 appels Claude).
+
+| # | Test | Attendu |
+|---|---|---|
+| P1 | Base, après la migration | 3 règles « Pipeline · 1/2/3 » pour le client, `system_key` renseigné ; cron `poll-dropcontact` actif ; `generate-messages` sans clé → 401 |
+| P2 | Automatisations, client de test | Les 3 règles en tête, badge « Par défaut », case active/inactive, **pas** de bouton Supprimer ; résumé « Enrichir via Dropcontact + Scorer (IA) » |
+| P3 | Créer un contact + prospect sur une vraie PME (SIREN connu) | En moins d'une minute : `to_enrich` → `enriched_pappers` (données Pappers sur l'entreprise) et score IA renseigné |
+| P4 | Attendre 5 à 10 min | Dropcontact relevé par le cron → `enriched_contact` (email trouvé ou non) |
+| P5 | Juste après | Message dans `messages_generated`, prospect `ready` (« Prêt ») |
+| P6 | Désactiver la règle 1, créer un autre prospect | Il reste « À enrichir » ; réactiver la règle |
+| P7 | Créer un client temporaire en base | Ses 3 règles apparaissent toutes seules ; client supprimé ensuite (cascade) |
+| P8 | Nettoyage | Prospects, contacts et messages de test supprimés, donnée de juillet intacte |
+
+### 👤 Ce que je te demande
+
+- Ton **accord explicite** pour les 2 actions en production ci-dessus.
+- Après mon test, un coup d'œil à l'écran Automatisations (P2) si tu veux.
+
+---
+
+## Toujours en attente : lot S39 (2026-10-09) — vérifications 👤 avec ta boîte Outlook
 
 **Fait** (accord de Loïc du 09/10) : migrations 049/050/051 appliquées, 10
 Edge Functions déployées (4 nouvelles + 6 redéployées), cron des rappels actif.
@@ -43,7 +80,7 @@ toi :
 2. Me dire si le contenu des e-mails te convient (à caler sur le RDV de test
    Brevo).
 
-## R. Prise de rendez-vous
+### R. Prise de rendez-vous
 
 | # | Test | Attendu |
 |---|---|---|
@@ -59,7 +96,7 @@ toi :
 | R10 | Même lien → Annuler | Événement supprimé de ton agenda ; e-mail d'annulation (avec .ics d'annulation) au prospect, alerte à toi |
 | R11 | 👤 Rappel | RDV confirmé à moins de 24 h : e-mail de rappel reçu dans le quart d'heure (cron) |
 
-## F. Formulaires
+### F. Formulaires
 
 | # | Test | Attendu |
 |---|---|---|
@@ -71,7 +108,7 @@ toi :
 | F6 | Coller la capsule HTML dans une page HTML locale | Formulaire affiché, hauteur ajustée automatiquement, envoi OK |
 | F7 | Formulaire passé « hors ligne » | `/f/<slug>` : « Ce formulaire n'est pas disponible » |
 
-## Reste du lot S38 (à faire en production avec Delphine, décision du 09/10)
+### Reste du lot S38 (à faire en production avec Delphine, décision du 09/10)
 
 1. 👤 C6 : une réunion avec ton calendrier connecté.
 2. 👤 D3 : un vrai enrichissement Dropcontact qui déclenche la tâche

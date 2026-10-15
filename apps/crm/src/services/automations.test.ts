@@ -11,6 +11,7 @@ function makeStubClient(result: { data: unknown; error: { message: string } | nu
     insert: () => query,
     update: () => query,
     delete: () => query,
+    is: () => query,
     single: () => Promise.resolve(result),
     then: (resolve: (v: typeof result) => void) => resolve(result),
   };
@@ -61,9 +62,19 @@ describe("updateRuleEnabled", () => {
 });
 
 describe("deleteRule", () => {
-  it("ne lève pas si Supabase ne renvoie pas d'erreur", async () => {
-    const client = makeStubClient({ data: null, error: null });
+  it("ne lève pas quand la règle a été supprimée", async () => {
+    const client = makeStubClient({ data: [{ id: "rule-1" }], error: null });
     await expect(deleteRule(client, "rule-1")).resolves.toBeUndefined();
+  });
+
+  it("refuse une règle du pipeline par défaut (aucune ligne supprimée, filtre system_key)", async () => {
+    const client = makeStubClient({ data: [], error: null });
+    await expect(deleteRule(client, "rule-system")).rejects.toThrow("pipeline d'enrichissement par défaut");
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "delete refusé" } });
+    await expect(deleteRule(client, "rule-1")).rejects.toThrow("delete refusé");
   });
 });
 

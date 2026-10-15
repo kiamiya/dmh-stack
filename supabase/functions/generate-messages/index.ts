@@ -2,9 +2,9 @@
 // Claude API (dernière étape du pipeline d'enrichissement, brief §1.3.1
 // étape 4).
 //
-// Déclenchement : appel HTTP POST { prospect_id } (webhook DB sur passage
-// au statut 'enriched_contact' — câblage du déclencheur automatique non
-// fait, cf. PROGRESS.md, comme pour enrich-pappers/enrich-dropcontact).
+// Déclenchement : appel HTTP POST { prospect_id } — automatiquement par la
+// règle système « Générer les messages » au passage au statut
+// 'enriched_contact' (migration 052, S40), ou à la main par le staff.
 //
 // Toute la logique métier testable (construction du prompt, appel Claude
 // via sorties structurées) vit dans @dmh/claude-messages
@@ -15,6 +15,8 @@
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { loadGenerateMessagesFunctionEnv } from "../../../packages/config/src/env.ts";
+import { BROWSER_CORS_HEADERS, corsPreflightResponse } from "../../../packages/config/src/cors.ts";
+import { authorizeEnrichmentCaller } from "../../../packages/config/src/edgeAuth.ts";
 import { buildMessagePrompt } from "../../../packages/claude-messages/src/prompt.ts";
 import { generateMessages, DEFAULT_MODEL } from "../../../packages/claude-messages/src/client.ts";
 import type { AnthropicMessagesClient } from "../../../packages/claude-messages/src/client.ts";
@@ -23,11 +25,14 @@ import { calculateMonthsInRole } from "../../../packages/pappers/src/mapper.ts";
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...BROWSER_CORS_HEADERS },
   });
 }
 
 Deno.serve(async (req) => {
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
@@ -52,6 +57,26 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Connexion obligatoire (S40, 2026-10-15) : clé service_role (pipeline
+  // automatique, migration 052) ou membre du staff connecté — même contrôle
+  // que enrich-pappers/enrich-dropcontact, voir packages/config/src/edgeAuth.ts.
+  const auth = await authorizeEnrichmentCaller(req.headers.get("Authorization"), {
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    resolveUserId: async (jwt) => (await supabase.auth.getUser(jwt)).data.user?.id ?? null,
+    isServiceKey: async (token) => {
+      const admin = createClient(env.SUPABASE_URL, token, { auth: { persistSession: false } });
+      const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+      return !error;
+    },
+    isStaff: async (userId) => {
+      const { data } = await supabase.from("staff_members").select("id").eq("id", userId).maybeSingle();
+      return data !== null;
+    },
+  });
+  if (!auth.ok) {
+    return jsonResponse({ error: auth.error }, auth.status);
+  }
 
   const { data: prospect, error: prospectError } = await supabase
     .from("prospects")

@@ -43,8 +43,7 @@ export interface ContactImportResult {
 /**
  * Exécute un plan d'import de contacts : crée le contact (+ prospect
  * `to_enrich` associé, même mécanisme que `AddContactDialog` — si le client
- * a une automatisation "Enrichir" active sur les prospects créés, voir
- * migration `030_automation_branching_and_enrichment.sql`, l'enrichissement
+ * a son pipeline d'enrichissement par défaut actif (migration 052), l'enrichissement
  * Pappers/Dropcontact démarre automatiquement, sans appel supplémentaire
  * ici). Déduplique l'entreprise par nom (insensible à la casse) au sein du
  * client, à la fois contre l'existant et entre les lignes du même fichier.

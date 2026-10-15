@@ -73,8 +73,8 @@ const CUSTOM_FIELD_DECISION_LABEL: Record<ImportColumnDecision["action"], (d: Im
  * Import CSV créant de nouvelles fiches (contrairement à `ImportListDialog`,
  * qui ne fait que rattacher des fiches déjà existantes à une liste). Pour
  * les contacts : crée aussi le prospect `to_enrich` associé, comme
- * `AddContactDialog` — si le client a une automatisation "Enrichir" active
- * sur les prospects créés, l'enrichissement Pappers/Dropcontact démarre
+ * `AddContactDialog` — avec le pipeline d'enrichissement par défaut du client
+ * (migration 052), l'enrichissement Pappers/Dropcontact démarre
  * automatiquement, sans action supplémentaire ici. Pour les entreprises
  * seules : aucun prospect n'est créé (pas de contact associé), donc aucun
  * enrichissement automatique ne se déclenche pour cet import — limite

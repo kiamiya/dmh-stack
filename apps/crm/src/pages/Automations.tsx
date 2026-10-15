@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type {
   AutomationActionBranch,
   AutomationActionType,
+  AutomationEnrichmentProvider,
   AutomationEntityType,
   AutomationTriggerType,
   ProspectStatus,
@@ -16,7 +17,15 @@ import { useStaffMembers } from "../hooks/useStaffMembers";
 import { supabase } from "../lib/supabase";
 import { addAction, addCondition, type ActionInsert } from "../services/automations";
 import { validateAutomationRuleForm } from "../lib/automationForm";
-import { splitActionsByBranch, summarizeAction, summarizeConditions, summarizeTrigger } from "../lib/automationChain";
+import {
+  ENRICHMENT_PROVIDER_OPTIONS,
+  isSystemRule,
+  sortRulesSystemFirst,
+  splitActionsByBranch,
+  summarizeAction,
+  summarizeConditions,
+  summarizeTrigger,
+} from "../lib/automationChain";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -47,7 +56,7 @@ interface ActionDraft {
   assignedTo: string;
   /** Type de la tâche créée (S38-10) — "" = non précisé. */
   taskType: TaskType | "";
-  provider: "pappers" | "dropcontact";
+  provider: AutomationEnrichmentProvider;
 }
 
 const EMPTY_ACTION: ActionDraft = { actionType: "create_task", taskTitle: "", dueInDays: "", assignedTo: "", taskType: "", provider: "pappers" };
@@ -150,8 +159,11 @@ function ActionFieldsEditor({
           onChange={(e) => onChange({ ...value, provider: e.target.value as ActionDraft["provider"] })}
           className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
         >
-          <option value="pappers">Pappers</option>
-          <option value="dropcontact">Dropcontact</option>
+          {ENRICHMENT_PROVIDER_OPTIONS.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
         </select>
       )}
     </>
@@ -406,8 +418,15 @@ export function AutomationsPage() {
           </Card>
 
           <div className="space-y-2">
+            {!loading && rules.some(isSystemRule) && (
+              <p className="text-xs text-muted-foreground">
+                Les règles « Par défaut » forment le pipeline d'enrichissement automatique de chaque client (Pappers → Dropcontact
+                + score IA → messages). Elles peuvent être désactivées, pas supprimées. La génération des messages nécessite la
+                description de l'offre du client.
+              </p>
+            )}
             {!loading &&
-              rules.map((r) => {
+              sortRulesSystemFirst(rules).map((r) => {
                 const { always, ifTrue, ifFalse } = splitActionsByBranch(r.automation_actions);
                 const hasBranches = ifTrue.length > 0 || ifFalse.length > 0;
                 return (
@@ -441,11 +460,14 @@ export function AutomationsPage() {
                       <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
                         <span className="text-xs font-medium text-muted-foreground">{r.name}</span>
                         <div className="flex items-center gap-2">
+                          {isSystemRule(r) && <Badge variant="blue">Par défaut</Badge>}
                           <Badge variant={r.enabled ? "green" : "default"}>{r.enabled ? "Active" : "Désactivée"}</Badge>
                           <input type="checkbox" checked={r.enabled} onChange={(e) => toggle(r.id, e.target.checked)} />
-                          <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
-                            Supprimer
-                          </Button>
+                          {!isSystemRule(r) && (
+                            <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
+                              Supprimer
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
