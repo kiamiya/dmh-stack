@@ -129,6 +129,14 @@ les Edge Functions s'invoquent aujourd'hui manuellement (`POST { prospect_id }`)
 
 ### Mise en ligne du CRM (S39-13)
 
+> ⚠️ **Ne jamais lancer `supabase config push` sur ce projet** : `supabase/config.toml`
+> est la configuration du développement local (`127.0.0.1`…), et la CLI
+> l'applique à la production sans demander confirmation (incident du
+> 2026-10-16, corrigé). Les réglages Auth de production (adresse de site,
+> adresses de retour, SMTP, inscriptions) se font dans le tableau de bord
+> Supabase. Valeurs actuelles : Site URL `https://dmh-stack.vercel.app`,
+> Redirect URLs `https://dmh-stack.vercel.app/**` et `http://localhost:5173/**`.
+
 Chaque étape distante se fait sur confirmation explicite de Loïc.
 
 **État (2026-10-16)** : en ligne pour les tests sur **https://dmh-stack.vercel.app**

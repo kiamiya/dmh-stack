@@ -9,6 +9,29 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
+## Statut : ✅ Création de compte équipe DMH — en ligne (2026-10-16), reste un vrai envoi d'invitation 👤
+
+Testé par Claude sans envoyer d'e-mail : refus des adresses hors
+@dmhassocies.com (y compris les imitations du domaine) côté écran ET serveur,
+compte existant signalé, accès staff accordé uniquement à la confirmation
+d'une adresse @dmhassocies.com (jamais à un autre domaine). Adresse de site et
+adresses de retour Supabase réglées sur https://dmh-stack.vercel.app.
+
+### 👤 Ce que je te demande
+
+1. **SMTP** (Supabase › Authentication › Emails › SMTP Settings) : brancher
+   un serveur d'envoi (ex. Brevo). Sans lui, Supabase n'envoie qu'aux membres
+   de l'équipe du projet Supabase, quelques e-mails par heure : l'invitation de
+   Delphine ou William n'arriverait pas.
+2. Recommandé : Authentication › Providers › Email › désactiver « Allow new
+   users to sign up » (les invitations continuent de marcher).
+3. Test réel : un collègue va sur https://dmh-stack.vercel.app/login ›
+   « Créer un compte (équipe DMH) » → e-mail d'invitation → lien → choix du
+   mot de passe → il est connecté et voit les données.
+4. « Mot de passe oublié » avec `lrd@dmhassocies.com` (voir plus bas).
+
+---
+
 ## Statut : ✅ Mot de passe oublié + changement sécurisé — en ligne (2026-10-16), reste la réception de l'e-mail 👤
 
 Testé en ligne par Claude : lien « Mot de passe oublié ? » sur la connexion,
