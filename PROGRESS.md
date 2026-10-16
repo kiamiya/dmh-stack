@@ -3122,4 +3122,14 @@ Tests : +9 (`automationMigrations.test.ts`, 2 anciens tests adaptés : le délai
 
 **Test en production** (bloc unique terminé par une exception volontaire : tout est annulé, aucune donnée laissée — vérifié) : entreprise supprimée → ses lignes et celles de son contact (cascade) supprimées (0 restante) ; fusion → listes 2/2 sans doublon, opportunité 1, RDV 1 (fusion qui aurait échoué avant), traçabilité 2 dont l'email du contact conservé, 0 orpheline, contact supprimé. Orphelins en base après migration : 0.
 
-**Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) et à une tâche d'échec ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.
+**Point de reprise** : voir l'entrée suivante.
+
+## 2026-10-16 (suite) — Mise en ligne Vercel du CRM : préparation, bloquée sur l'accès GitHub
+
+Décisions de Loïc : **déploiement automatique depuis GitHub** (chaque push sur `master`) ; **adresse `.vercel.app` seulement** pour l'instant (pas de sous-domaine `dmhassocies.com`).
+- Équipe Vercel retenue : `kornsons-projects` (`team_WKIrLT6fhg39EnGcOzmp37y7`), celle des autres projets DMH (sirh-dmh, dmh-site-v2, dmh-erp). `dmhassocies.com` y est déclaré (DNS chez OVH) — utilisable plus tard pour un sous-domaine (CNAME chez OVH).
+- Vérifié : la connexion au CRM se fait par e-mail/mot de passe (aucune URL de redirection à déclarer dans Supabase Auth) ; les retours OAuth Google/Microsoft redirigent vers l'origine du CRM portée dans `state` (aucune adresse à déclarer).
+- **Bloquant** : l'intégration GitHub de l'équipe Vercel n'est reliée qu'au compte GitHub « Kornson » ; le dépôt est `kiamiya/dmh-stack` → `create_git_project` refusé (« install the GitHub integration first »). Action Loïc : autoriser Vercel sur ce dépôt.
+- À faire ensuite : projet `dmh-crm` (racine `apps/crm`, Vite), variables `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BASE_DOMAIN`, `GOOGLE_CALENDAR_CLIENT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID` (jamais de clé secrète), protection Vercel limitée aux aperçus (sinon les pages publiques RDV/formulaires seraient derrière la connexion Vercel), premier déploiement de production et vérification en ligne.
+
+**Point de reprise** : Loïc autorise Vercel sur `kiamiya/dmh-stack`, puis création du projet par Claude.
