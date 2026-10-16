@@ -19,10 +19,11 @@ adresses de retour Supabase réglées sur https://dmh-stack.vercel.app.
 
 ### 👤 Ce que je te demande
 
-1. **SMTP** (Supabase › Authentication › Emails › SMTP Settings) : brancher
-   un serveur d'envoi (ex. Brevo). Sans lui, Supabase n'envoie qu'aux membres
-   de l'équipe du projet Supabase, quelques e-mails par heure : l'invitation de
-   Delphine ou William n'arriverait pas.
+1. **E-mails d'authentification : Supabase** (décision Loïc, 2026-10-16 —
+   pas de service tiers). Le service d'envoi intégré de Supabase n'envoie
+   qu'aux membres de l'équipe du projet Supabase, quelques e-mails par heure :
+   si l'invitation de Delphine n'arrive pas, c'est de ce côté qu'il faudra
+   agir (ex. l'ajouter à l'équipe du projet Supabase).
 2. Recommandé : Authentication › Providers › Email › désactiver « Allow new
    users to sign up » (les invitations continuent de marcher).
 3. Test réel : un collègue va sur https://dmh-stack.vercel.app/login ›
@@ -52,11 +53,9 @@ bon — compte de test supprimé.
    `lrd@dmhassocies.com` → e-mail reçu → lien → page « Nouveau mot de passe »
    → enregistrer : tu es connecté. (C'est aussi ta façon de retrouver ton
    accès.)
-3. Si l'e-mail n'arrive pas : le serveur d'e-mails intégré de Supabase est
+3. Si l'e-mail n'arrive pas : le service d'envoi intégré de Supabase est
    limité (quelques envois par heure, uniquement vers les membres de l'équipe
-   du projet Supabase). Il faudra brancher un SMTP (ex. Brevo) dans
-   Authentication › Emails › SMTP Settings — indispensable de toute façon
-   pour Delphine et William.
+   du projet Supabase) — à traiter côté Supabase.
 
 ---
 
