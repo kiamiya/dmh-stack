@@ -328,3 +328,64 @@ describe("conditions d'une règle à action unique (057)", () => {
     expect(body, file).not.toMatch(/branch = 'always'\s+or/);
   });
 });
+
+/**
+ * Migration 058 — garde-fous contre les lignes orphelines : toute table qui
+ * désigne une fiche par (entity_type, entity_id) doit être nettoyée à la
+ * suppression de la fiche, et toute table qui référence un contact doit être
+ * reprise par la fusion de contacts.
+ */
+describe("intégrité à la suppression et à la fusion (058)", () => {
+  const all = Object.keys(migrations)
+    .sort()
+    .map((f) => migrations[f].replace(/\r\n/g, "\n"))
+    .join("\n");
+
+  function latestBody(signature: string): string {
+    let found = "";
+    for (const f of Object.keys(migrations).sort()) {
+      const sql = migrations[f].replace(/\r\n/g, "\n");
+      const start = sql.indexOf(`create or replace function ${signature}`);
+      if (start === -1) continue;
+      const bodyStart = sql.indexOf("$$", start);
+      found = sql.slice(bodyStart + 2, sql.indexOf("$$", bodyStart + 2));
+    }
+    return found;
+  }
+
+  /** Tables créées dans les migrations dont la définition contient `pattern`. */
+  function tablesWhoseDefinitionMatches(pattern: RegExp): string[] {
+    const tables = new Set<string>();
+    for (const m of all.matchAll(/create table (?:if not exists )?(\w+) \(([\s\S]*?)\n\);/g)) {
+      if (pattern.test(m[2])) tables.add(m[1]);
+    }
+    for (const m of all.matchAll(/alter table (\w+) add column (?:if not exists )?([^;]*);/g)) {
+      if (pattern.test(m[2])) tables.add(m[1]);
+    }
+    return [...tables].sort();
+  }
+
+  it("toute table polymorphe (entity_type, entity_id) est nettoyée à la suppression d'une fiche", () => {
+    const polymorphic = tablesWhoseDefinitionMatches(/\bentity_id uuid\b/);
+    expect(polymorphic).toEqual(expect.arrayContaining(["custom_field_values", "field_provenance"]));
+    const cleanup = latestBody("public.delete_entity_side_rows()");
+    for (const table of polymorphic) {
+      expect(cleanup, `${table} : à nettoyer dans delete_entity_side_rows()`).toContain(`delete from ${table} `);
+    }
+  });
+
+  it("le nettoyage est branché sur la suppression des contacts, entreprises et opportunités", () => {
+    expect(all).toContain("create trigger contacts_delete_side_rows after delete on contacts");
+    expect(all).toContain("create trigger companies_delete_side_rows after delete on companies");
+    expect(all).toContain("create trigger deals_delete_side_rows after delete on deals");
+  });
+
+  it("la fusion de contacts reprend toute table qui référence un contact", () => {
+    const referencing = tablesWhoseDefinitionMatches(/references contacts\(id\)/).filter((t) => t !== "contacts");
+    expect(referencing).toEqual(expect.arrayContaining(["meetings", "deal_contacts", "contact_list_members"]));
+    const merge = latestBody("merge_contacts(keep_id uuid, remove_id uuid)");
+    for (const table of [...referencing, "field_provenance", "custom_field_values"]) {
+      expect(merge, `${table} : à reprendre dans merge_contacts()`).toMatch(new RegExp(`(update|delete from) ${table}\\b`));
+    }
+  });
+});

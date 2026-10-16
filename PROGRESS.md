@@ -173,6 +173,7 @@ Dernière mise à jour : 2026-10-15
 | S40-R | Nouvelle tentative automatique des étapes du pipeline en échec (Pappers, soumission Dropcontact, score IA, messages) — 3 essais max, fenêtre de 48 h, règle système active ; clé service_role locale resynchronisée | ✅ fait — **migration 054 appliquée et testée en production le 2026-10-16** (échec simulé rattrapé, pas de doublon, plafond respecté) |
 | S40-F | Tâche « Enrichissement en échec » après 3 relances + plafond du suivi Dropcontact (6 h, puis abandon et resoumission bornée) | ✅ fait — **migration 055 appliquée et testée en production le 2026-10-16** |
 | S40-Q | File d'attente à débit limité pour les appels du pipeline (gros imports) + correctif moteur : conditions ignorées des règles à action unique depuis la 030 | ✅ fait — **migrations 056 et 057 appliquées et testées en production le 2026-10-16** |
+| S40-I | Lignes orphelines : nettoyage automatique de `field_provenance`/`custom_field_values` à la suppression d'une fiche + fusion de contacts complétée (listes, contacts d'opportunité, RDV, formulaires, traçabilité) + garde-fous structurels | ✅ fait — **migration 058 appliquée et testée en production le 2026-10-16** |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -3104,5 +3105,21 @@ Tests : +9 (`automationMigrations.test.ts`, 2 anciens tests adaptés : le délai
 - 057 : prospect créé « Qualifié » → **rien** dans la file.
 - Bout en bout réel (PME SIREN 481838852) : Pappers, Dropcontact, score partis **sans délai** via la file ; « Prêt » en 4 min 12 (relève Dropcontact par le cron), toutes les réponses 200/202.
 - Nettoyage vérifié : fiches de test supprimées, file vide, + 8 lignes `field_provenance` orphelines supprimées (4 de ce test — l'entreprise renommée par Pappers échappait au filtre par nom — et 4 laissées par un nettoyage du 09/10) ; donnée de juillet intacte.
+
+**Point de reprise** : voir l'entrée suivante.
+
+## 2026-10-16 (suite) — S40-I : origine des lignes orphelines et correctif
+
+**Origine** (demande de Loïc) : `field_provenance` (042) et `custom_field_values` (S9) désignent leur fiche par `(entity_type, entity_id)` — référence polymorphe, sans clé étrangère possible — et rien ne les nettoyait quand la fiche disparaissait. Le CRM ne supprime jamais directement un contact ou une entreprise ; les orphelins venaient de : (1) suppressions directes en base (nettoyages de tests : les 8 `field_provenance` de S38/S40, la valeur « couleur » du test formulaires S39 du 09/10) ; (2) cascades (supprimer une entreprise supprime ses contacts) ; (3) **la fusion de contacts** (`merge_contacts`, 021), qui transférait les champs personnalisés mais pas la traçabilité (apparue après, en 042).
+
+**Défauts plus graves trouvés dans la fusion** (antérieure à plusieurs tables) : appartenance aux listes et contacts d'opportunité du contact fusionné **perdus** (cascade), réponses de formulaire détachées, et **fusion impossible** (erreur de clé étrangère) dès que le contact fusionné avait un rendez-vous.
+
+**Migration `058_entity_side_tables_cleanup.sql`** :
+- `delete_entity_side_rows()` + triggers `after delete` sur contacts, companies, deals (aussi déclenchés pour chaque ligne supprimée en cascade).
+- Purge des orphelins existants (1 restant).
+- `merge_contacts()` (reprise de la 021) transfère aussi traçabilité, listes, contacts d'opportunité, rendez-vous et réponses de formulaire ; doublons évités par les contraintes d'unicité (la ligne du contact conservé l'emporte).
+- **Garde-fous structurels** (`automationMigrations.test.ts`, +3) : toute table créée avec `entity_id uuid` doit être nettoyée par `delete_entity_side_rows()`, et toute table qui référence `contacts(id)` doit être reprise par `merge_contacts()` — une future table oubliée fera échouer les tests. Ils retrouvent exactement les 8 tables liées aux contacts relevées en base. `pnpm typecheck`/`pnpm test` racine verts (crm 782).
+
+**Test en production** (bloc unique terminé par une exception volontaire : tout est annulé, aucune donnée laissée — vérifié) : entreprise supprimée → ses lignes et celles de son contact (cascade) supprimées (0 restante) ; fusion → listes 2/2 sans doublon, opportunité 1, RDV 1 (fusion qui aurait échoué avant), traçabilité 2 dont l'email du contact conservé, 0 orpheline, contact supprimé. Orphelins en base après migration : 0.
 
 **Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) et à une tâche d'échec ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.

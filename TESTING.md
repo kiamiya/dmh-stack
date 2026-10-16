@@ -46,6 +46,11 @@ et plafond du suivi Dropcontact (6 h, puis resoumission bornée) — migration
 unique étaient ignorées depuis la 030 (migration 057). Testé en production,
 dont un passage réel jusqu'à « Prêt » via la file.
 
+**Suite (16/10, quater)** : plus de lignes orphelines — nettoyage automatique
+à la suppression d'une fiche, fusion de contacts complétée (listes,
+opportunités, rendez-vous, formulaires, traçabilité), garde-fous dans les
+tests (migration 058, testée en production sans laisser de donnée).
+
 ### 👤 Ce que je te demande
 
 - Un coup d'œil à l'écran Automatisations (P2).
