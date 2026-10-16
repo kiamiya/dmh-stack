@@ -3132,4 +3132,6 @@ Décisions de Loïc : **déploiement automatique depuis GitHub** (chaque push su
 - **Bloquant** : l'intégration GitHub de l'équipe Vercel n'est reliée qu'au compte GitHub « Kornson » ; le dépôt est `kiamiya/dmh-stack` → `create_git_project` refusé (« install the GitHub integration first »). Action Loïc : autoriser Vercel sur ce dépôt.
 - À faire ensuite : projet `dmh-crm` (racine `apps/crm`, Vite), variables `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BASE_DOMAIN`, `GOOGLE_CALENDAR_CLIENT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID` (jamais de clé secrète), protection Vercel limitée aux aperçus (sinon les pages publiques RDV/formulaires seraient derrière la connexion Vercel), premier déploiement de production et vérification en ligne.
 
-**Point de reprise** : Loïc autorise Vercel sur `kiamiya/dmh-stack`, puis création du projet par Claude.
+**Mise à jour (2026-10-16)** : Loïc ne peut pas encore autoriser l'accès — il lui faut les accès GitHub de William (compte « Kornson », relié à l'équipe Vercel). **Bloqué sur William.** Repli possible sans attendre : déploiement manuel par la CLI Vercel (`vercel login` avec un compte membre de l'équipe), lien GitHub branché ensuite.
+
+**Point de reprise** : accès GitHub de William → autoriser Vercel sur `kiamiya/dmh-stack` → création du projet par Claude. En attendant : vérifications 👤 (écran Automatisations, tâche d'échec, S39 Outlook, S38 C6/D3/E4 avec Delphine).
