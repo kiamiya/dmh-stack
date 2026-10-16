@@ -28,7 +28,10 @@ adresses de retour Supabase réglées sur https://dmh-stack.vercel.app.
 3. Test réel : un collègue va sur https://dmh-stack.vercel.app/login ›
    « Créer un compte (équipe DMH) » → e-mail d'invitation → lien → choix du
    mot de passe → il est connecté et voit les données.
-4. « Mot de passe oublié » avec `lrd@dmhassocies.com` (voir plus bas).
+4. ✅ « Mot de passe oublié » avec `lrd@dmhassocies.com` : e-mail reçu, lien
+   fonctionnel, connexion OK (Loïc, 2026-10-16). Ne prouve pas encore qu'un
+   SMTP personnalisé est branché (le serveur intégré de Supabase envoie aux
+   membres de l'équipe du projet) : le test d'invitation de Delphine tranchera.
 
 ---
 
