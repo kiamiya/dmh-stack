@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -55,6 +55,12 @@ export function LoginPage() {
             <Button type="submit" disabled={loading}>
               {loading ? "Connexion..." : "Se connecter"}
             </Button>
+            <Link
+              to="/forgot-password"
+              className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Mot de passe oublié ?
+            </Link>
           </form>
         </CardContent>
       </Card>

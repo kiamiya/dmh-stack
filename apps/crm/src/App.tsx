@@ -1,6 +1,8 @@
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Location } from "react-router-dom";
 import { LoginPage } from "./pages/Login";
+import { ForgotPasswordPage } from "./pages/ForgotPassword";
+import { ResetPasswordPage } from "./pages/ResetPassword";
 import { ProspectsListPage } from "./pages/ProspectsList";
 import { ImportPage } from "./pages/Import";
 import { ProspectDetailPage } from "./pages/ProspectDetail";
@@ -119,6 +121,8 @@ export default function App() {
     <>
       <Routes location={backgroundLocation ?? location}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/book/:token" element={<PublicBookingPage />} />
         <Route path="/rdv/gerer/:token" element={<PublicManageMeetingPage />} />
         <Route path="/f/:slug" element={<PublicFormPage />} />

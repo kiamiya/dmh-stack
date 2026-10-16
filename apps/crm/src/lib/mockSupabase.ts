@@ -232,6 +232,10 @@ export function createMockSupabaseClient() {
       listeners.forEach((cb) => cb("SIGNED_OUT", null));
       return { error: null };
     },
+    async resetPasswordForEmail(_email: string, _options?: { redirectTo?: string }) {
+      // Mode démo : aucun e-mail n'est envoyé.
+      return { data: {}, error: null };
+    },
     async updateUser(_attrs: { password?: string }) {
       // Mode démo : accepte toujours, ne persiste rien (pas de vrai mot de passe à changer).
       return { data: { user: session?.user ?? null }, error: null };
