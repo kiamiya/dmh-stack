@@ -164,7 +164,12 @@ Les étapes 1 et 2 ci-dessous sont faites (2026-10-09).
    dans Vercel. Les connexions Google/Microsoft redirigent vers une Edge
    Function Supabase puis vers l'origine du CRM : rien à changer dans les
    consoles Google Cloud / Microsoft Entra.
-5. **Après mise en ligne** : chaque hôte de RDV reconnecte son calendrier
+5. **Accès de l'équipe** (avant d'annoncer la mise en ligne) : vérifier que
+   chaque membre du staff peut se connecter à l'adresse en ligne (compte
+   présent dans `staff_members`, e-mail confirmé, mot de passe connu de
+   l'intéressé) et lui remettre ses accès. Supabase ne stocke qu'une empreinte
+   du mot de passe : un mot de passe perdu se remplace, il ne se retrouve pas.
+6. **Après mise en ligne** : chaque hôte de RDV reconnecte son calendrier
    Microsoft **depuis l'adresse en ligne** (Paramètres › Mon calendrier)
    pour accorder le droit `Mail.Send` (e-mails de RDV). Si le tenant
    Microsoft bloque le consentement utilisateur, un administrateur doit
