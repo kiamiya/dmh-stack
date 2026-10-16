@@ -9,6 +9,31 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
+## Statut : ✅ Mot de passe oublié + changement sécurisé — en ligne (2026-10-16), reste la réception de l'e-mail 👤
+
+Testé en ligne par Claude : lien « Mot de passe oublié ? » sur la connexion,
+demande de lien (message neutre), lien invalide/expiré, « Changer le mot de
+passe » (menu du compte) qui refuse un mot de passe actuel faux et accepte le
+bon — compte de test supprimé.
+
+### 👤 Ce que je te demande
+
+1. **Supabase › Authentication › URL Configuration** :
+   - *Site URL* : `https://dmh-stack.vercel.app`
+   - *Redirect URLs* : ajouter `https://dmh-stack.vercel.app/**`
+     (et `http://localhost:5173/**` pour le développement local).
+2. Sur https://dmh-stack.vercel.app/login › « Mot de passe oublié ? » avec
+   `lrd@dmhassocies.com` → e-mail reçu → lien → page « Nouveau mot de passe »
+   → enregistrer : tu es connecté. (C'est aussi ta façon de retrouver ton
+   accès.)
+3. Si l'e-mail n'arrive pas : le serveur d'e-mails intégré de Supabase est
+   limité (quelques envois par heure, uniquement vers les membres de l'équipe
+   du projet Supabase). Il faudra brancher un SMTP (ex. Brevo) dans
+   Authentication › Emails › SMTP Settings — indispensable de toute façon
+   pour Delphine et William.
+
+---
+
 ## Statut : ✅ CRM en ligne pour les tests — https://dmh-stack.vercel.app (2026-10-16)
 
 Vérifié par Claude : code publié = `master`, 6 variables publiques présentes
