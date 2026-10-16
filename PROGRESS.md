@@ -171,6 +171,7 @@ Dernière mise à jour : 2026-10-15
 | S39-N | CR (09/10) — hors dev ou reporté : éditeur d'e-mails **écarté** ; campagnes (agrégateur HubSpot : UTM, Ads, LinkedIn) → **release 2** ; reporting client/interne → attend la définition de Delphine ; enrichissement non structuré (organigrammes, rapports de marché), Open Data, cascade Dropcontact/Hunter, agents IA → à cadrer (Delphine/William) ; personnalisation visuelle de la page de réservation (logo, couleurs, favicon) → non prioritaire ; Google Meet → plus tard | ⬜ non planifié |
 | S40 | Pipeline d'enrichissement **automatique par défaut** pour chaque client (brief §1.3.1 : CSV → prospects enrichis + messages sans intervention) — 3 règles système par client (prospect créé → Pappers ; → `enriched_pappers` : Dropcontact + score IA ; → `enriched_contact` : messages), créées pour tout nouveau client, désactivables mais non supprimables ; relance Dropcontact par pg_cron ; `generate-messages`/`score-prospect` atteignables par le moteur et désormais protégées par connexion | ✅ fait — **en production le 2026-10-15** (accord de Loïc) : `generate-messages`/`score-prospect` redéployées (401 sans clé), migration 052 appliquée ; test de bout en bout réussi (prospect `to_enrich` → `ready` en 4 min 30, sans intervention) — reste 👤 coup d'œil à l'écran Automatisations (`TESTING.md`) |
 | S40-R | Nouvelle tentative automatique des étapes du pipeline en échec (Pappers, soumission Dropcontact, score IA, messages) — 3 essais max, fenêtre de 48 h, règle système active ; clé service_role locale resynchronisée | ✅ fait — **migration 054 appliquée et testée en production le 2026-10-16** (échec simulé rattrapé, pas de doublon, plafond respecté) |
+| S40-F | Tâche « Enrichissement en échec » après 3 relances + plafond du suivi Dropcontact (6 h, puis abandon et resoumission bornée) | ✅ fait — **migration 055 appliquée et testée en production le 2026-10-16** |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -3065,4 +3066,20 @@ En explorant, trois trous de plus, qui auraient bloqué la chaîne même avec de
 
 **Limites restantes** : après 3 échecs, rien ne signale la fiche au staff (pas d'alerte ni de tâche) ; `poll-dropcontact` relance sans limite une demande Dropcontact qui échoue toujours (sans coût de crédit, la consultation est gratuite).
 
-**Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.
+**Point de reprise** : voir l'entrée suivante.
+
+## 2026-10-16 (suite) — S40-F : tâche « Enrichissement en échec » + plafond Dropcontact
+
+**Analyse du suivi Dropcontact sans plafond** (demande de Loïc) : risque réel, confirmé en production. Pour un identifiant de demande **inventé**, Dropcontact répond 202 « Request not ready yet, try again in 30 seconds » — une demande perdue ou expirée n'est donc jamais signalée comme telle. Avec l'ancien `poll-dropcontact` : 288 appels d'Edge Function par jour et par prospect bloqué, **sans fin** ; au-delà de 100 demandes mortes, le lot de 100 par passage (ordre aléatoire) en aurait été rempli au détriment des vraies, jusqu'à ~28 800 appels/jour (~860 000/mois, au-dessus du quota de 500 000 du plan gratuit Supabase, 43 % des 2 M du plan Pro). Non concernés : la table `net._http_response` (purgée au bout de 6 h, `pg_net.ttl`) et les crédits Dropcontact (aucun indiqué pour la consultation, sources tierces : à confirmer dans la doc officielle).
+
+**Migration `055_enrichment_failure_tasks.sql`** :
+- `contacts.dropcontact_submitted_at`, datée par un trigger à chaque soumission (aucune modification de l'Edge Function).
+- `poll_dropcontact_enrichments()` : ne consulte une demande que pendant **6 h** (un contact seul revient en quelques minutes), les plus anciennes d'abord ; au-delà, la demande est **abandonnée** (identifiant effacé) et l'étape « dropcontact » des relances (054) la soumet à nouveau, 3 fois au plus. Pire cas par prospect : ~3 × 72 consultations + 3 soumissions sur ~24 h, puis arrêt.
+- `retry_failed_enrichments()` : après les 3 relances, si l'étape est toujours bloquée 30 min après le dernier essai, **tâche « Enrichissement en échec : <étape> »** — une seule par prospect et par étape (`pipeline_retries.failed_at`, `failure_task_id`), priorité haute, type Donnée, origine Automatisation, échéance le jour même, rattachée au contact et à l'entreprise, avec la marche à suivre et la dernière réponse du service (lue dans `net._http_response`).
+- +5 tests (`automationMigrations.test.ts`). `pnpm typecheck`/`pnpm test` racine verts.
+
+**Test en production** (sans crédit, entreprise fictive `[TEST S40d]` déjà à `enriched_pappers`) : fausse demande récente → consultée (202 pending) ; vieillie à 7 h → abandonnée (identifiant et date effacés), plus aucun appel ensuite ; 3 relances simulées en échec → **1 tâche** créée avec description complète, 2e passage → aucune 2e tâche, aucun appel. Nettoyage vérifié (tâche, fiches, relances), donnée de juillet intacte, 3 règles et 4 crons actifs.
+
+**Point de vigilance restant (non traité)** : un gros import (ex. 1 000 contacts) déclencherait ~1 000 appels Pappers quasi simultanés, puis autant de soumissions Dropcontact (limite de débit non officielle relevée : ~250 demandes / 10 min). Les relances absorbent une partie des refus, mais au-delà, des tâches d'échec seraient créées en nombre. À lisser (file d'attente à débit limité) avant le premier gros import réel.
+
+**Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) et à une tâche d'échec ; décision sur le lissage des gros imports ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.

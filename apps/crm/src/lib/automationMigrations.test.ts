@@ -189,3 +189,56 @@ describe("relance des étapes en échec (054)", () => {
     expect(sql).toContain("new.status_changed_at := now();");
   });
 });
+
+/** S40 (suite, migration 055) : tâche « Enrichissement en échec » + plafond du suivi Dropcontact. */
+describe("échecs définitifs et plafond Dropcontact (055)", () => {
+  function latestBody(signature: string): string {
+    let latest = "";
+    for (const f of Object.keys(migrations).sort()) {
+      const sql = migrations[f].replace(/\r\n/g, "\n");
+      const start = sql.indexOf(`create or replace function ${signature}`);
+      if (start === -1) continue;
+      const bodyStart = sql.indexOf("$$", start);
+      latest = sql.slice(bodyStart + 2, sql.indexOf("$$", bodyStart + 2));
+    }
+    return latest;
+  }
+  const retry = latestBody("public.retry_failed_enrichments()");
+  const poll = latestBody("public.poll_dropcontact_enrichments()");
+  const file = Object.keys(migrations).find((f) => f.endsWith("055_enrichment_failure_tasks.sql"));
+  const sql = file ? migrations[file].replace(/\r\n/g, "\n") : "";
+
+  it("existe", () => {
+    expect(file).toBeDefined();
+  });
+
+  it("crée une seule tâche par étape, 30 min après le 3e essai, rattachée au contact et à l'entreprise", () => {
+    expect(retry).toContain("r.attempts >= 3 and r.failed_at is null and r.last_attempt_at < now() - interval '30 minutes'");
+    expect(retry).toContain("'Enrichissement en échec : ' || v_step_label");
+    expect(retry).toMatch(/v_candidate\.contact_id,\s+v_candidate\.company_id,\s+'automation',\s+'data',\s+'high'/);
+    expect(retry).toContain("set failed_at = now(), failure_task_id = v_task_id");
+  });
+
+  it("garde les règles de relance de la 054 (3 essais, espacés, fenêtre de 48 h, règle active)", () => {
+    expect(retry).toContain("(coalesce(r.attempts, 0) < 3");
+    expect(retry).toContain("r.last_attempt_at < now() - r.attempts * interval '15 minutes'");
+    expect(retry).toContain("p.status_changed_at > now() - interval '48 hours'");
+    expect(retry).toMatch(/ar\.system_key = c\.rule_key\s+and ar\.enabled = true/);
+    expect(retry).toContain("timeout_milliseconds => 60000");
+  });
+
+  it("ne consulte plus une demande Dropcontact au-delà de 6 h, puis l'abandonne pour resoumission", () => {
+    expect(poll).toContain("and c.dropcontact_submitted_at > now() - interval '6 hours'");
+    expect(poll).toMatch(/set dropcontact_request_id = null\s+where c\.dropcontact_request_id is not null\s+and c\.dropcontact_submitted_at < now\(\) - interval '6 hours'/);
+    expect(poll).toContain("order by c.dropcontact_submitted_at");
+    expect(poll).toContain("limit 100");
+    expect(poll).toContain("timeout_milliseconds => 60000");
+  });
+
+  it("date chaque soumission Dropcontact par trigger (aucune modification de l'Edge Function)", () => {
+    expect(sql).toMatch(/create trigger contacts_dropcontact_submitted_at before update of dropcontact_request_id on contacts/);
+    expect(sql).toContain("new.dropcontact_submitted_at := now();");
+    expect(sql).toContain("revoke execute on function public.retry_failed_enrichments() from public, anon, authenticated;");
+    expect(sql).toContain("revoke execute on function public.poll_dropcontact_enrichments() from public, anon, authenticated;");
+  });
+});

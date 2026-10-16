@@ -37,9 +37,14 @@ prospect (≈ 0,01 $)**, détail dans `PROGRESS.md`.
 rattrapé, aucun doublon, plafond respecté. Clé de service locale
 resynchronisée (`check-env` OK).
 
+**Suite (16/10, bis)** : tâche « Enrichissement en échec » après 3 relances
+et plafond du suivi Dropcontact (6 h, puis resoumission bornée) — migration
+055, testée en production sans crédit consommé.
+
 ### 👤 Ce que je te demande
 
 - Un coup d'œil à l'écran Automatisations (P2).
+- Me dire si je lisse les gros imports (voir `PROGRESS.md`, point de vigilance).
 
 ---
 
