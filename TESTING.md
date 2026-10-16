@@ -9,6 +9,27 @@
 > n'est pas validé par toi (ou explicitement passé si tu préfères avancer
 > sans attendre).
 
+## Statut : ✅ CRM en ligne pour les tests — https://dmh-stack.vercel.app (2026-10-16)
+
+Vérifié par Claude : code publié = `master`, 6 variables publiques présentes
+et aucune clé secrète dans le code envoyé au navigateur, en-têtes de sécurité
+conformes, test de fumée en navigateur réel (connexion, Automatisations avec
+les 3 règles « Par défaut », Accueil, Tâches, Pipeline, Formulaires et
+rendez-vous, Aide, pages publiques sans connexion) — compte de test supprimé.
+Chaque push sur `master` redéploie automatiquement.
+
+### 👤 Ce que je te demande (en ligne)
+
+1. Te connecter sur https://dmh-stack.vercel.app avec ton compte et faire le
+   tour (Automatisations › client de test : 3 règles « Par défaut »).
+2. **Reconnecter ton calendrier Microsoft depuis l'adresse en ligne**
+   (Paramètres › Mon calendrier) — droit `Mail.Send` pour les e-mails de RDV —
+   puis dérouler la partie R ci-dessous (R5, R7 à R11) avec ta boîte Outlook.
+3. Avant la release : passer ton compte Vercel en Pro (ou transférer le projet
+   dans l'équipe DMH).
+
+---
+
 ## Statut : ✅ S40 — pipeline d'enrichissement automatique par défaut — en production (2026-10-15), testé de bout en bout par Claude
 
 **Fait** (ton accord du 15/10) : `generate-messages` et `score-prospect`

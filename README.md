@@ -131,6 +131,13 @@ les Edge Functions s'invoquent aujourd'hui manuellement (`POST { prospect_id }`)
 
 Chaque étape distante se fait sur confirmation explicite de Loïc.
 
+**État (2026-10-16)** : en ligne pour les tests sur **https://dmh-stack.vercel.app**
+(compte Vercel de Loïc, relié à `kiamiya/dmh-stack` : chaque push sur `master`
+redéploie). Avant la release : passage en offre Pro (l'offre gratuite est
+réservée à un usage non commercial) ou transfert du projet dans l'équipe DMH,
+et éventuel sous-domaine (`crm.dmhassocies.com`, CNAME chez OVH vers Vercel).
+Les étapes 1 et 2 ci-dessous sont faites (2026-10-09).
+
 1. **Supabase — base** : appliquer les migrations `049_booking_module.sql`,
    `050_booking_reminders_cron.sql`, `051_forms.sql`
    (`pnpm exec supabase db push`).
