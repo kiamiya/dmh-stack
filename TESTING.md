@@ -41,10 +41,14 @@ resynchronisée (`check-env` OK).
 et plafond du suivi Dropcontact (6 h, puis resoumission bornée) — migration
 055, testée en production sans crédit consommé.
 
+**Suite (16/10, ter)** : file d'attente à débit limité pour les gros imports
+(migration 056) + correctif du moteur : les conditions des règles à action
+unique étaient ignorées depuis la 030 (migration 057). Testé en production,
+dont un passage réel jusqu'à « Prêt » via la file.
+
 ### 👤 Ce que je te demande
 
 - Un coup d'œil à l'écran Automatisations (P2).
-- Me dire si je lisse les gros imports (voir `PROGRESS.md`, point de vigilance).
 
 ---
 

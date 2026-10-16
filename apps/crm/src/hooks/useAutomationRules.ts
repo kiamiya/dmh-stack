@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { deleteRule, listRules, updateRuleEnabled } from "../services/automations";
+import { countPendingEnrichments, deleteRule, listRules, updateRuleEnabled } from "../services/automations";
 import type { AutomationRuleWithChain, RuleInsert } from "../services/automations";
 import { createRule } from "../services/automations";
 
 export function useAutomationRules(clientId: string) {
   const [rules, setRules] = useState<AutomationRuleWithChain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingEnrichments, setPendingEnrichments] = useState(0);
 
   const load = useCallback(() => {
     if (!clientId) {
       setRules([]);
+      setPendingEnrichments(0);
       setLoading(false);
       return Promise.resolve();
     }
     setLoading(true);
+    countPendingEnrichments(supabase, clientId)
+      .then(setPendingEnrichments)
+      .catch(() => setPendingEnrichments(0));
     return listRules(supabase, clientId)
       .then(setRules)
       .catch(() => setRules([]))
@@ -41,5 +46,5 @@ export function useAutomationRules(clientId: string) {
     await load();
   }
 
-  return { rules, loading, create, toggle, remove, reload: load };
+  return { rules, loading, pendingEnrichments, create, toggle, remove, reload: load };
 }

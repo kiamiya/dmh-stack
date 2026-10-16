@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addAction, addCondition, createRule, deleteRule, listActions, listConditions, listRules, updateRuleEnabled } from "./automations";
+import {
+  addAction,
+  addCondition,
+  countPendingEnrichments,
+  createRule,
+  deleteRule,
+  listActions,
+  listConditions,
+  listRules,
+  updateRuleEnabled,
+} from "./automations";
 
 /** Stub minimal du sous-ensemble de l'API supabase-js utilisé par ces services — pas de réseau. */
-function makeStubClient(result: { data: unknown; error: { message: string } | null }) {
+function makeStubClient(result: { data: unknown; error: { message: string } | null; count?: number }) {
   const query = {
     select: () => query,
     order: () => query,
@@ -105,5 +115,22 @@ describe("listActions / addAction", () => {
     await expect(
       addAction(client, { clientId: "client-1", ruleId: "rule-1", position: 1, actionType: "create_task", actionConfig: { title: "Relancer" } }),
     ).resolves.toEqual({ id: "action-42" });
+  });
+});
+
+describe("countPendingEnrichments", () => {
+  it("renvoie le nombre d'appels en attente", async () => {
+    const client = makeStubClient({ data: null, error: null, count: 12 });
+    await expect(countPendingEnrichments(client, "client-1")).resolves.toBe(12);
+  });
+
+  it("renvoie 0 si Supabase ne renvoie pas de compte", async () => {
+    const client = makeStubClient({ data: null, error: null });
+    await expect(countPendingEnrichments(client, "client-1")).resolves.toBe(0);
+  });
+
+  it("lève une erreur avec le message Supabase en cas d'échec", async () => {
+    const client = makeStubClient({ data: null, error: { message: "lecture refusée" } });
+    await expect(countPendingEnrichments(client, "client-1")).rejects.toThrow("lecture refusée");
   });
 });

@@ -172,6 +172,7 @@ Dernière mise à jour : 2026-10-15
 | S40 | Pipeline d'enrichissement **automatique par défaut** pour chaque client (brief §1.3.1 : CSV → prospects enrichis + messages sans intervention) — 3 règles système par client (prospect créé → Pappers ; → `enriched_pappers` : Dropcontact + score IA ; → `enriched_contact` : messages), créées pour tout nouveau client, désactivables mais non supprimables ; relance Dropcontact par pg_cron ; `generate-messages`/`score-prospect` atteignables par le moteur et désormais protégées par connexion | ✅ fait — **en production le 2026-10-15** (accord de Loïc) : `generate-messages`/`score-prospect` redéployées (401 sans clé), migration 052 appliquée ; test de bout en bout réussi (prospect `to_enrich` → `ready` en 4 min 30, sans intervention) — reste 👤 coup d'œil à l'écran Automatisations (`TESTING.md`) |
 | S40-R | Nouvelle tentative automatique des étapes du pipeline en échec (Pappers, soumission Dropcontact, score IA, messages) — 3 essais max, fenêtre de 48 h, règle système active ; clé service_role locale resynchronisée | ✅ fait — **migration 054 appliquée et testée en production le 2026-10-16** (échec simulé rattrapé, pas de doublon, plafond respecté) |
 | S40-F | Tâche « Enrichissement en échec » après 3 relances + plafond du suivi Dropcontact (6 h, puis abandon et resoumission bornée) | ✅ fait — **migration 055 appliquée et testée en production le 2026-10-16** |
+| S40-Q | File d'attente à débit limité pour les appels du pipeline (gros imports) + correctif moteur : conditions ignorées des règles à action unique depuis la 030 | ✅ fait — **migrations 056 et 057 appliquées et testées en production le 2026-10-16** |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -3082,4 +3083,26 @@ En explorant, trois trous de plus, qui auraient bloqué la chaîne même avec de
 
 **Point de vigilance restant (non traité)** : un gros import (ex. 1 000 contacts) déclencherait ~1 000 appels Pappers quasi simultanés, puis autant de soumissions Dropcontact (limite de débit non officielle relevée : ~250 demandes / 10 min). Les relances absorbent une partie des refus, mais au-delà, des tâches d'échec seraient créées en nombre. À lisser (file d'attente à débit limité) avant le premier gros import réel.
 
-**Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) et à une tâche d'échec ; décision sur le lissage des gros imports ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.
+**Point de reprise** : voir l'entrée suivante.
+
+## 2026-10-16 (suite) — S40-Q : file d'attente à débit limité + correctif des conditions du moteur
+
+**Migration `056_enrichment_queue.sql`** (demande de Loïc : lisser les gros imports) :
+- `enrichment_rate_limits` : plafond par minute et par Edge Function, réglable par simple `update` — Pappers 30, Dropcontact 20 (= 200 / 10 min, sous la limite non officielle de ~250), score 20, messages 20.
+- `enrichment_queue` + `enqueue_enrichment()` : appel envoyé **tout de suite** s'il reste de la place dans la minute écoulée (petits volumes : aucun délai), sinon mis en attente ; pas de doublon d'un appel déjà en attente pour le même prospect. `send_enrichment()` verrouille la ligne (pas de double envoi).
+- `dispatch_enrichment_queue()` + cron `dispatch-enrichment-queue` chaque minute : les plus anciens d'abord, dans le plafond restant ; purge des envois de plus de 7 jours.
+- `run_automation_rules()` et `retry_failed_enrichments()` passent par la file ; les relances ignorent un appel encore en attente ou parti il y a moins de 10 min (un import en file n'est pas relancé à tort). Les consultations Dropcontact (`poll-dropcontact`) restent hors file (lectures, plafonnées en 055).
+- Débit pour 1 000 contacts : Pappers ~34 min, puis ~50 min par étape suivante → ~2-3 h, sous l'objectif de 24 h du brief.
+- CRM : indicateur « N appels d'enrichissement en file d'attente » dans Automatisations (`countPendingEnrichments`, 3 tests) ; page Aide complétée.
+
+**Bug trouvé en testant la 056 (antérieur, depuis le 2026-09-07)** : la règle système « prospect créé, si statut = À enrichir » a lancé Pappers sur des prospects créés « Qualifié ». Cause : la 030 (branches Oui/Non) a remplacé le `continue` de la 017 par un filtre où une action 'always' s'exécutait même conditions fausses — or le CRM enregistre en 'always' l'action de toute règle sans branchement : **toutes les règles à action unique ignoraient leurs conditions depuis la 030** (son commentaire la disait rétro-compatible, à tort ; jamais vu jusqu'ici car les règles testées n'avaient pas de condition). Sans conséquence ici (Pappers refuse un prospect hors `to_enrich`) mais un appel gaspillé par prospect. **Migration `057_fix_automation_conditions_always.sql`** : 'always' et 'if_true' seulement si les conditions sont vraies, 'if_false' sinon. Garde-fou ajouté.
+
+Tests : +9 (`automationMigrations.test.ts`, 2 anciens tests adaptés : le délai de 60 s est désormais porté par `send_enrichment`), +3 services. `pnpm typecheck`/`pnpm test` racine verts (crm 778), build CRM OK.
+
+**Tests en production (2026-10-16)** :
+- Débit, sans crédit (score sur des fiches sans données Pappers → 409 avant tout appel Claude), plafond abaissé à 2/min : 5 appels → **2 envoyés, 3 en attente** ; doublon ignoré ; répartiteur immédiat → rien (plafond atteint) ; minutes suivantes simulées → 2 puis 1 ; plafond remis à 20.
+- 057 : prospect créé « Qualifié » → **rien** dans la file.
+- Bout en bout réel (PME SIREN 481838852) : Pappers, Dropcontact, score partis **sans délai** via la file ; « Prêt » en 4 min 12 (relève Dropcontact par le cron), toutes les réponses 200/202.
+- Nettoyage vérifié : fiches de test supprimées, file vide, + 8 lignes `field_provenance` orphelines supprimées (4 de ce test — l'entreprise renommée par Pappers échappait au filtre par nom — et 4 laissées par un nettoyage du 09/10) ; donnée de juillet intacte.
+
+**Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) et à une tâche d'échec ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.

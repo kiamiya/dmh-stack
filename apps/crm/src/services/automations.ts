@@ -129,3 +129,14 @@ export async function addAction(client: SupabaseClient, input: ActionInsert): Pr
   if (error) throw new Error(error.message);
   return data as { id: string };
 }
+
+/** Appels du pipeline d'enrichissement en attente dans la file à débit limité (migration 056) pour un client — un gros import avance par paliers. */
+export async function countPendingEnrichments(client: SupabaseClient, clientId: string): Promise<number> {
+  const { count, error } = await client
+    .from("enrichment_queue")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .is("sent_at", null);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}

@@ -187,7 +187,7 @@ function ChainArrow() {
 export function AutomationsPage() {
   const clients = useClients();
   const [clientId, setClientId] = useState("");
-  const { rules, loading, create, toggle, remove, reload } = useAutomationRules(clientId);
+  const { rules, loading, pendingEnrichments, create, toggle, remove, reload } = useAutomationRules(clientId);
   const { stages } = usePipelineStages(clientId);
   const staff = useStaffMembers();
   const { toast } = useToast();
@@ -423,6 +423,12 @@ export function AutomationsPage() {
                 Les règles « Par défaut » forment le pipeline d'enrichissement automatique de chaque client (Pappers → Dropcontact
                 + score IA → messages). Elles peuvent être désactivées, pas supprimées. La génération des messages nécessite la
                 description de l'offre du client.
+              </p>
+            )}
+            {!loading && pendingEnrichments > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {pendingEnrichments} appel{pendingEnrichments > 1 ? "s" : ""} d'enrichissement en file d'attente : le débit
+                est limité par service pour les gros imports, ils partiront dans les prochaines minutes.
               </p>
             )}
             {!loading &&

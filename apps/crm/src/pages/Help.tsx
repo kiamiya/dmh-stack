@@ -249,8 +249,13 @@ export function HelpPage() {
               En cas d'erreur passagère (service indisponible, réponse inexploitable…), l'étape est{" "}
               <strong className="text-foreground">relancée automatiquement</strong> : jusqu'à 3 fois, la première
               10 minutes après l'échec, puis à 15 et 30 minutes d'intervalle, tant que la règle de l'étape est active.
-              Au-delà, ou pour une fiche bloquée depuis plus de 48 h, il faut passer par le bouton "Enrichir" de la
-              fiche.
+              Au-delà, une tâche « Enrichissement en échec » est créée pour l'équipe, avec la marche à suivre.
+            </p>
+            <p>
+              Pour les gros imports, les appels passent par une <strong className="text-foreground">file
+              d'attente</strong> à débit limité par service (par défaut : 30 appels Pappers et 20 appels Dropcontact,
+              score ou messages par minute). Un petit volume part immédiatement ; 1 000 contacts sont enrichis en 2 à
+              3 heures environ. Le nombre d'appels en attente s'affiche dans Automatisations.
             </p>
           </CardContent>
         </Card>

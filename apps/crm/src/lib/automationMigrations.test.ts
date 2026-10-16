@@ -126,9 +126,15 @@ describe("délai d'attente des appels du pipeline (053)", () => {
     return latest;
   }
 
-  it("le moteur attend jusqu'à 60 s la réponse des Edge Functions du pipeline", () => {
+  it("le moteur attend jusqu'à 60 s la réponse des Edge Functions du pipeline (directement, ou via la file depuis la 056)", () => {
     const { file, body } = latestRunAutomationRulesBody();
-    expect(body, file).toContain("timeout_milliseconds => 60000");
+    if (body.includes("public.enqueue_enrichment(")) {
+      expect(latestFunctionBody("public.send_enrichment(p_queue_id bigint, p_service_role_key text)").body).toContain(
+        "timeout_milliseconds => 60000",
+      );
+    } else {
+      expect(body, file).toContain("timeout_milliseconds => 60000");
+    }
   });
 
   it("la relève Dropcontact aussi", () => {
@@ -224,7 +230,7 @@ describe("échecs définitifs et plafond Dropcontact (055)", () => {
     expect(retry).toContain("r.last_attempt_at < now() - r.attempts * interval '15 minutes'");
     expect(retry).toContain("p.status_changed_at > now() - interval '48 hours'");
     expect(retry).toMatch(/ar\.system_key = c\.rule_key\s+and ar\.enabled = true/);
-    expect(retry).toContain("timeout_milliseconds => 60000");
+    expect(retry.includes("timeout_milliseconds => 60000") || retry.includes("public.enqueue_enrichment(")).toBe(true);
   });
 
   it("ne consulte plus une demande Dropcontact au-delà de 6 h, puis l'abandonne pour resoumission", () => {
@@ -240,5 +246,85 @@ describe("échecs définitifs et plafond Dropcontact (055)", () => {
     expect(sql).toContain("new.dropcontact_submitted_at := now();");
     expect(sql).toContain("revoke execute on function public.retry_failed_enrichments() from public, anon, authenticated;");
     expect(sql).toContain("revoke execute on function public.poll_dropcontact_enrichments() from public, anon, authenticated;");
+  });
+});
+
+/** S40-Q (migration 056) : file d'attente à débit limité pour les gros imports. */
+describe("file d'attente à débit limité (056)", () => {
+  function latest(signature: string): string {
+    let found = "";
+    for (const f of Object.keys(migrations).sort()) {
+      const sql = migrations[f].replace(/\r\n/g, "\n");
+      const start = sql.indexOf(`create or replace function ${signature}`);
+      if (start === -1) continue;
+      const bodyStart = sql.indexOf("$$", start);
+      found = sql.slice(bodyStart + 2, sql.indexOf("$$", bodyStart + 2));
+    }
+    return found;
+  }
+  const file = Object.keys(migrations).find((f) => f.endsWith("056_enrichment_queue.sql"));
+  const sql = file ? migrations[file].replace(/\r\n/g, "\n") : "";
+  const enqueue = latest("public.enqueue_enrichment(");
+  const dispatch = latest("public.dispatch_enrichment_queue()");
+  const budget = latest("public.enrichment_budget(p_function_name text)");
+  const retry = latest("public.retry_failed_enrichments()");
+
+  it("existe", () => {
+    expect(file).toBeDefined();
+  });
+
+  it("plafonne chaque Edge Function par minute (réglable), Dropcontact sous la limite de ~250 / 10 min", () => {
+    expect(sql).toContain("('enrich-pappers', 30)");
+    expect(sql).toContain("('enrich-dropcontact', 20)");
+    expect(sql).toContain("('score-prospect', 20)");
+    expect(sql).toContain("('generate-messages', 20)");
+    expect(budget).toContain("sent_at > now() - interval '1 minute'");
+  });
+
+  it("le moteur et les relances passent par la file", () => {
+    const { file: engineFile, body } = latestRunAutomationRulesBody();
+    expect(body, engineFile).toContain("public.enqueue_enrichment(new.id, new.client_id, v_function, 'automation')");
+    expect(body, engineFile).not.toContain("net.http_post");
+    expect(retry).toContain("public.enqueue_enrichment(v_candidate.prospect_id, v_candidate.client_id, v_candidate.fn, 'retry')");
+    expect(retry).not.toContain("net.http_post");
+  });
+
+  it("envoie tout de suite sous le plafond, sinon met en attente, sans doubler un appel déjà en attente", () => {
+    expect(enqueue).toMatch(/if exists \(\s+select 1 from enrichment_queue\s+where prospect_id = p_prospect_id and function_name = p_function_name and sent_at is null/);
+    expect(enqueue).toContain("if public.enrichment_budget(p_function_name) <= 0 then");
+    expect(enqueue).toContain("return public.send_enrichment(v_queue_id, v_service_role_key);");
+  });
+
+  it("répartit chaque minute les plus anciens d'abord, dans le plafond restant, et purge après 7 jours", () => {
+    expect(sql).toContain("select cron.schedule('dispatch-enrichment-queue', '* * * * *'");
+    expect(dispatch).toContain("order by created_at, id");
+    expect(dispatch).toContain("limit v_budget");
+    expect(dispatch).toContain("delete from enrichment_queue where sent_at < now() - interval '7 days';");
+  });
+
+  it("ne relance pas un appel encore en attente ou parti il y a moins de 10 min", () => {
+    expect(retry).toContain("and (q.sent_at is null or q.sent_at > now() - interval '10 minutes')");
+  });
+
+  it("n'expose aucune fonction de la file aux rôles publics", () => {
+    for (const fn of [
+      "send_enrichment(bigint, text)",
+      "enrichment_budget(text)",
+      "enqueue_enrichment(uuid, uuid, text, text)",
+      "dispatch_enrichment_queue()",
+      "retry_failed_enrichments()",
+    ]) {
+      expect(sql).toContain(`revoke execute on function public.${fn} from public, anon, authenticated;`);
+    }
+  });
+});
+
+/** Correctif 057 : les conditions d'une règle à action unique étaient ignorées depuis la 030. */
+describe("conditions d'une règle à action unique (057)", () => {
+  it("une action 'always' ne s'exécute que si les conditions sont vraies", () => {
+    const { file, body } = latestRunAutomationRulesBody();
+    expect(body, file).toContain("(branch in ('always', 'if_true') and v_conditions_met)");
+    expect(body, file).toContain("or (branch = 'if_false' and not v_conditions_met)");
+    expect(body, file).not.toMatch(/branch = 'always'\s+or/);
   });
 });
