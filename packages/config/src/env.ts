@@ -189,6 +189,14 @@ export function loadPharowImportEnv(source: EnvSource): PharowImportEnv {
 }
 
 /**
+ * Variante scopée pour l'Edge Function `staff-signup` (S41-2) : Supabase
+ * uniquement (clé de service pour l'invitation par e-mail).
+ */
+export function loadStaffSignupFunctionEnv(source: EnvSource): PharowImportEnv {
+  return parseOrThrow(pharowImportEnvSchema, source);
+}
+
+/**
  * Variante scopée pour l'Edge Function `enrich-dropcontact` : Supabase +
  * Dropcontact uniquement.
  */

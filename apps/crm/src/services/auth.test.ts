@@ -5,6 +5,7 @@ import {
   isPlausibleEmail,
   passwordResetRedirectUrl,
   requestPasswordReset,
+  requestStaffSignup,
   validateNewPassword,
   verifyCurrentPassword,
 } from "./auth";
@@ -81,6 +82,39 @@ describe("verifyCurrentPassword", () => {
     const signInWithPassword = vi.fn(async () => ({ error: { message: "Invalid login credentials" } }));
     await expect(verifyCurrentPassword(authClient({ signInWithPassword }), "a@b.fr", "faux")).rejects.toThrow(
       "Mot de passe actuel incorrect.",
+    );
+  });
+});
+
+describe("requestStaffSignup", () => {
+  function functionsClient(invoke: (...args: unknown[]) => Promise<unknown>) {
+    return { functions: { invoke } } as unknown as SupabaseClient;
+  }
+
+  it("appelle staff-signup avec le nom, l'adresse et l'origine du CRM", async () => {
+    const invoke = vi.fn(async () => ({ data: { ok: true, status: "invited" }, error: null }));
+    await expect(
+      requestStaffSignup(functionsClient(invoke), { name: "Loïc", email: "lrd@dmhassocies.com" }, "https://dmh-stack.vercel.app"),
+    ).resolves.toBe("invited");
+    expect(invoke).toHaveBeenCalledWith("staff-signup", {
+      body: { name: "Loïc", email: "lrd@dmhassocies.com", origin: "https://dmh-stack.vercel.app" },
+    });
+  });
+
+  it("signale un compte déjà existant", async () => {
+    const invoke = vi.fn(async () => ({ data: { ok: true, status: "already_registered" }, error: null }));
+    await expect(requestStaffSignup(functionsClient(invoke), { name: "L", email: "a@dmhassocies.com" }, "https://x.fr")).resolves.toBe(
+      "already_registered",
+    );
+  });
+
+  it("remonte le message de la fonction plutôt que l'erreur HTTP générique", async () => {
+    const invoke = vi.fn(async () => ({
+      data: null,
+      error: { message: "Edge Function returned a non-2xx status code", context: { json: async () => ({ error: "Réservé à @dmhassocies.com" }) } },
+    }));
+    await expect(requestStaffSignup(functionsClient(invoke), { name: "L", email: "a@gmail.com" }, "https://x.fr")).rejects.toThrow(
+      "Réservé à @dmhassocies.com",
     );
   });
 });

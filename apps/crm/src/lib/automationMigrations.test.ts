@@ -389,3 +389,28 @@ describe("intégrité à la suppression et à la fusion (058)", () => {
     }
   });
 });
+
+/** S41-2 (migration 059) : l'accès staff n'est accordé qu'à une adresse @dmhassocies.com CONFIRMÉE. */
+describe("création de compte DMH (059)", () => {
+  const file = Object.keys(migrations).find((f) => f.endsWith("059_staff_signup.sql"));
+  const sql = file ? migrations[file].replace(/\r\n/g, "\n") : "";
+
+  it("existe et se branche sur la création/confirmation des comptes Auth", () => {
+    expect(file).toBeDefined();
+    expect(sql).toMatch(/after insert or update of email_confirmed_at, email on auth\.users/);
+  });
+
+  it("n'accorde rien tant que l'adresse n'est pas confirmée", () => {
+    expect(sql).toContain("if new.email_confirmed_at is null then\n    return new;");
+  });
+
+  it("exige le domaine exact dmhassocies.com", () => {
+    expect(sql).toContain("split_part(v_email, '@', 2) <> 'dmhassocies.com'");
+  });
+
+  it("ne modifie pas un staff existant et ne bloque jamais l'authentification", () => {
+    expect(sql).toContain("on conflict (id) do nothing");
+    expect(sql).toMatch(/exception when others then\s+raise warning/);
+    expect(sql).toContain("revoke execute on function public.grant_staff_on_dmh_email_confirmed() from public, anon, authenticated;");
+  });
+});

@@ -57,3 +57,27 @@ export async function requestPasswordReset(client: SupabaseClient, email: string
   }
   throw new Error(error.message);
 }
+
+export type StaffSignupResult = "invited" | "already_registered";
+
+/**
+ * Création de compte DMH (S41-2) : l'Edge Function `staff-signup` vérifie le
+ * domaine @dmhassocies.com et envoie l'invitation par e-mail ; l'accès staff
+ * n'est accordé qu'au clic sur le lien (migration 059).
+ */
+export async function requestStaffSignup(
+  client: SupabaseClient,
+  input: { name: string; email: string },
+  origin: string,
+): Promise<StaffSignupResult> {
+  const { data, error } = await client.functions.invoke("staff-signup", {
+    body: { name: input.name, email: input.email, origin },
+  });
+  if (error) {
+    // Message lisible renvoyé par la fonction (domaine refusé, limite d'envoi…) plutôt que l'erreur HTTP générique.
+    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
+    const details = context?.json ? ((await context.json().catch(() => null)) as { error?: string } | null) : null;
+    throw new Error(details?.error ?? error.message);
+  }
+  return (data as { status?: StaffSignupResult } | null)?.status === "already_registered" ? "already_registered" : "invited";
+}

@@ -61,6 +61,9 @@ export function LoginPage() {
             >
               Mot de passe oublié ?
             </Link>
+            <Link to="/signup" className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline">
+              Créer un compte (équipe DMH)
+            </Link>
           </form>
         </CardContent>
       </Card>

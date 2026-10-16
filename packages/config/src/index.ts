@@ -3,6 +3,7 @@ export {
   loadServerEnv,
   loadPappersFunctionEnv,
   loadPharowImportEnv,
+  loadStaffSignupFunctionEnv,
   loadDropcontactFunctionEnv,
   loadGenerateMessagesFunctionEnv,
   loadLemlistSyncEnv,
@@ -20,3 +21,4 @@ export type {
 } from "./env.js";
 export { computeIntegrationStatuses } from "./integrations.js";
 export type { IntegrationStatus } from "./integrations.js";
+export { DMH_STAFF_EMAIL_DOMAIN, isDmhStaffEmail, normalizeEmail, validateStaffName, validateStaffSignup } from "./staffSignup.js";

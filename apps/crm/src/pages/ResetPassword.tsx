@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession } from "../lib/useSession";
 import { changePassword, validateNewPassword } from "../services/auth";
@@ -21,6 +21,8 @@ export function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  // `?invite=1` : arrivée par l'invitation de création de compte (S41-2), pas par « Mot de passe oublié ».
+  const isInvite = useSearchParams()[0].get("invite") === "1";
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -45,7 +47,7 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-secondary/40">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Nouveau mot de passe</CardTitle>
+          <CardTitle>{isInvite ? "Bienvenue — choisis ton mot de passe" : "Nouveau mot de passe"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
