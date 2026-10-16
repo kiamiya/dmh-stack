@@ -245,6 +245,13 @@ export function HelpPage() {
               pas supprimées. La génération des messages nécessite que la description de l'offre du client soit
               renseignée ; sinon le prospect reste "Enrichi (contact)".
             </p>
+            <p>
+              En cas d'erreur passagère (service indisponible, réponse inexploitable…), l'étape est{" "}
+              <strong className="text-foreground">relancée automatiquement</strong> : jusqu'à 3 fois, la première
+              10 minutes après l'échec, puis à 15 et 30 minutes d'intervalle, tant que la règle de l'étape est active.
+              Au-delà, ou pour une fiche bloquée depuis plus de 48 h, il faut passer par le bouton "Enrichir" de la
+              fiche.
+            </p>
           </CardContent>
         </Card>
       </section>

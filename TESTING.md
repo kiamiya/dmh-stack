@@ -32,6 +32,11 @@ Corrigé (marge 16 000, niveau de réflexion explicite), redéployé, rejoué :
 prospect « Prêt ». Consommation réelle mesurée : **≈ 2 500 tokens Claude par
 prospect (≈ 0,01 $)**, détail dans `PROGRESS.md`.
 
+**Suite (16/10)** : nouvelle tentative automatique des étapes en échec
+(migration 054, 3 essais max) — testée en production : échec simulé
+rattrapé, aucun doublon, plafond respecté. Clé de service locale
+resynchronisée (`check-env` OK).
+
 ### 👤 Ce que je te demande
 
 - Un coup d'œil à l'écran Automatisations (P2).

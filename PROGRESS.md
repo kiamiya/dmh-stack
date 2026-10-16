@@ -170,6 +170,7 @@ Dernière mise à jour : 2026-10-15
 | S39-13 | CR (09/10) — préparation de la mise en ligne Vercel (config SPA, variables, URI de redirection OAuth, checklist) — déploiement lui-même sur confirmation | ✅ fait côté code — `apps/crm/vercel.json`, variables exposées au navigateur réduites à une liste exacte, procédure dans `README.md` ; mise en ligne elle-même **non faite** (confirmation requise) |
 | S39-N | CR (09/10) — hors dev ou reporté : éditeur d'e-mails **écarté** ; campagnes (agrégateur HubSpot : UTM, Ads, LinkedIn) → **release 2** ; reporting client/interne → attend la définition de Delphine ; enrichissement non structuré (organigrammes, rapports de marché), Open Data, cascade Dropcontact/Hunter, agents IA → à cadrer (Delphine/William) ; personnalisation visuelle de la page de réservation (logo, couleurs, favicon) → non prioritaire ; Google Meet → plus tard | ⬜ non planifié |
 | S40 | Pipeline d'enrichissement **automatique par défaut** pour chaque client (brief §1.3.1 : CSV → prospects enrichis + messages sans intervention) — 3 règles système par client (prospect créé → Pappers ; → `enriched_pappers` : Dropcontact + score IA ; → `enriched_contact` : messages), créées pour tout nouveau client, désactivables mais non supprimables ; relance Dropcontact par pg_cron ; `generate-messages`/`score-prospect` atteignables par le moteur et désormais protégées par connexion | ✅ fait — **en production le 2026-10-15** (accord de Loïc) : `generate-messages`/`score-prospect` redéployées (401 sans clé), migration 052 appliquée ; test de bout en bout réussi (prospect `to_enrich` → `ready` en 4 min 30, sans intervention) — reste 👤 coup d'œil à l'écran Automatisations (`TESTING.md`) |
+| S40-R | Nouvelle tentative automatique des étapes du pipeline en échec (Pappers, soumission Dropcontact, score IA, messages) — 3 essais max, fenêtre de 48 h, règle système active ; clé service_role locale resynchronisée | ✅ fait — **migration 054 appliquée et testée en production le 2026-10-16** (échec simulé rattrapé, pas de doublon, plafond respecté) |
 
 ## Critères de succès Phase 1 (section 1.5 du brief)
 
@@ -3042,6 +3043,26 @@ En explorant, trois trous de plus, qui auraient bloqué la chaîne même avec de
 - **Consommation réelle par prospect (Claude Sonnet 5, 0 token de réflexion aux réglages actuels)** : messages 858 entrée / 486 sortie ; score 1 001 entrée / 164 sortie → **1 859 entrée + 650 sortie ≈ 0,010 $ par prospect** (2 $ / 10 $ par million). Le message seul ≈ 0,0066 $ — un peu au-dessus de la fourchette du brief (0,003-0,005 €/msg), à surveiller sur les vrais volumes.
 - Nettoyage vérifié : entreprise/contact/prospect/message `[TEST S40b]` + 4 lignes `field_provenance` supprimés ; donnée de juillet intacte, 3 règles.
 
-**Limites restantes** : une erreur passagère (ex. décalage d'horloge) laisse l'étape concernée sans nouvelle tentative automatique (score absent, ou prospect bloqué à son statut).
+**Limites restantes** : une erreur passagère (ex. décalage d'horloge) laisse l'étape concernée sans nouvelle tentative automatique (score absent, ou prospect bloqué à son statut) — **traité le 2026-10-16 (S40-R, migration 054)**.
+
+**Point de reprise** : voir l'entrée du 2026-10-16 ci-dessous.
+
+## 2026-10-16 — S40-R : nouvelle tentative automatique + clé service_role locale
+
+**Clé locale** (demande de Loïc) : `SUPABASE_SERVICE_ROLE_KEY` de `.env.local` (253 caractères, refusée : « Session invalide ») remplacée par la clé `service_role` officielle du projet, lue par `supabase projects api-keys` sans affichage (219 caractères, identique à celle du Vault). `.env.local` sauvegardé avant modification (scratchpad de session, hors repo) ; clé publique déjà correcte, aucune autre ligne touchée. Vérifié : les 4 Edge Functions du pipeline l'acceptent (« Prospect introuvable » pour un id inexistant, au lieu de 401), `pnpm run check-env` OK.
+
+**Migration `054_enrichment_retries.sql`** :
+- `prospects.status_changed_at` (aucune date fiable n'existait : `updated_at` n'est pas tenu), mise à jour par un trigger `before update of status`, rattrapée depuis `updated_at`/`created_at`.
+- Table `pipeline_retries` (prospect, étape, essais, dernier essai, requête pg_net), RLS staff.
+- `retry_failed_enrichments()` + cron `retry-failed-enrichments` toutes les 10 min : relance une étape quand le prospect n'a pas bougé depuis plus de 10 min — `to_enrich` → Pappers ; `enriched_pappers` sans demande Dropcontact → soumission (une demande en cours reste suivie par `poll-dropcontact`) ; données Pappers sans score → score ; `enriched_contact` avec offre renseignée → messages. **3 essais max** (2e ≥ 15 min après le 1er, 3e ≥ 30 min après le 2e), **fenêtre de 48 h** (pas de relance en masse d'anciennes fiches), seulement si la règle système de l'étape est active, 50 par passage, attente 60 s.
+- +7 tests (`automationMigrations.test.ts`). Page Aide complétée. `pnpm typecheck`/`pnpm test` racine verts (crm 763).
+
+**Test en production** (2026-10-16, client de test, PME réelle SIREN 481838852) : au moment de l'application, 0 prospect dans la fenêtre de 48 h → aucune relance parasite des données de juillet.
+- Échec simulé : règle 1 désactivée, prospect créé (Pappers ne part pas), `status_changed_at` reculé de 15 min. Règle désactivée → `retry_failed_enrichments()` ne fait **rien** (0 ligne). Règle réactivée → relance Pappers (essai 1) → **200**, `enriched_pappers`, `status_changed_at` mis à jour par le trigger, puis Dropcontact soumis et score 5 par la chaîne normale. 2e appel immédiat → aucun doublon.
+- Score effacé + statut reculé → relance du score (essai 1) → 200, score réécrit.
+- Plafond : essais forcés à 3 → plus aucune requête.
+- Nettoyage vérifié : entreprise/contact/prospect + 4 lignes `field_provenance` supprimés, `pipeline_retries` vide (cascade), donnée de juillet intacte, 3 règles actives.
+
+**Limites restantes** : après 3 échecs, rien ne signale la fiche au staff (pas d'alerte ni de tâche) ; `poll-dropcontact` relance sans limite une demande Dropcontact qui échoue toujours (sans coût de crédit, la consultation est gratuite).
 
 **Point de reprise** : 👤 coup d'œil de Loïc à l'écran Automatisations (P2) ; puis vérifications 👤 S39 (Outlook) et S38 (C6, D3, E4), mise en ligne Vercel.

@@ -136,3 +136,56 @@ describe("délai d'attente des appels du pipeline (053)", () => {
     expect(body, file).toContain("timeout_milliseconds => 60000");
   });
 });
+
+/** S40 (suite, migration 054) : nouvelle tentative automatique d'une étape du pipeline en échec. */
+describe("relance des étapes en échec (054)", () => {
+  const file = Object.keys(migrations).find((f) => f.endsWith("054_enrichment_retries.sql"));
+  const sql = file ? migrations[file].replace(/\r\n/g, "\n") : "";
+  const fnStart = sql.indexOf("create or replace function public.retry_failed_enrichments()");
+  const body = sql.slice(sql.indexOf("$$", fnStart) + 2, sql.indexOf("$$;", fnStart));
+
+  it("existe", () => {
+    expect(file).toBeDefined();
+    expect(fnStart).toBeGreaterThan(-1);
+  });
+
+  it("couvre les 4 étapes, chacune vers son Edge Function et sa règle système", () => {
+    for (const [step, fn, rule] of [
+      ["pappers", "enrich-pappers", "enrich_pappers"],
+      ["dropcontact", "enrich-dropcontact", "enrich_dropcontact"],
+      ["score", "score-prospect", "enrich_dropcontact"],
+      ["messages", "generate-messages", "generate_messages"],
+    ]) {
+      expect(body).toMatch(new RegExp(`'${step}'(::text as step)?, '${fn}'(::text as fn)?,\\s+'${rule}'`));
+    }
+  });
+
+  it("ne relance une demande Dropcontact que si elle n'a jamais été soumise (le suivi reste à poll-dropcontact)", () => {
+    expect(body).toContain("and c.dropcontact_request_id is null");
+  });
+
+  it("borne les relances : 3 essais, espacés, 10 min après le changement de statut, fenêtre de 48 h, règle active", () => {
+    expect(body).toContain("coalesce(r.attempts, 0) < 3");
+    expect(body).toContain("r.last_attempt_at < now() - r.attempts * interval '15 minutes'");
+    expect(body).toContain("p.status_changed_at < now() - interval '10 minutes'");
+    expect(body).toContain("p.status_changed_at > now() - interval '48 hours'");
+    expect(body).toMatch(/ar\.system_key = c\.rule_key\s+and ar\.enabled = true/);
+    expect(body).toContain("limit 50");
+  });
+
+  it("ne génère pas de messages pour un client sans description de l'offre (422 certain)", () => {
+    expect(body).toContain("coalesce(d.offer_description, '') <> ''");
+  });
+
+  it("compte chaque essai, attend 60 s la réponse, et reste inaccessible aux rôles publics", () => {
+    expect(body).toContain("set attempts = pipeline_retries.attempts + 1");
+    expect(body).toContain("timeout_milliseconds => 60000");
+    expect(sql).toContain("revoke execute on function public.retry_failed_enrichments() from public, anon, authenticated;");
+    expect(sql).toContain("select cron.schedule('retry-failed-enrichments', '*/10 * * * *'");
+  });
+
+  it("date chaque changement de statut (base de la fenêtre de relance)", () => {
+    expect(sql).toMatch(/create trigger prospects_status_changed_at before update of status on prospects/);
+    expect(sql).toContain("new.status_changed_at := now();");
+  });
+});
